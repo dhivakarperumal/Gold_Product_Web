@@ -1,9 +1,13 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const bcrypt = require('bcryptjs');
+const { pool } = require('../src/config/db');
 const {
   calculateEndDate,
+  createGoldShop,
   getPlanPrice,
-  isValidDate
+  isValidDate,
+  approveGoldShop
 } = require('../src/modules/superAdminGoldShopModule');
 const {
   validateShop,
@@ -112,4 +116,108 @@ test('requires a transaction reference and supported method for manual payment c
   assert.equal(validatePaymentConfirmation({ transactionId: 'REF-1', paymentMethod: 'unknown' }).error,
     'Select a valid payment method');
   assert.ok(validatePaymentConfirmation({ transactionId: `REF${'\n'}1`, paymentMethod: 'cash' }).error);
+});
+
+test('creates the shop admin user only after approval and preserves the submitted password', async () => {
+  const originalGetConnection = pool.getConnection;
+  const originalExecute = pool.execute;
+  const state = {
+    pendingCredentials: null,
+    user: null,
+    shop: {
+      id: 7,
+      email: 'owner@example.com',
+      mobile: '+919876543210',
+      owner_name: 'Shop Owner',
+      owner_user_id: null
+    }
+  };
+  const connection = {
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => {},
+    release: () => {},
+    execute: async (sql, values = []) => {
+      if (sql.includes('SELECT * FROM gold_shops')) return [[state.shop], []];
+      if (sql.includes('SELECT id FROM users WHERE email = ?')) return [[], []];
+      if (sql.includes('SELECT gold_shop_id FROM gold_shop_pending_credentials')) return [[], []];
+      if (sql.includes('INSERT INTO gold_shops')) return [{ insertId: state.shop.id }, []];
+      if (sql.includes('UPDATE gold_shops SET shop_code')) return [{ affectedRows: 1 }, []];
+      if (sql.includes('INSERT INTO gold_shop_pending_credentials')) {
+        state.pendingCredentials = { username: values[1], password_hash: values[2] };
+        return [{ affectedRows: 1 }, []];
+      }
+      if (sql.includes('FROM subscription_plans WHERE id')) {
+        return [[{
+          id: 1,
+          plan_name: 'Basic',
+          monthly_price: 500,
+          quarterly_price: 1500,
+          half_yearly_price: 3000,
+          yearly_price: 6000
+        }], []];
+      }
+      if (sql.includes('INSERT INTO subscriptions')) return [{ insertId: 12 }, []];
+      if (sql.includes('SELECT id, payment_status, subscription_status')) {
+        return [[{ id: 12, payment_status: 'paid', subscription_status: 'pending', is_current: 1 }], []];
+      }
+      if (sql.includes('SELECT username, password_hash FROM gold_shop_pending_credentials')) {
+        return [[state.pendingCredentials], []];
+      }
+      if (sql.includes('SELECT id FROM users WHERE email = ? OR phone = ? OR username = ?')) return [[], []];
+      if (sql.includes('INSERT INTO users')) {
+        state.user = {
+          username: values[1],
+          email: values[3],
+          password_hash: values[5],
+          role: 'admin',
+          status: 'active'
+        };
+        return [{ insertId: 50 }, []];
+      }
+      if (sql.includes('DELETE FROM gold_shop_pending_credentials')) {
+        state.pendingCredentials = null;
+        return [{ affectedRows: 1 }, []];
+      }
+      if (sql.includes("UPDATE gold_shops\n       SET status='active'")) {
+        state.shop.owner_user_id = values[0];
+        return [{ affectedRows: 1 }, []];
+      }
+      return [{ affectedRows: 1 }, []];
+    }
+  };
+  pool.getConnection = async () => connection;
+  pool.execute = async (sql) => {
+    if (sql.includes('FROM gold_shops gs')) return [[state.shop], []];
+    return [[], []];
+  };
+
+  try {
+    await createGoldShop({
+      shop_name: 'Gold House',
+      owner_name: state.shop.owner_name,
+      mobile: state.shop.mobile,
+      email: state.shop.email,
+      max_branches: 1,
+      max_staff: 1,
+      credentials: { username: 'shop.owner', password: 'secure-password' },
+      subscription: { plan_id: 1, duration: 'monthly', start_date: '2026-01-01' }
+    }, 3);
+
+    assert.equal(state.user, null);
+    assert.equal(state.pendingCredentials.username, 'shop.owner');
+    assert.equal(await bcrypt.compare('secure-password', state.pendingCredentials.password_hash), true);
+
+    await approveGoldShop(state.shop.id, 3);
+
+    assert.equal(state.user.username, 'shop.owner');
+    assert.equal(state.user.email, state.shop.email);
+    assert.equal(state.user.role, 'admin');
+    assert.equal(state.user.status, 'active');
+    assert.equal(await bcrypt.compare('secure-password', state.user.password_hash), true);
+    assert.equal(state.pendingCredentials, null);
+  } finally {
+    pool.getConnection = originalGetConnection;
+    pool.execute = originalExecute;
+  }
 });

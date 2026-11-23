@@ -137,6 +137,18 @@ async function initializeSuperAdminGoldShopModule() {
     ) ENGINE=InnoDB
   `);
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS gold_shop_pending_credentials (
+      gold_shop_id INT UNSIGNED NOT NULL,
+      username VARCHAR(150) NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (gold_shop_id),
+      UNIQUE KEY uq_gold_shop_pending_credentials_username (username),
+      CONSTRAINT fk_gold_shop_pending_credentials_shop
+        FOREIGN KEY (gold_shop_id) REFERENCES gold_shops(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS subscriptions (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       gold_shop_id INT UNSIGNED NOT NULL,
@@ -496,7 +508,7 @@ async function createGoldShop(input, actorId, documents = []) {
   let committed = false;
   try {
     await connection.beginTransaction();
-    let ownerUserId = null;
+    let pendingPasswordHash = null;
     if (input.credentials) {
       const [existingUsers] = await connection.execute(
         'SELECT id FROM users WHERE email = ? OR phone = ? OR username = ? LIMIT 1 FOR UPDATE',
@@ -505,13 +517,14 @@ async function createGoldShop(input, actorId, documents = []) {
       if (existingUsers.length) {
         throw new GoldShopError(409, 'The login email, mobile number, or username is already registered');
       }
-      const passwordHash = await bcrypt.hash(input.credentials.password, 12);
-      const [userResult] = await connection.execute(
-        `INSERT INTO users (user_id, username, name, email, phone, password_hash, role, status)
-         VALUES (?, ?, ?, ?, ?, ?, 'shopadmin', 'inactive')`,
-        [crypto.randomUUID(), input.credentials.username, input.owner_name, input.email, input.mobile, passwordHash]
+      const [pendingCredentials] = await connection.execute(
+        'SELECT gold_shop_id FROM gold_shop_pending_credentials WHERE username = ? LIMIT 1 FOR UPDATE',
+        [input.credentials.username]
       );
-      ownerUserId = userResult.insertId;
+      if (pendingCredentials.length) {
+        throw new GoldShopError(409, 'This login username is already registered for another pending shop');
+      }
+      pendingPasswordHash = await bcrypt.hash(input.credentials.password, 12);
     }
     const shopUuid = crypto.randomUUID();
     const temporaryCode = `TMP-${crypto.randomUUID()}`;
@@ -528,8 +541,15 @@ async function createGoldShop(input, actorId, documents = []) {
     const shopCode = `GOLD-${String(shopId).padStart(4, '0')}`;
     await connection.execute(
       'UPDATE gold_shops SET shop_code = ?, owner_user_id = ? WHERE id = ?',
-      [shopCode, ownerUserId, shopId]
+      [shopCode, null, shopId]
     );
+    if (pendingPasswordHash) {
+      await connection.execute(
+        `INSERT INTO gold_shop_pending_credentials (gold_shop_id, username, password_hash)
+         VALUES (?, ?, ?)`,
+        [shopId, input.credentials.username, pendingPasswordHash]
+      );
+    }
 
     await insertSubscription(connection, shopId, input.subscription, actorId);
     await insertGoldShopDocuments(connection, shopId, documents, actorId);
@@ -724,27 +744,35 @@ async function approveGoldShop(id, actorId) {
     let ownerUserId = shop.owner_user_id;
     if (!ownerUserId) {
       const normalizedEmail = shop.email.trim().toLowerCase();
-      const [existing] = await connection.execute(
-        'SELECT id FROM users WHERE email=? LIMIT 1 FOR UPDATE',
-        [normalizedEmail]
+      const [pendingRows] = await connection.execute(
+        'SELECT username, password_hash FROM gold_shop_pending_credentials WHERE gold_shop_id = ? FOR UPDATE',
+        [id]
       );
-      if (existing.length) {
-        ownerUserId = existing[0].id;
+      const pending = pendingRows[0];
+      if (pending) {
         const [existingUsers] = await connection.execute(
-          'SELECT role FROM users WHERE id=?',
-          [ownerUserId]
+          'SELECT id FROM users WHERE email = ? OR phone = ? OR username = ? LIMIT 1 FOR UPDATE',
+          [normalizedEmail, shop.mobile, pending.username]
         );
-        if (existingUsers[0]?.role === 'superadmin') {
-          throw new GoldShopError(409, 'Cannot reuse the Super Admin account for a gold shop');
+        if (existingUsers.length) {
+          throw new GoldShopError(409, 'The login email, mobile number, or username is already registered');
         }
-        const temporaryPassword = `${crypto.randomBytes(5).toString('hex').replace(/[^A-Za-z0-9]/g, 'A')}@123`;
-        const passwordHash = await bcrypt.hash(temporaryPassword, 12);
-        await connection.execute(
-          "UPDATE users SET role='admin', status='active', phone=COALESCE(phone, ?), username=?, password_hash=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-          [shop.mobile, shop.owner_name, passwordHash, ownerUserId]
+        const [userResult] = await connection.execute(
+          `INSERT INTO users
+           (user_id, username, name, email, phone, password_hash, role, status)
+           VALUES (?, ?, ?, ?, ?, ?, 'admin', 'active')`,
+          [crypto.randomUUID(), pending.username, shop.owner_name, normalizedEmail, shop.mobile, pending.password_hash]
         );
-        credentials = { identifier: normalizedEmail, temporaryPassword };
+        ownerUserId = userResult.insertId;
+        credentials = { identifier: normalizedEmail };
       } else {
+        const [existingUsers] = await connection.execute(
+          'SELECT id FROM users WHERE email = ? OR phone = ? LIMIT 1 FOR UPDATE',
+          [normalizedEmail, shop.mobile]
+        );
+        if (existingUsers.length) {
+          throw new GoldShopError(409, 'The shop login conflicts with an existing user account');
+        }
         const temporaryPassword = `${crypto.randomBytes(5).toString('hex').replace(/[^A-Za-z0-9]/g, 'A')}@123`;
         const passwordHash = await bcrypt.hash(temporaryPassword, 12);
         const [userResult] = await connection.execute(
@@ -757,11 +785,19 @@ async function approveGoldShop(id, actorId) {
         credentials = { identifier: normalizedEmail, temporaryPassword };
       }
     } else {
+      const [existingOwner] = await connection.execute(
+        'SELECT id FROM users WHERE id = ? FOR UPDATE',
+        [ownerUserId]
+      );
+      if (!existingOwner.length) {
+        throw new GoldShopError(409, 'The linked shop admin account no longer exists');
+      }
       await connection.execute(
         "UPDATE users SET role='admin', status='active', updated_at=CURRENT_TIMESTAMP WHERE id=?",
         [ownerUserId]
       );
     }
+    await connection.execute('DELETE FROM gold_shop_pending_credentials WHERE gold_shop_id = ?', [id]);
 
     await connection.execute(
       `UPDATE gold_shops
