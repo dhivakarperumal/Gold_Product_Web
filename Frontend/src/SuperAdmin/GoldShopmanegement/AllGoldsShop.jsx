@@ -469,13 +469,6 @@ export default function AllGoldsShop() {
 
   return (
     <main className="space-y-3 pb-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">Gold Shops Management</h1>
-          <p className="mt-1 mb-5 text-sm text-slate-500">Manage all registered gold shops.</p>
-        </div>
-      </header>
-
       <section aria-label="Gold shop summary" className="mb-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total Shops" value={summary.total_shops} note="All registered gold shops" icon={Store} theme="emerald" />
         <StatCard label="Pending" value={summary.pending_shops} note="Awaiting activation" icon={Clock3} theme="amber" />
