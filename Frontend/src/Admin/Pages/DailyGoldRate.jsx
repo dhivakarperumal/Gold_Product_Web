@@ -41,6 +41,9 @@ function blankForm() {
     expected_updated_at: null,
     expected_version: null,
     status: "Draft",
+    created_by: null,
+    created_by_name: "",
+    created_at: null,
     updated_by: null,
     updated_by_name: "",
     updated_at: null,
@@ -61,6 +64,9 @@ function formFromBatch(batch) {
     expected_updated_at: batch.updated_at,
     expected_version: batch.version,
     status: batch.status,
+    created_by: batch.created_by,
+    created_by_name: batch.created_by_name || "",
+    created_at: batch.created_at,
     updated_by: batch.updated_by,
     updated_by_name: batch.updated_by_name || "",
     updated_at: batch.updated_at,
@@ -262,7 +268,14 @@ export default function DailyGoldRate() {
             <p className="mt-2 text-lg font-bold">
               {currentLoading ? "Loading current rate..." : current ? `${formatRateDate(current.rate_date)} · effective ${new Date(current.effective_from).toLocaleString()}` : "No active rate has been configured."}
             </p>
-            {current && <p className="mt-1 text-xs text-white/70">Updated by {current.updated_by_name || `Admin ${current.updated_by}`} · last updated {new Date(current.updated_at).toLocaleString()}</p>}
+            {current && <p className="mt-1 text-xs text-white/70">
+              Created by {current.created_by_name || current.created_by || "Unknown"}
+              {current.created_by_name && current.created_by ? ` (${current.created_by})` : ""}
+              {" · "}{current.created_at ? new Date(current.created_at).toLocaleString() : "creation time unavailable"}
+              {" · "}Updated by {current.updated_by_name || current.updated_by || "Unknown"}
+              {current.updated_by_name && current.updated_by ? ` (${current.updated_by})` : ""}
+              {" · "}{current.updated_at ? new Date(current.updated_at).toLocaleString() : "update time unavailable"}
+            </p>}
           </div>
           <span className="rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-emerald-100">{rateSetStatus}</span>
         </div>
@@ -412,8 +425,10 @@ export default function DailyGoldRate() {
         <div className="flex shrink-0 flex-col gap-4 border-t border-slate-100 bg-slate-50/95 px-5 py-5 sm:px-7">
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
             <span>Rate status: <strong className="text-slate-700">{form.id ? form.status : "Unsaved"}</strong></span>
+            {form.id && <span>Created at: <strong>{form.created_at ? new Date(form.created_at).toLocaleString() : "Unavailable"}</strong></span>}
+            {form.id && <span>Created by: <strong>{form.created_by_name || form.created_by || "Unknown"}{form.created_by_name && form.created_by ? ` (${form.created_by})` : ""}</strong></span>}
             {form.id && <span>Last updated: <strong>{new Date(form.updated_at || form.expected_updated_at).toLocaleString()}</strong></span>}
-            {form.id && <span>Updated by: <strong>{form.updated_by_name || `Admin ${form.updated_by}`}</strong></span>}
+            {form.id && <span>Updated by: <strong>{form.updated_by_name || form.updated_by || "Unknown"}{form.updated_by_name && form.updated_by ? ` (${form.updated_by})` : ""}</strong></span>}
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <button type="button" disabled={saving} onClick={() => setFormOpen(false)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">Cancel</button>
@@ -428,10 +443,10 @@ export default function DailyGoldRate() {
         {historyLoading ? <p className="text-sm text-slate-500">Loading rate history...</p> : <>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[700px] text-left text-sm">
-                <thead className="bg-[#003B3B] text-xs uppercase tracking-wide text-white"><tr><th className="px-4 py-4">Rate date</th><th className="px-4 py-4">Status</th><th className="px-4 py-4">Effective from</th><th className="px-4 py-4">Updated by</th><th className="px-4 py-4">Last updated</th><th className="px-4 py-4">Action</th></tr></thead>
+              <table className="w-full min-w-[1100px] text-left text-sm">
+                <thead className="bg-[#003B3B] text-xs uppercase tracking-wide text-white"><tr><th className="px-4 py-4">Rate date</th><th className="px-4 py-4">Status</th><th className="px-4 py-4">Effective from</th><th className="px-4 py-4">Created by (user_id)</th><th className="px-4 py-4">Created at</th><th className="px-4 py-4">Updated by (user_id)</th><th className="px-4 py-4">Last updated</th><th className="px-4 py-4">Action</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">{visibleBatches.map((batch) => <tr key={batch.batch_id} className="transition hover:bg-emerald-50/40">
-                  <td className="px-4 py-3 font-semibold text-slate-800">{formatRateDate(batch.rate_date)}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${batch.status === "Active" ? "bg-emerald-50 text-emerald-700" : batch.status === "Draft" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{batch.status}</span></td><td className="px-4 py-3 text-slate-600">{new Date(batch.effective_from).toLocaleString()}</td><td className="px-4 py-3 text-slate-600">{batch.updated_by_name || `Admin ${batch.updated_by}`}</td><td className="px-4 py-3 text-slate-600">{new Date(batch.updated_at).toLocaleString()}</td><td className="px-4 py-3">{batch.status === "Draft" || batch.status === "Active" ? <button type="button" onClick={() => handleEditRateBatch(batch)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-bold text-[#008577] transition hover:bg-emerald-50"><FiEdit2 />{batch.status === "Draft" ? "Edit" : "Edit rates"}</button> : <span className="text-slate-400">—</span>}</td>
+                  <td className="px-4 py-3 font-semibold text-slate-800">{formatRateDate(batch.rate_date)}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${batch.status === "Active" ? "bg-emerald-50 text-emerald-700" : batch.status === "Draft" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{batch.status}</span></td><td className="px-4 py-3 text-slate-600">{new Date(batch.effective_from).toLocaleString()}</td><td className="px-4 py-3 text-slate-600">{batch.created_by_name || batch.created_by || "Unknown"}{batch.created_by_name && batch.created_by && <span className="block text-[10px] text-slate-400">{batch.created_by}</span>}</td><td className="px-4 py-3 text-slate-600">{batch.created_at ? new Date(batch.created_at).toLocaleString() : "—"}</td><td className="px-4 py-3 text-slate-600">{batch.updated_by_name || batch.updated_by || "Unknown"}{batch.updated_by_name && batch.updated_by && <span className="block text-[10px] text-slate-400">{batch.updated_by}</span>}</td><td className="px-4 py-3 text-slate-600">{new Date(batch.updated_at).toLocaleString()}</td><td className="px-4 py-3">{batch.status === "Draft" || batch.status === "Active" ? <button type="button" onClick={() => handleEditRateBatch(batch)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-bold text-[#008577] transition hover:bg-emerald-50"><FiEdit2 />{batch.status === "Draft" ? "Edit" : "Edit rates"}</button> : <span className="text-slate-400">—</span>}</td>
                 </tr>)}</tbody>
               </table>
               {!batches.length && <p className="px-4 py-6 text-center text-sm text-slate-500">No rate sets found.</p>}
@@ -444,7 +459,7 @@ export default function DailyGoldRate() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[800px] text-left text-xs">
                   <thead className="bg-slate-100 uppercase tracking-wide text-slate-600"><tr><th className="px-4 py-4">Timestamp</th><th className="px-4 py-4">Metal / grade / unit</th><th className="px-4 py-4">Previous</th><th className="px-4 py-4">New</th><th className="px-4 py-4">Action</th><th className="px-4 py-4">By / reason</th></tr></thead>
-                  <tbody className="divide-y divide-slate-100">{visibleHistory.map((item) => <tr key={item.id} className="transition hover:bg-slate-50"><td className="px-4 py-3 whitespace-nowrap text-slate-600">{new Date(item.changed_at).toLocaleString()}</td><td className="px-4 py-3 font-semibold text-slate-700">{item.metal_type} {item.purity} <span className="font-normal text-slate-500">/ {item.rate_unit === "carat" ? "ct" : "g"}</span></td><td className="px-4 py-3">{item.previous_rate == null ? "—" : currency(item.previous_rate)}</td><td className="px-4 py-3 font-semibold">{item.new_rate == null ? "—" : currency(item.new_rate)}</td><td className="px-4 py-3">{item.action}</td><td className="max-w-sm px-4 py-3 text-slate-600">{item.updated_by_name || `Admin ${item.changed_by}`} · {item.reason}</td></tr>)}</tbody>
+                  <tbody className="divide-y divide-slate-100">{visibleHistory.map((item) => <tr key={item.id} className="transition hover:bg-slate-50"><td className="px-4 py-3 whitespace-nowrap text-slate-600">{new Date(item.changed_at).toLocaleString()}</td><td className="px-4 py-3 font-semibold text-slate-700">{item.metal_type} {item.purity} <span className="font-normal text-slate-500">/ {item.rate_unit === "carat" ? "ct" : "g"}</span></td><td className="px-4 py-3">{item.previous_rate == null ? "—" : currency(item.previous_rate)}</td><td className="px-4 py-3 font-semibold">{item.new_rate == null ? "—" : currency(item.new_rate)}</td><td className="px-4 py-3">{item.action}</td><td className="max-w-sm px-4 py-3 text-slate-600">{item.updated_by_name || item.changed_by || "Unknown"}{item.updated_by_name && item.changed_by && <span className="block text-[10px] text-slate-400">{item.changed_by}</span>} · {item.reason}</td></tr>)}</tbody>
                 </table>
                 {!history.length && <p className="px-4 py-6 text-center text-sm text-slate-500">No rate changes have been recorded.</p>}
               </div>
