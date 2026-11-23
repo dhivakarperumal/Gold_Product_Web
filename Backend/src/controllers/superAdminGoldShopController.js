@@ -280,7 +280,7 @@ async function postGoldShop(req, res, next) {
       credentials,
       subscription,
       document_consent: body.documentConsent === true
-    }, req.adminUser.id, documents);
+    }, req.adminUser.id, documents, req.adminUser.user_id);
     return res.status(201).json({ message: 'Gold shop created; payment is pending Super Admin confirmation', shop: created });
   } catch (error) {
     await cleanupUploadedDocuments(req, error);
@@ -313,7 +313,7 @@ async function putGoldShop(req, res, next) {
     const updated = await updateGoldShop(Number(req.params.id), {
       ...shop,
       document_consent: body.documentConsent === true
-    }, req.adminUser.id, documents);
+    }, req.adminUser.id, documents, req.adminUser.user_id);
     if (!updated) {
       await cleanupUploadedDocuments(req);
       return res.status(404).json({ message: 'Gold shop not found' });
@@ -349,7 +349,12 @@ async function patchGoldShopStatus(req, res, next) {
   const status = String(req.body?.status || '').trim().toLowerCase();
   if (!SHOP_STATUSES.has(status)) return res.status(400).json({ message: 'Shop status is invalid' });
   try {
-    const shop = await updateGoldShopStatus(Number(req.params.id), status, req.adminUser.id);
+    const shop = await updateGoldShopStatus(
+      Number(req.params.id),
+      status,
+      req.adminUser.id,
+      req.adminUser.user_id
+    );
     if (!shop) return res.status(404).json({ message: 'Gold shop not found' });
     return res.json({ message: 'Gold shop status updated', shop });
   } catch (error) {
@@ -360,7 +365,7 @@ async function patchGoldShopStatus(req, res, next) {
 async function approveShop(req, res, next) {
   if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
   try {
-    const result = await approveGoldShop(Number(req.params.id), req.adminUser.id);
+    const result = await approveGoldShop(Number(req.params.id), req.adminUser.id, req.adminUser.user_id);
     if (!result) return res.status(404).json({ message: 'Gold shop not found' });
     return res.json({
       message: 'Gold shop approved and login access created',
@@ -375,7 +380,7 @@ async function approveShop(req, res, next) {
 async function rejectShop(req, res, next) {
   if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
   try {
-    const shop = await rejectGoldShop(Number(req.params.id), req.adminUser.id);
+    const shop = await rejectGoldShop(Number(req.params.id), req.adminUser.id, req.adminUser.user_id);
     if (!shop) return res.status(404).json({ message: 'Gold shop not found' });
     return res.json({ message: 'Gold shop rejected', shop });
   } catch (error) {
@@ -386,7 +391,7 @@ async function rejectShop(req, res, next) {
 async function deleteGoldShop(req, res, next) {
   if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
   try {
-    const deleted = await softDeleteGoldShop(Number(req.params.id), req.adminUser.id);
+    const deleted = await softDeleteGoldShop(Number(req.params.id), req.adminUser.id, req.adminUser.user_id);
     if (!deleted) return res.status(404).json({ message: 'Gold shop not found' });
     return res.json({ message: 'Gold shop archived' });
   } catch (error) {

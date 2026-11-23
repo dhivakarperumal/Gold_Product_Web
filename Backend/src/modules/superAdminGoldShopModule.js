@@ -110,8 +110,8 @@ async function initializeSuperAdminGoldShopModule() {
       deleted_at TIMESTAMP NULL DEFAULT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      created_by INT UNSIGNED NULL,
-      updated_by INT UNSIGNED NULL,
+      created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
+      updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       PRIMARY KEY (id),
       UNIQUE KEY uq_gold_shops_uuid (shop_uuid),
       UNIQUE KEY uq_gold_shops_code (shop_code),
@@ -120,8 +120,8 @@ async function initializeSuperAdminGoldShopModule() {
       UNIQUE KEY uq_gold_shops_name_mobile (shop_name, mobile),
       KEY idx_gold_shops_status (status),
       KEY idx_gold_shops_city (city),
-      CONSTRAINT fk_gold_shops_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-      CONSTRAINT fk_gold_shops_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+      CONSTRAINT fk_gold_shops_created_by_user_id FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
+      CONSTRAINT fk_gold_shops_updated_by_user_id FOREIGN KEY (updated_by) REFERENCES users(user_id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
   const [shopColumns] = await pool.execute(
@@ -141,6 +141,58 @@ async function initializeSuperAdminGoldShopModule() {
     await pool.query(
       "UPDATE gold_shops SET approval_status = 'approved' WHERE approved_at IS NOT NULL OR owner_user_id IS NOT NULL"
     );
+  }
+  const [shopAuditColumns] = await pool.execute(
+    `SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops'
+       AND COLUMN_NAME IN ('created_by', 'updated_by')`
+  );
+  const auditColumnTypes = new Map(shopAuditColumns.map((column) => [column.COLUMN_NAME, column.DATA_TYPE]));
+  for (const column of ['created_by', 'updated_by']) {
+    const [foreignKeys] = await pool.execute(
+      `SELECT CONSTRAINT_NAME, REFERENCED_COLUMN_NAME
+       FROM information_schema.KEY_COLUMN_USAGE
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops'
+         AND COLUMN_NAME = ? AND REFERENCED_TABLE_NAME = 'users'`,
+      [column]
+    );
+    for (const foreignKey of foreignKeys) {
+      if (foreignKey.REFERENCED_COLUMN_NAME === 'id') {
+        const constraintName = String(foreignKey.CONSTRAINT_NAME).replace(/`/g, '``');
+        await pool.query(`ALTER TABLE gold_shops DROP FOREIGN KEY \`${constraintName}\``);
+      }
+    }
+
+    if (auditColumnTypes.get(column) !== 'varchar') {
+      await pool.query(
+        `ALTER TABLE gold_shops
+         MODIFY COLUMN ${column} VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL`
+      );
+      if (['tinyint', 'smallint', 'mediumint', 'int', 'bigint'].includes(auditColumnTypes.get(column))) {
+        await pool.query(
+          `UPDATE gold_shops gs
+           LEFT JOIN users audit_user ON audit_user.id = CAST(gs.${column} AS UNSIGNED)
+           SET gs.${column} = audit_user.user_id
+           WHERE gs.${column} IS NOT NULL`
+        );
+      }
+    }
+
+    const targetConstraint = `fk_gold_shops_${column}_user_id`;
+    const [targetForeignKeys] = await pool.execute(
+      `SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops'
+         AND COLUMN_NAME = ? AND REFERENCED_TABLE_NAME = 'users'
+         AND REFERENCED_COLUMN_NAME = 'user_id'`,
+      [column]
+    );
+    if (!targetForeignKeys.length) {
+      await pool.query(
+        `ALTER TABLE gold_shops
+         ADD CONSTRAINT ${targetConstraint} FOREIGN KEY (${column})
+         REFERENCES users(user_id) ON DELETE SET NULL`
+      );
+    }
   }
   const [userShopColumn] = await pool.execute(
     "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'gold_shop_id'"
@@ -469,8 +521,8 @@ async function getGoldShopDetails(id) {
      FROM gold_shops gs
      ${latestSubscriptionJoin()}
      LEFT JOIN users owner ON owner.id = gs.owner_user_id
-     LEFT JOIN users creator ON creator.id = gs.created_by
-     LEFT JOIN users updater ON updater.id = gs.updated_by
+     LEFT JOIN users creator ON creator.user_id = gs.created_by
+     LEFT JOIN users updater ON updater.user_id = gs.updated_by
      WHERE gs.id = ? AND gs.deleted_at IS NULL`,
     [id]
   );
@@ -520,7 +572,7 @@ async function insertGoldShopDocuments(connection, shopId, documents, actorId) {
   }
 }
 
-async function createGoldShop(input, actorId, documents = []) {
+async function createGoldShop(input, actorId, documents = [], actorUserId = actorId) {
   const connection = await pool.getConnection();
   let shopId;
   let committed = false;
@@ -553,7 +605,7 @@ async function createGoldShop(input, actorId, documents = []) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [shopUuid, temporaryCode, input.shop_name, input.owner_name, input.mobile, input.email,
         input.gst_number, input.address, input.city, input.state, input.pincode, input.status,
-        input.notes, input.max_branches, input.max_staff, actorId, actorId]
+        input.notes, input.max_branches, input.max_staff, actorUserId, actorUserId]
     );
     shopId = shopResult.insertId;
     const shopCode = `GOLD-${String(shopId).padStart(4, '0')}`;
@@ -623,7 +675,7 @@ async function insertSubscription(connection, shopId, input, actorId) {
   });
 }
 
-async function updateGoldShop(id, input, actorId, documents = []) {
+async function updateGoldShop(id, input, actorId, documents = [], actorUserId = actorId) {
   const connection = await pool.getConnection();
   let committed = false;
   try {
@@ -636,7 +688,7 @@ async function updateGoldShop(id, input, actorId, documents = []) {
        WHERE id = ? AND deleted_at IS NULL`,
       [input.shop_name, input.owner_name, input.mobile, input.email, input.gst_number,
         input.address, input.city, input.state, input.pincode, input.notes,
-        input.max_branches, input.max_staff, actorId, id]
+        input.max_branches, input.max_staff, actorUserId, id]
     );
     if (!result.affectedRows) {
       await connection.rollback();
@@ -672,7 +724,7 @@ async function getGoldShopDocument(shopId, documentId) {
   return documents[0] || null;
 }
 
-async function updateGoldShopStatus(id, status, actorId) {
+async function updateGoldShopStatus(id, status, actorId, actorUserId = actorId) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -700,7 +752,7 @@ async function updateGoldShopStatus(id, status, actorId) {
         throw new GoldShopError(409, 'A shop can be activated only with a paid subscription in its current term');
       }
     }
-    await connection.execute('UPDATE gold_shops SET status = ?, updated_by = ? WHERE id = ?', [status, actorId, id]);
+    await connection.execute('UPDATE gold_shops SET status = ?, updated_by = ? WHERE id = ?', [status, actorUserId, id]);
     if (subscription && status === 'suspended') {
       await connection.execute(
         "UPDATE subscriptions SET subscription_status = 'suspended', updated_by = ? WHERE id = ?",
@@ -733,7 +785,7 @@ async function updateGoldShopStatus(id, status, actorId) {
   return getGoldShopDetails(id);
 }
 
-async function approveGoldShop(id, actorId) {
+async function approveGoldShop(id, actorId, actorUserId = actorId) {
   const connection = await pool.getConnection();
   let credentials = null;
   try {
@@ -817,7 +869,7 @@ async function approveGoldShop(id, actorId) {
       `UPDATE gold_shops
        SET approval_status='approved', owner_user_id=?, approved_at=CURRENT_TIMESTAMP, updated_by=?
        WHERE id=?`,
-      [ownerUserId, actorId, id]
+      [ownerUserId, actorUserId, id]
     );
     await logActivity(connection, id, actorId, 'shop.approved', {
       owner_user_id: ownerUserId,
@@ -833,7 +885,7 @@ async function approveGoldShop(id, actorId) {
   return { shop: await getGoldShopDetails(id), credentials };
 }
 
-async function rejectGoldShop(id, actorId) {
+async function rejectGoldShop(id, actorId, actorUserId = actorId) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -853,7 +905,7 @@ async function rejectGoldShop(id, actorId) {
       `UPDATE gold_shops
        SET approval_status = 'rejected', status = 'inactive', updated_by = ?
        WHERE id = ?`,
-      [actorId, id]
+      [actorUserId, id]
     );
     await connection.execute('DELETE FROM gold_shop_pending_credentials WHERE gold_shop_id = ?', [id]);
     await logActivity(connection, id, actorId, 'shop.rejected', {});
@@ -867,7 +919,7 @@ async function rejectGoldShop(id, actorId) {
   return getGoldShopDetails(id);
 }
 
-async function softDeleteGoldShop(id, actorId) {
+async function softDeleteGoldShop(id, actorId, actorUserId = actorId) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -875,7 +927,7 @@ async function softDeleteGoldShop(id, actorId) {
       `UPDATE gold_shops
        SET deleted_at = CURRENT_TIMESTAMP, status = 'inactive', updated_by = ?
        WHERE id = ? AND deleted_at IS NULL`,
-      [actorId, id]
+      [actorUserId, id]
     );
     if (!result.affectedRows) {
       await connection.rollback();

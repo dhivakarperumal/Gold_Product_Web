@@ -151,7 +151,11 @@ test('creates the shop admin user only after approval and preserves the submitte
       if (sql.includes('SELECT * FROM gold_shops')) return [[state.shop], []];
       if (sql.includes('SELECT id FROM users WHERE email = ?')) return [[], []];
       if (sql.includes('SELECT gold_shop_id FROM gold_shop_pending_credentials')) return [[], []];
-      if (sql.includes('INSERT INTO gold_shops')) return [{ insertId: state.shop.id }, []];
+      if (sql.includes('INSERT INTO gold_shops')) {
+        state.shop.created_by = values[15];
+        state.shop.updated_by = values[16];
+        return [{ insertId: state.shop.id }, []];
+      }
       if (sql.includes('UPDATE gold_shops SET shop_code')) return [{ affectedRows: 1 }, []];
       if (sql.includes('INSERT INTO gold_shop_pending_credentials')) {
         state.pendingCredentials = { username: values[1], password_hash: values[2] };
@@ -185,6 +189,7 @@ test('creates the shop admin user only after approval and preserves the submitte
       }
       if (sql.includes("SET approval_status='approved'")) {
         state.shop.owner_user_id = values[0];
+        state.shop.updated_by = values[1];
         state.shop.approval_status = 'approved';
         state.shop.approved_at = new Date();
         return [{ affectedRows: 1 }, []];
@@ -212,13 +217,15 @@ test('creates the shop admin user only after approval and preserves the submitte
       max_staff: 1,
       credentials: { username: 'shop.owner', password: 'secure-password' },
       subscription: { plan_id: 1, duration: 'monthly', start_date: '2026-01-01' }
-    }, 3);
+    }, 3, [], 'admin-user-uuid');
 
     assert.equal(state.user, null);
     assert.equal(state.pendingCredentials.username, 'shop.owner');
+    assert.equal(state.shop.created_by, 'admin-user-uuid');
+    assert.equal(state.shop.updated_by, 'admin-user-uuid');
     assert.equal(await bcrypt.compare('secure-password', state.pendingCredentials.password_hash), true);
 
-    await approveGoldShop(state.shop.id, 3);
+    await approveGoldShop(state.shop.id, 3, 'admin-user-uuid');
 
     assert.equal(state.user.username, 'shop.owner');
     assert.equal(state.user.email, state.shop.email);
@@ -228,6 +235,7 @@ test('creates the shop admin user only after approval and preserves the submitte
     assert.equal(await bcrypt.compare('secure-password', state.user.password_hash), true);
     assert.equal(state.pendingCredentials, null);
     assert.equal(state.shop.approval_status, 'approved');
+    assert.equal(state.shop.updated_by, 'admin-user-uuid');
     await assert.rejects(approveGoldShop(state.shop.id, 3), /already been approved/);
     assert.equal(state.user.gold_shop_id, state.shop.id);
   } finally {
@@ -249,11 +257,12 @@ test('rejecting a pending shop removes credentials without creating a user', asy
     commit: async () => {},
     rollback: async () => {},
     release: () => {},
-    execute: async (sql) => {
+    execute: async (sql, values = []) => {
       if (sql.includes('SELECT id, approval_status FROM gold_shops')) return [[state.shop], []];
       if (sql.includes("SET approval_status = 'rejected'")) {
         state.shop.approval_status = 'rejected';
         state.shop.status = 'inactive';
+        state.shop.updated_by = values[0];
         return [{ affectedRows: 1 }, []];
       }
       if (sql.includes('DELETE FROM gold_shop_pending_credentials')) {
@@ -266,9 +275,10 @@ test('rejecting a pending shop removes credentials without creating a user', asy
   pool.execute = async () => [[], []];
 
   try {
-    await rejectGoldShop(state.shop.id, 3);
+    await rejectGoldShop(state.shop.id, 3, 'admin-user-uuid');
     assert.equal(state.shop.approval_status, 'rejected');
     assert.equal(state.shop.status, 'inactive');
+    assert.equal(state.shop.updated_by, 'admin-user-uuid');
     assert.equal(state.pendingCredentials, null);
     assert.equal(state.user, null);
   } finally {
