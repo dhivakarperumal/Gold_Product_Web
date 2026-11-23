@@ -139,19 +139,11 @@ export default function AddSubScription({ initialPlan = null, mode = "create", s
                   {numberField("Setup Fee (₹)", "setupFee", form.setupFee, handleChange)}
                   {numberField("Free Trial Days", "freeTrialDays", form.freeTrialDays, handleChange)}
                 </div>
-              </section>
-
-              <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-extrabold text-slate-900">Limits</h3>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {numberField("Maximum Branches", "maxBranches", form.maxBranches, handleChange)}
-                  {numberField("Maximum Staff", "maxStaff", form.maxStaff, handleChange)}
-                  {numberField("Maximum Users", "maxUsers", form.maxUsers, handleChange)}
-                  {numberField("Maximum Products", "maxProducts", form.maxProducts, handleChange)}
-                  {numberField("Maximum Monthly Invoices", "maxMonthlyInvoices", form.maxMonthlyInvoices, handleChange)}
-                  {numberField("Grace Period Days", "gracePeriodDays", form.gracePeriodDays, handleChange)}
+                </section>
+                <div className="mt-3 space-y-3">
+                  <label className={labelClass}>Plan Status<select name="status" value={form.status} onChange={handleChange} className={inputClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
                 </div>
-              </section>
+              
             </div>
 
             <div className="space-y-4">
@@ -166,17 +158,7 @@ export default function AddSubScription({ initialPlan = null, mode = "create", s
                   ))}
                 </div>
               </section>
-              <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-extrabold text-slate-900">Additional Settings</h3>
-                <div className="mt-3 space-y-3">
-                  {numberField("Display Order", "displayOrder", form.displayOrder, handleChange)}
-                  <label className={labelClass}>Plan Status<select name="status" value={form.status} onChange={handleChange} className={inputClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
-                  <label className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-700">
-                    Featured Plan
-                    <input type="checkbox" name="isFeatured" checked={form.isFeatured} onChange={handleChange} className="h-4 w-4 accent-amber-600" />
-                  </label>
-                </div>
-              </section>
+              
             </div>
           </div>
 
