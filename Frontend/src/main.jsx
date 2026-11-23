@@ -102,6 +102,21 @@ const router = createHashRouter([
   },
   { path: "/login", element: <Login /> },
   { path: "/register", element: <Register /> },
+
+   {
+    path: "/superadmin",
+    element: (
+      <PrivateRoute allowedRoles={["superadmin"]}>
+        <AdminProvider>
+          <SuperAdminPanel />
+        </AdminProvider>
+      </PrivateRoute>
+    ),
+    errorElement: <ErrorPage />,
+    children: [
+      { index: true, element: <SuperDashboard /> },
+    ],
+  },
   {
     path: "/admin",
     element: (
