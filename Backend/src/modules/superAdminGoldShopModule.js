@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 
 const DEFAULT_PLANS = [
@@ -60,6 +61,18 @@ function getPlanPrice(plan, duration) {
 }
 
 async function initializeSuperAdminGoldShopModule() {
+  const [shopOwnerColumn] = await pool.execute(
+    "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops' AND COLUMN_NAME = 'owner_user_id'"
+  );
+  if (!shopOwnerColumn.length) {
+    await pool.query('ALTER TABLE gold_shops ADD COLUMN owner_user_id INT UNSIGNED NULL AFTER shop_uuid');
+  }
+  const [shopApprovedColumn] = await pool.execute(
+    "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops' AND COLUMN_NAME = 'approved_at'"
+  );
+  if (!shopApprovedColumn.length) {
+    await pool.query('ALTER TABLE gold_shops ADD COLUMN approved_at TIMESTAMP NULL DEFAULT NULL');
+  }
   await pool.query(`
     CREATE TABLE IF NOT EXISTS subscription_plans (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -511,6 +524,97 @@ async function updateGoldShopStatus(id, status, actorId) {
   return getGoldShopDetails(id);
 }
 
+async function approveGoldShop(id, actorId) {
+  const connection = await pool.getConnection();
+  let credentials = null;
+  try {
+    await connection.beginTransaction();
+    const [shops] = await connection.execute(
+      'SELECT * FROM gold_shops WHERE id=? AND deleted_at IS NULL FOR UPDATE',
+      [id]
+    );
+    const shop = shops[0];
+    if (!shop) return null;
+
+    const [subscriptions] = await connection.execute(
+      `SELECT id, payment_status, subscription_status, end_date >= CURRENT_DATE() AS is_current
+       FROM subscriptions WHERE gold_shop_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+      [id]
+    );
+    const subscription = subscriptions[0];
+    if (!subscription || subscription.payment_status !== 'paid' || !subscription.is_current) {
+      throw new GoldShopError(409, 'Approve this shop only after subscription payment is confirmed');
+    }
+    if (!shop.email) {
+      throw new GoldShopError(400, 'A shop email address is required to create login access');
+    }
+
+    let ownerUserId = shop.owner_user_id;
+    if (!ownerUserId) {
+      const normalizedEmail = shop.email.trim().toLowerCase();
+      const [existing] = await connection.execute(
+        'SELECT id FROM users WHERE email=? LIMIT 1 FOR UPDATE',
+        [normalizedEmail]
+      );
+      if (existing.length) {
+        ownerUserId = existing[0].id;
+        const [existingUsers] = await connection.execute(
+          'SELECT role FROM users WHERE id=?',
+          [ownerUserId]
+        );
+        if (existingUsers[0]?.role === 'superadmin') {
+          throw new GoldShopError(409, 'Cannot reuse the Super Admin account for a gold shop');
+        }
+        const temporaryPassword = `${crypto.randomBytes(5).toString('hex').replace(/[^A-Za-z0-9]/g, 'A')}@123`;
+        const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+        await connection.execute(
+          "UPDATE users SET role='shopadmin', status='active', phone=COALESCE(phone, ?), username=?, password_hash=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+          [shop.mobile, shop.owner_name, passwordHash, ownerUserId]
+        );
+        credentials = { identifier: normalizedEmail, temporaryPassword };
+      } else {
+        const temporaryPassword = `${crypto.randomBytes(5).toString('hex').replace(/[^A-Za-z0-9]/g, 'A')}@123`;
+        const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+        const [userResult] = await connection.execute(
+          `INSERT INTO users
+           (user_id, username, name, email, phone, password_hash, role, status)
+           VALUES (?, ?, ?, ?, ?, ?, 'shopadmin', 'active')`,
+          [crypto.randomUUID(), shop.owner_name, shop.owner_name, normalizedEmail, shop.mobile, passwordHash]
+        );
+        ownerUserId = userResult.insertId;
+        credentials = { identifier: normalizedEmail, temporaryPassword };
+      }
+    } else {
+      await connection.execute(
+        "UPDATE users SET role='shopadmin', status='active', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        [ownerUserId]
+      );
+    }
+
+    await connection.execute(
+      `UPDATE gold_shops
+       SET status='active', owner_user_id=?, approved_at=CURRENT_TIMESTAMP, updated_by=?
+       WHERE id=?`,
+      [ownerUserId, actorId, id]
+    );
+    await connection.execute(
+      "UPDATE subscriptions SET subscription_status='active', updated_by=? WHERE id=?",
+      [actorId, subscription.id]
+    );
+    await logActivity(connection, id, actorId, 'shop.approved', {
+      owner_user_id: ownerUserId,
+      login_created: Boolean(credentials)
+    });
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+  return { shop: await getGoldShopDetails(id), credentials };
+}
+
 async function softDeleteGoldShop(id, actorId) {
   const connection = await pool.getConnection();
   try {
@@ -577,6 +681,7 @@ async function listShopPayments(shopId) {
 module.exports = {
   DEFAULT_PLANS,
   GoldShopError,
+  approveGoldShop,
   addSubscription,
   calculateEndDate,
   createGoldShop,

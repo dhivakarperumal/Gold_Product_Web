@@ -1,5 +1,6 @@
 const {
   GoldShopError,
+  approveGoldShop,
   addSubscription,
   createGoldShop,
   getGoldShopDetails,
@@ -193,6 +194,21 @@ async function patchGoldShopStatus(req, res, next) {
   }
 }
 
+async function approveShop(req, res, next) {
+  if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
+  try {
+    const result = await approveGoldShop(Number(req.params.id), req.adminUser.id);
+    if (!result) return res.status(404).json({ message: 'Gold shop not found' });
+    return res.json({
+      message: 'Gold shop approved and login access created',
+      shop: result.shop,
+      credentials: result.credentials
+    });
+  } catch (error) {
+    return handleError(error, res, next);
+  }
+}
+
 async function deleteGoldShop(req, res, next) {
   if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
   try {
@@ -229,6 +245,7 @@ async function getGoldShopPayments(req, res, next) {
 }
 
 module.exports = {
+  approveShop,
   deleteGoldShop,
   getGoldShop,
   getGoldShopPayments,

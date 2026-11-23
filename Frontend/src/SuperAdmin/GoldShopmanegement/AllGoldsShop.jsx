@@ -279,6 +279,7 @@ export default function AllGoldsShop() {
   const [submitting, setSubmitting] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const [viewMode, setViewMode] = useState("table");
+  const [approvalCredentials, setApprovalCredentials] = useState(null);
   const [subscriptionForm, setSubscriptionForm] = useState(() => ({ planId: "", duration: "monthly", startDate: today() }));
 
   useEffect(() => {
@@ -431,6 +432,18 @@ export default function AllGoldsShop() {
     }
   };
 
+  const approveShop = async (shop) => {
+    if (!window.confirm(`Approve ${shop.shop_name} and create its Shop Admin login?`)) return;
+    try {
+      const { data } = await api.post(`/super-admin/gold-shops/${shop.id}/approve`);
+      if (data.credentials) setApprovalCredentials(data.credentials);
+      toast.success(data.message || "Gold shop approved.");
+      refreshList();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not approve this gold shop.");
+    }
+  };
+
   const archiveShop = async (shop) => {
     if (!window.confirm(`Archive ${shop.shop_name}? Its record and history will be retained.`)) return;
     try {
@@ -539,6 +552,9 @@ export default function AllGoldsShop() {
                   <button type="button" onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="View details"><Eye size={16} /></button>
                   <button type="button" onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50" title="Edit shop"><Pencil size={16} /></button>
                   <button type="button" onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50" title="Change subscription"><CreditCard size={16} /></button>
+                  {shop.status !== "active" && (
+                    <button type="button" onClick={() => approveShop(shop)} className="rounded-lg px-2 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50" title="Approve and create login">Approve</button>
+                  )}
                   <button type="button" onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50" title="Archive shop"><Trash2 size={16} /></button>
                 </div>
               </article>
@@ -549,7 +565,7 @@ export default function AllGoldsShop() {
             <table className="w-full min-w-[1120px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
               <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
                 <tr>
-                  <th className="rounded-tl-2xl px-4 py-3">Shop ID</th><th className="px-4 py-3">Shop name</th><th className="px-4 py-3">Owner</th><th className="px-4 py-3">Mobile</th><th className="px-4 py-3">City</th><th className="px-4 py-3">Plan</th><th className="px-4 py-3">Expiry</th><th className="px-4 py-3">Payment</th><th className="px-4 py-3">Shop status</th><th className="px-4 py-3">Created</th><th className="rounded-tr-2xl px-4 py-3">Actions</th>
+                  <th className="rounded-tl-2xl px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Mobile</th><th className="px-4 py-4">City</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Expiry</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Shop status</th><th className="px-4 py-4">Created</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -558,21 +574,26 @@ export default function AllGoldsShop() {
                   const action = shop.status === "active" ? "Suspend Shop" : "Activate Shop";
                   return (
                     <tr key={shop.id} className="transition hover:bg-amber-50/30">
-                      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs font-bold text-amber-800">{shop.shop_code}</td>
-                      <td className="px-4 py-3"><p className="font-semibold text-stone-800">{shop.shop_name}</p><p className="mt-0.5 text-xs text-stone-500">{shop.email || "No email"}</p></td>
-                      <td className="whitespace-nowrap px-4 py-3">{shop.owner_name}</td>
-                      <td className="whitespace-nowrap px-4 py-3">{shop.mobile}</td>
-                      <td className="whitespace-nowrap px-4 py-3"><span className="inline-flex items-center gap-1"><MapPin size={13} className="text-stone-400" />{shop.city || "—"}</span></td>
-                      <td className="whitespace-nowrap px-4 py-3">{shop.plan_name || "No plan"}</td>
-                      <td className="whitespace-nowrap px-4 py-3">{formatDate(shop.subscription_expiry)}</td>
-                      <td className="px-4 py-3"><StatusBadge value={shop.payment_status || "unpaid"} /></td>
-                      <td className="px-4 py-3"><StatusBadge value={shop.status} /></td>
-                      <td className="whitespace-nowrap px-4 py-3">{formatDate(shop.created_at)}</td>
-                      <td className="px-4 py-3">
+                      <td className="whitespace-nowrap px-4 py-4 font-mono text-xs font-bold text-amber-800">{shop.shop_code}</td>
+                      <td className="px-4 py-4"><p className="font-semibold text-stone-800">{shop.shop_name}</p><p className="mt-0.5 text-xs text-stone-500">{shop.email || "No email"}</p></td>
+                      <td className="whitespace-nowrap px-4 py-4">{shop.owner_name}</td>
+                      <td className="whitespace-nowrap px-4 py-4">{shop.mobile}</td>
+                      <td className="whitespace-nowrap px-4 py-4"><span className="inline-flex items-center gap-1"><MapPin size={13} className="text-stone-400" />{shop.city || "—"}</span></td>
+                      <td className="whitespace-nowrap px-4 py-4">{shop.plan_name || "No plan"}</td>
+                      <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.subscription_expiry)}</td>
+                      <td className="px-4 py-4"><StatusBadge value={shop.payment_status || "unpaid"} /></td>
+                      <td className="px-4 py-4"><StatusBadge value={shop.status} /></td>
+                      <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.created_at)}</td>
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-1">
                           <button type="button" title="View details" aria-label={`View ${shop.shop_name}`} onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><Eye size={16} /></button>
                           <button type="button" title="Edit shop" aria-label={`Edit ${shop.shop_name}`} onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil size={16} /></button>
                           <button type="button" title="Change subscription" aria-label={`Change subscription for ${shop.shop_name}`} onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50"><CreditCard size={16} /></button>
+                          {shop.status !== "active" && (
+                            <button type="button" title="Approve and create login" aria-label={`Approve ${shop.shop_name}`} onClick={() => approveShop(shop)} className="rounded-lg px-2 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50">
+                              Approve
+                            </button>
+                          )}
                           <button type="button" title={canActivate || shop.status === "active" ? action : "Payment confirmation required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>
                           <button type="button" title="Archive shop" aria-label={`Archive ${shop.shop_name}`} onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50"><Trash2 size={16} /></button>
                         </div>
@@ -604,6 +625,26 @@ export default function AllGoldsShop() {
       {modal === "details" && (
         <Modal title="Gold shop details" onClose={() => setModal(null)} wide>
           <ShopDetails shop={selectedShop} loading={detailLoading} />
+        </Modal>
+      )}
+      {approvalCredentials && (
+        <Modal title="Shop Admin login created" onClose={() => setApprovalCredentials(null)}>
+          <div className="space-y-4 p-5">
+            <p className="text-sm text-slate-600">Give these credentials to the gold shop owner. The temporary password should be changed after login.</p>
+            <div className="grid gap-3">
+              <label className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-500">
+                Login identifier
+                <input readOnly value={approvalCredentials.identifier} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" />
+              </label>
+              <label className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-500">
+                Temporary password
+                <input readOnly value={approvalCredentials.temporaryPassword} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-sm text-slate-800" />
+              </label>
+            </div>
+            <div className="flex justify-end border-t border-slate-100 pt-4">
+              <button type="button" onClick={() => setApprovalCredentials(null)} className="rounded-xl bg-[#00796B] px-4 py-2.5 text-sm font-bold text-white">Done</button>
+            </div>
+          </div>
         </Modal>
       )}
       {modal === "subscription" && selectedShop && (
