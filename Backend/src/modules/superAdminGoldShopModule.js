@@ -129,7 +129,66 @@ async function initializeSuperAdminGoldShopModule() {
   );
   const existingShopColumns = new Set(shopColumns.map((column) => column.COLUMN_NAME));
   if (!existingShopColumns.has('owner_user_id')) {
-    await pool.query('ALTER TABLE gold_shops ADD COLUMN owner_user_id INT UNSIGNED NULL AFTER shop_uuid');
+    await pool.query(
+      'ALTER TABLE gold_shops ADD COLUMN owner_user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER shop_uuid'
+    );
+  }
+  const [ownerUserColumns] = await pool.execute(
+    `SELECT DATA_TYPE FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops' AND COLUMN_NAME = 'owner_user_id'`
+  );
+  const [ownerUserForeignKeys] = await pool.execute(
+    `SELECT CONSTRAINT_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops'
+       AND COLUMN_NAME = 'owner_user_id' AND REFERENCED_TABLE_NAME = 'users'`
+  );
+  for (const foreignKey of ownerUserForeignKeys) {
+    if (foreignKey.REFERENCED_COLUMN_NAME === 'user_id') continue;
+    const constraintName = String(foreignKey.CONSTRAINT_NAME).replace(/`/g, '``');
+    await pool.query(`ALTER TABLE gold_shops DROP FOREIGN KEY \`${constraintName}\``);
+  }
+  if (ownerUserColumns[0]?.DATA_TYPE !== 'varchar') {
+    await pool.query(
+      'ALTER TABLE gold_shops MODIFY COLUMN owner_user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL'
+    );
+  }
+  const [orphanedLegacyOwners] = await pool.execute(
+    `SELECT gs.id FROM gold_shops gs
+     WHERE gs.owner_user_id REGEXP '^[0-9]+$'
+       AND NOT EXISTS (
+         SELECT 1 FROM users legacy_owner WHERE legacy_owner.id = CAST(gs.owner_user_id AS UNSIGNED)
+       )
+     LIMIT 1`
+  );
+  if (orphanedLegacyOwners.length) {
+    throw new Error(`Cannot migrate gold shop ${orphanedLegacyOwners[0].id}: its legacy owner account is missing`);
+  }
+  await pool.query(
+    `UPDATE gold_shops gs
+     JOIN users legacy_owner ON legacy_owner.id = CAST(gs.owner_user_id AS UNSIGNED)
+     SET gs.owner_user_id = legacy_owner.user_id
+     WHERE gs.owner_user_id REGEXP '^[0-9]+$'`
+  );
+  const [orphanedOwners] = await pool.execute(
+    `SELECT gs.id FROM gold_shops gs
+     LEFT JOIN users owner ON owner.user_id = gs.owner_user_id
+     WHERE gs.owner_user_id IS NOT NULL AND owner.user_id IS NULL
+     LIMIT 1`
+  );
+  if (orphanedOwners.length) {
+    throw new Error(`Cannot link gold shop ${orphanedOwners[0].id}: its owner user_id does not exist`);
+  }
+  const [ownerUserUuidForeignKeys] = await pool.execute(
+    `SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops'
+       AND COLUMN_NAME = 'owner_user_id' AND REFERENCED_TABLE_NAME = 'users'
+       AND REFERENCED_COLUMN_NAME = 'user_id'`
+  );
+  if (!ownerUserUuidForeignKeys.length) {
+    await pool.query(
+      `ALTER TABLE gold_shops ADD CONSTRAINT fk_gold_shops_owner_user
+       FOREIGN KEY (owner_user_id) REFERENCES users(user_id) ON DELETE SET NULL`
+    );
   }
   if (!existingShopColumns.has('approved_at')) {
     await pool.query('ALTER TABLE gold_shops ADD COLUMN approved_at TIMESTAMP NULL DEFAULT NULL');
@@ -206,6 +265,36 @@ async function initializeSuperAdminGoldShopModule() {
          FOREIGN KEY (gold_shop_id) REFERENCES gold_shops(id) ON DELETE SET NULL`
     );
   }
+  const [ownerShopMismatch] = await pool.execute(
+    `SELECT gs.id FROM gold_shops gs
+     JOIN users owner ON owner.user_id = gs.owner_user_id
+     WHERE owner.gold_shop_id IS NOT NULL AND owner.gold_shop_id <> gs.id
+     LIMIT 1`
+  );
+  if (ownerShopMismatch.length) {
+    throw new Error(`Cannot link gold shop ${ownerShopMismatch[0].id}: its owner is linked to a different shop`);
+  }
+  const [shopOwnerMismatch] = await pool.execute(
+    `SELECT gs.id FROM gold_shops gs
+     JOIN users linked_owner ON linked_owner.gold_shop_id = gs.id
+     WHERE gs.owner_user_id IS NOT NULL AND gs.owner_user_id <> linked_owner.user_id
+     LIMIT 1`
+  );
+  if (shopOwnerMismatch.length) {
+    throw new Error(`Cannot link gold shop ${shopOwnerMismatch[0].id}: its linked account differs from its owner`);
+  }
+  await pool.query(
+    `UPDATE gold_shops gs
+     JOIN users owner ON owner.gold_shop_id = gs.id
+     SET gs.owner_user_id = owner.user_id
+     WHERE gs.owner_user_id IS NULL`
+  );
+  await pool.query(
+    `UPDATE users owner
+     JOIN gold_shops gs ON gs.owner_user_id = owner.user_id
+     SET owner.gold_shop_id = gs.id
+     WHERE owner.gold_shop_id IS NULL`
+  );
   await pool.query(`
     CREATE TABLE IF NOT EXISTS gold_shop_pending_credentials (
       gold_shop_id INT UNSIGNED NOT NULL,
@@ -365,7 +454,7 @@ async function expireSubscriptions() {
          AND EXISTS (
            SELECT 1
            FROM gold_shops gs
-           WHERE gs.owner_user_id = u.id AND gs.deleted_at IS NULL
+           WHERE gs.owner_user_id = u.user_id AND gs.deleted_at IS NULL
              AND gs.status = 'inactive' AND gs.approved_at IS NOT NULL
              AND NOT EXISTS (
                SELECT 1 FROM subscriptions sub
@@ -378,7 +467,7 @@ async function expireSubscriptions() {
            SELECT 1
            FROM gold_shops active_shop
            JOIN subscriptions active_sub ON active_sub.gold_shop_id = active_shop.id
-           WHERE active_shop.owner_user_id = u.id AND active_shop.deleted_at IS NULL
+           WHERE active_shop.owner_user_id = u.user_id AND active_shop.deleted_at IS NULL
              AND active_shop.status = 'active' AND active_sub.subscription_status = 'active'
              AND active_sub.payment_status = 'paid'
              AND active_sub.end_date > CURRENT_DATE()
@@ -520,7 +609,7 @@ async function getGoldShopDetails(id) {
             (sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()) AS subscription_is_current
      FROM gold_shops gs
      ${latestSubscriptionJoin()}
-     LEFT JOIN users owner ON owner.id = gs.owner_user_id
+     LEFT JOIN users owner ON owner.user_id = gs.owner_user_id
      LEFT JOIN users creator ON creator.user_id = gs.created_by
      LEFT JOIN users updater ON updater.user_id = gs.updated_by
      WHERE gs.id = ? AND gs.deleted_at IS NULL`,
@@ -581,7 +670,7 @@ async function createGoldShop(input, actorId, documents = [], actorUserId = acto
     let pendingPasswordHash = null;
     if (input.credentials) {
       const [existingUsers] = await connection.execute(
-        'SELECT id FROM users WHERE email = ? OR phone = ? OR username = ? LIMIT 1 FOR UPDATE',
+        'SELECT user_id FROM users WHERE email = ? OR phone = ? OR username = ? LIMIT 1 FOR UPDATE',
         [input.email, input.mobile, input.credentials.username]
       );
       if (existingUsers.length) {
@@ -764,13 +853,13 @@ async function updateGoldShopStatus(id, status, actorId, actorUserId = actorId) 
         [actorId, subscription.id]
       );
       await connection.execute(
-        "UPDATE users SET status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        "UPDATE users SET status = 'active', updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
         [shop.owner_user_id]
       );
     }
     if (shop.owner_user_id && ['inactive', 'suspended'].includes(status)) {
       await connection.execute(
-        "UPDATE users SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        "UPDATE users SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
         [shop.owner_user_id]
       );
     }
@@ -817,23 +906,24 @@ async function approveGoldShop(id, actorId, actorUserId = actorId) {
       const pending = pendingRows[0];
       if (pending) {
         const [existingUsers] = await connection.execute(
-          'SELECT id FROM users WHERE email = ? OR phone = ? OR username = ? LIMIT 1 FOR UPDATE',
+          'SELECT user_id FROM users WHERE email = ? OR phone = ? OR username = ? LIMIT 1 FOR UPDATE',
           [normalizedEmail, shop.mobile, pending.username]
         );
         if (existingUsers.length) {
           throw new GoldShopError(409, 'The login email, mobile number, or username is already registered');
         }
-        const [userResult] = await connection.execute(
+        const ownerUserUuid = crypto.randomUUID();
+        await connection.execute(
           `INSERT INTO users
            (user_id, username, name, email, phone, gold_shop_id, password_hash, role, status)
            VALUES (?, ?, ?, ?, ?, ?, ?, 'admin', 'active')`,
-          [crypto.randomUUID(), pending.username, shop.owner_name, normalizedEmail, shop.mobile, id, pending.password_hash]
+          [ownerUserUuid, pending.username, shop.owner_name, normalizedEmail, shop.mobile, id, pending.password_hash]
         );
-        ownerUserId = userResult.insertId;
+        ownerUserId = ownerUserUuid;
         credentials = { identifier: normalizedEmail };
       } else {
         const [existingUsers] = await connection.execute(
-          'SELECT id FROM users WHERE email = ? OR phone = ? LIMIT 1 FOR UPDATE',
+          'SELECT user_id FROM users WHERE email = ? OR phone = ? LIMIT 1 FOR UPDATE',
           [normalizedEmail, shop.mobile]
         );
         if (existingUsers.length) {
@@ -841,26 +931,27 @@ async function approveGoldShop(id, actorId, actorUserId = actorId) {
         }
         const temporaryPassword = `${crypto.randomBytes(5).toString('hex').replace(/[^A-Za-z0-9]/g, 'A')}@123`;
         const passwordHash = await bcrypt.hash(temporaryPassword, 12);
-        const [userResult] = await connection.execute(
+        const ownerUserUuid = crypto.randomUUID();
+        await connection.execute(
           `INSERT INTO users
            (user_id, username, name, email, phone, gold_shop_id, password_hash, role, status)
            VALUES (?, ?, ?, ?, ?, ?, ?, 'admin', 'active')`,
-          [crypto.randomUUID(), shop.owner_name, shop.owner_name, normalizedEmail, shop.mobile, id, passwordHash]
+          [ownerUserUuid, shop.owner_name, shop.owner_name, normalizedEmail, shop.mobile, id, passwordHash]
         );
-        ownerUserId = userResult.insertId;
+        ownerUserId = ownerUserUuid;
         credentials = { identifier: normalizedEmail, temporaryPassword };
       }
     } else {
       const [existingOwner] = await connection.execute(
-        'SELECT id FROM users WHERE id = ? FOR UPDATE',
+        'SELECT user_id FROM users WHERE user_id = ? FOR UPDATE',
         [ownerUserId]
       );
       if (!existingOwner.length) {
         throw new GoldShopError(409, 'The linked shop admin account no longer exists');
       }
       await connection.execute(
-        "UPDATE users SET role='admin', status='active', updated_at=CURRENT_TIMESTAMP WHERE id=?",
-        [ownerUserId]
+        "UPDATE users SET role='admin', status='active', gold_shop_id=?, updated_at=CURRENT_TIMESTAMP WHERE user_id=?",
+        [id, ownerUserId]
       );
     }
     await connection.execute('DELETE FROM gold_shop_pending_credentials WHERE gold_shop_id = ?', [id]);

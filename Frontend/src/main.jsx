@@ -124,6 +124,7 @@ const router = createHashRouter([
       { path: "goldshop", element: <AllGoldsShop /> },
       { path: "goldshop/:id", element: <GoldShopDetails /> },
       { path: "subscription-plans", element: <AllSubscriptionPlan /> },
+      { path: "revenue-reports", element: <RevenueReports /> },
     ],
   },
   {

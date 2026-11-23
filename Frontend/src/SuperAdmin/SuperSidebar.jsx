@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
@@ -89,7 +89,7 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                   Sri Golds
                 </p>
                 <p className="text-xs font-medium tracking-wide text-emerald-50/75">
-                  Admin Panel
+                  Super Admin Panel
                 </p>
               </div>
             )}
@@ -105,7 +105,7 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         </div>
 
         {/* ========== NAVIGATION ========== */}
-        <nav aria-label="Admin navigation" className="hide-scrollbar flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
+        <nav aria-label="Super Admin navigation" className="hide-scrollbar flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const title = item.disabled ? `${item.label} (Coming soon)` : item.label;
@@ -158,18 +158,6 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
             );
           })}
         </nav>
-
-        {/* ========== STORE PROMOTION ========== */}
-        {!collapsed && (
-          <Link to="/" className="group relative mx-3 mb-4 block h-36 overflow-hidden rounded-2xl border border-white/15 shadow-lg shadow-black/15">
-            <img src="/images/Luxury Gold Jewelry Showcase.png" alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#032F2B]/95 via-[#063D37]/70 to-transparent" />
-            <div className="relative flex h-full flex-col items-start justify-center p-3">
-              <span className="max-w-28 text-sm font-semibold leading-snug text-white">Premium Jewellery Collection</span>
-              <span className="mt-2 rounded-lg bg-[#F5C45E] px-2.5 py-1 text-[10px] font-bold text-[#003B3B] transition-colors group-hover:bg-white">View Store →</span>
-            </div>
-          </Link>
-        )}
 
         {/* ========== COLLAPSE BUTTON ========== */}
         <button

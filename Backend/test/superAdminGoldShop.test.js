@@ -149,7 +149,7 @@ test('creates the shop admin user only after approval and preserves the submitte
     release: () => {},
     execute: async (sql, values = []) => {
       if (sql.includes('SELECT * FROM gold_shops')) return [[state.shop], []];
-      if (sql.includes('SELECT id FROM users WHERE email = ?')) return [[], []];
+      if (sql.includes('SELECT user_id FROM users WHERE email = ?')) return [[], []];
       if (sql.includes('SELECT gold_shop_id FROM gold_shop_pending_credentials')) return [[], []];
       if (sql.includes('INSERT INTO gold_shops')) {
         state.shop.created_by = values[15];
@@ -175,9 +175,10 @@ test('creates the shop admin user only after approval and preserves the submitte
       if (sql.includes('SELECT username, password_hash FROM gold_shop_pending_credentials')) {
         return [[state.pendingCredentials], []];
       }
-      if (sql.includes('SELECT id FROM users WHERE email = ? OR phone = ? OR username = ?')) return [[], []];
+      if (sql.includes('SELECT user_id FROM users WHERE email = ? OR phone = ? OR username = ?')) return [[], []];
       if (sql.includes('INSERT INTO users')) {
         state.user = {
+          user_id: values[0],
           username: values[1],
           email: values[3],
           gold_shop_id: values[5],
@@ -230,6 +231,8 @@ test('creates the shop admin user only after approval and preserves the submitte
     assert.equal(state.user.username, 'shop.owner');
     assert.equal(state.user.email, state.shop.email);
     assert.equal(state.user.gold_shop_id, state.shop.id);
+    assert.equal(state.shop.owner_user_id, state.user.user_id);
+    assert.match(state.user.user_id, /^[0-9a-f]{8}-[0-9a-f-]{27}$/i);
     assert.equal(state.user.role, 'admin');
     assert.equal(state.user.status, 'active');
     assert.equal(await bcrypt.compare('secure-password', state.user.password_hash), true);
@@ -238,6 +241,56 @@ test('creates the shop admin user only after approval and preserves the submitte
     assert.equal(state.shop.updated_by, 'admin-user-uuid');
     await assert.rejects(approveGoldShop(state.shop.id, 3), /already been approved/);
     assert.equal(state.user.gold_shop_id, state.shop.id);
+  } finally {
+    pool.getConnection = originalGetConnection;
+    pool.execute = originalExecute;
+  }
+});
+
+test('approves an existing shop account by user_id and links its gold_shop_id', async () => {
+  const originalGetConnection = pool.getConnection;
+  const originalExecute = pool.execute;
+  const ownerUserId = 'c0dd8c2c-33b9-4a2f-93f6-50cd674ab3de';
+  const state = {
+    shop: {
+      id: 11,
+      email: 'owner@example.com',
+      owner_name: 'Shop Owner',
+      owner_user_id: ownerUserId,
+      approval_status: 'pending'
+    },
+    linkedShopId: null
+  };
+  const connection = {
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => {},
+    release: () => {},
+    execute: async (sql, values = []) => {
+      if (sql.includes('SELECT * FROM gold_shops')) return [[state.shop], []];
+      if (sql.includes('SELECT user_id FROM users WHERE user_id = ?')) {
+        assert.deepEqual(values, [ownerUserId]);
+        return [[{ user_id: ownerUserId }], []];
+      }
+      if (sql.includes("SET role='admin', status='active', gold_shop_id=?")) {
+        state.linkedShopId = values[0];
+        assert.equal(values[1], ownerUserId);
+        return [{ affectedRows: 1 }, []];
+      }
+      if (sql.includes("SET approval_status='approved'")) {
+        state.shop.approval_status = 'approved';
+        return [{ affectedRows: 1 }, []];
+      }
+      return [{ affectedRows: 1 }, []];
+    }
+  };
+  pool.getConnection = async () => connection;
+  pool.execute = async (sql) => (sql.includes('FROM gold_shops gs') ? [[state.shop], []] : [[], []]);
+
+  try {
+    await approveGoldShop(state.shop.id, 3, 'admin-user-uuid');
+    assert.equal(state.linkedShopId, state.shop.id);
+    assert.equal(state.shop.approval_status, 'approved');
   } finally {
     pool.getConnection = originalGetConnection;
     pool.execute = originalExecute;

@@ -346,8 +346,10 @@ const SuperHeader = ({ onMenuClick }) => {
   // ✅ Safe values
   const userName = profileName || "Admin";
 
-  const userRole =
-    role
+  const normalizedRole = String(role || "").toLowerCase().replace(/[\s_-]/g, "");
+  const userRole = normalizedRole === "superadmin"
+    ? "Super Admin"
+    : role
       ? role.charAt(0).toUpperCase() + role.slice(1)
       : "Administrator";
 
