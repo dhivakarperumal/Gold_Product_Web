@@ -19,6 +19,10 @@ function formatStoredDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatDate(date) : "—";
 }
 
+function mobileLoginPassword(value) {
+  return String(value || "").replace(/[\s()-]/g, "").trim();
+}
+
 function estimatedEndDate(startDate, duration) {
   const months = { monthly: 1, quarterly: 3, half_yearly: 6, yearly: 12 }[duration];
   if (!months || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return "";
@@ -38,8 +42,8 @@ function createInitialForm(shop) {
     mobile: shop?.mobile || "",
     email: shop?.email || "",
     loginUsername: shop?.owner_username || "",
-    loginPassword: "",
-    confirmPassword: "",
+    loginPassword: mobileLoginPassword(shop?.mobile),
+    confirmPassword: mobileLoginPassword(shop?.mobile),
     gstNumber: shop?.gst_number || "",
     address: shop?.address || "",
     city: shop?.city || "",
@@ -193,7 +197,21 @@ export default function AddGoldShop({
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => {
+      if (name !== "mobile") return { ...current, [name]: value };
+
+      const currentMobilePassword = mobileLoginPassword(current.mobile);
+      return {
+        ...current,
+        mobile: value,
+        loginPassword: !current.loginPassword || current.loginPassword === currentMobilePassword
+          ? mobileLoginPassword(value)
+          : current.loginPassword,
+        confirmPassword: !current.confirmPassword || current.confirmPassword === currentMobilePassword
+          ? mobileLoginPassword(value)
+          : current.confirmPassword
+      };
+    });
     setFormError("");
   };
 
@@ -506,7 +524,7 @@ export default function AddGoldShop({
                   <Field label="Username" name="loginUsername" value={form.loginUsername} onChange={handleChange} required placeholder="e.g. sri-golds-admin" />
                   <PasswordField label="Password" name="loginPassword" value={form.loginPassword} onChange={handleChange} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} placeholder="At least 8 characters" />
                   <PasswordField label="Confirm password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} visible={showConfirmPassword} onToggle={() => setShowConfirmPassword((visible) => !visible)} placeholder="Re-enter the password" />
-                  <p className="text-xs text-stone-500 sm:col-span-2">The account stays inactive until the shop is approved and its subscription payment is confirmed. Passwords are stored securely as hashes.</p>
+                  <p className="text-xs text-stone-500 sm:col-span-2">The mobile number is used as the default password and updates automatically when the number changes. You can enter a different password. Using a phone number as a password is less secure. The account stays inactive until approval and payment confirmation; passwords are stored as secure hashes.</p>
                 </div>
               )}
             </section>

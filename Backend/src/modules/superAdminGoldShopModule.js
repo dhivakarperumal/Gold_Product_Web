@@ -274,7 +274,7 @@ async function expireSubscriptions() {
            SELECT 1 FROM subscriptions sub
            WHERE sub.gold_shop_id = s.id AND sub.subscription_status = 'active'
              AND sub.payment_status = 'paid'
-             AND sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()
+             AND sub.end_date > CURRENT_DATE()
          )`
     );
     await pool.execute(
@@ -285,7 +285,7 @@ async function expireSubscriptions() {
            SELECT 1 FROM subscriptions sub
            WHERE sub.gold_shop_id = s.id AND sub.subscription_status = 'active'
              AND sub.payment_status = 'paid'
-             AND sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()
+             AND sub.end_date > CURRENT_DATE()
          )`
     );
     await pool.execute(
@@ -301,7 +301,7 @@ async function expireSubscriptions() {
                SELECT 1 FROM subscriptions sub
                WHERE sub.gold_shop_id = gs.id AND sub.subscription_status = 'active'
                  AND sub.payment_status = 'paid'
-                 AND sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()
+                 AND sub.end_date > CURRENT_DATE()
              )
          )
          AND NOT EXISTS (
@@ -311,7 +311,7 @@ async function expireSubscriptions() {
            WHERE active_shop.owner_user_id = u.id AND active_shop.deleted_at IS NULL
              AND active_shop.status = 'active' AND active_sub.subscription_status = 'active'
              AND active_sub.payment_status = 'paid'
-             AND active_sub.start_date <= CURRENT_DATE() AND active_sub.end_date > CURRENT_DATE()
+             AND active_sub.end_date > CURRENT_DATE()
          )`
     );
   })();
@@ -728,13 +728,12 @@ async function approveGoldShop(id, actorId) {
     if (!shop) return null;
 
     const [subscriptions] = await connection.execute(
-      `SELECT id, payment_status, subscription_status,
-              start_date <= CURRENT_DATE() AND end_date > CURRENT_DATE() AS is_current
+      `SELECT id, payment_status, subscription_status
        FROM subscriptions WHERE gold_shop_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE`,
       [id]
     );
     const subscription = subscriptions[0];
-    if (!subscription || subscription.payment_status !== 'paid' || !subscription.is_current) {
+    if (!subscription || String(subscription.payment_status).toLowerCase() !== 'paid') {
       throw new GoldShopError(409, 'Approve this shop only after subscription payment is confirmed');
     }
     if (!shop.email) {

@@ -483,8 +483,8 @@ export default function AllGoldsShop() {
   };
 
   const approveShop = (shop) => {
-    if (shop.payment_status !== "paid" || shop.subscription_status === "expired" || !hasCurrentSubscription(shop)) {
-      toast.error("A paid subscription must be within its active dates before approving this shop.");
+    if (String(shop.payment_status).toLowerCase() !== "paid") {
+      toast.error("Confirm the subscription payment before approving this shop.");
       return;
     }
     setPendingApproval(shop);
@@ -602,11 +602,13 @@ export default function AllGoldsShop() {
         ) : viewMode === "grid" ? (
           <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
             {shops.map((shop) => {
-              const canApprove = shop.payment_status === "paid"
+              const canApprove = String(shop.payment_status).toLowerCase() === "paid";
+              const canActivate = Boolean(shop.approved_at)
                 && shop.subscription_status !== "expired"
                 && hasCurrentSubscription(shop);
-              const canActivate = Boolean(shop.approved_at) && canApprove;
-              const approvalUnavailableLabel = shop.payment_status !== "paid" ? "Payment pending" : "Subscription not current";
+              const approvalUnavailableLabel = !canApprove
+                ? "Confirm payment in View details before approval."
+                : "";
               const action = shop.status === "active" ? "Suspend Shop" : "Activate Shop";
               return (
               <article key={shop.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -625,16 +627,29 @@ export default function AllGoldsShop() {
                   <div><dt className="text-slate-400">Expiry</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.subscription_expiry)}</dd></div>
                   <div><dt className="text-slate-400">Payment</dt><dd className="mt-1"><StatusBadge value={shop.payment_status || "unpaid"} /></dd></div>
                 </dl>
-                <div className="mt-4 flex items-center justify-end gap-1 border-t border-slate-100 pt-3">
-                  <button type="button" onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="View details"><Eye size={16} /></button>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                  {shop.status !== "active" && (
+                    <button
+                      type="button"
+                      disabled={!canApprove}
+                      onClick={() => approveShop(shop)}
+                      title={canApprove ? "Approve and create login" : approvalUnavailableLabel}
+                      className="whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+                    >
+                      Approve
+                    </button>
+                  )}
+                  <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="View details and confirm payment"><Eye size={16} /></button>
                   <button type="button" onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50" title="Edit shop"><Pencil size={16} /></button>
                   <button type="button" onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50" title="Change subscription"><CreditCard size={16} /></button>
-                  {shop.status !== "active" && (
-                    <button type="button" disabled={!canApprove} onClick={() => approveShop(shop)} className="rounded-lg px-2 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent" title={canApprove ? "Approve and create login" : "A current paid subscription is required before approval"}>{canApprove ? "Approve" : approvalUnavailableLabel}</button>
-                  )}
                   <button type="button" title={canActivate || shop.status === "active" ? action : "Approval and a current paid subscription are required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>
                   <button type="button" onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50" title="Archive shop"><Trash2 size={16} /></button>
+                  </div>
                 </div>
+                {shop.status !== "active" && !canApprove && (
+                  <p className="mt-2 text-xs text-slate-500">{approvalUnavailableLabel}</p>
+                )}
               </article>
               );
             })}
@@ -649,12 +664,14 @@ export default function AllGoldsShop() {
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {shops.map((shop, index) => {
-                  const hasPaidCurrentSubscription = shop.payment_status === "paid"
+                  const hasPaidCurrentSubscription = String(shop.payment_status).toLowerCase() === "paid"
                     && shop.subscription_status !== "expired"
                     && hasCurrentSubscription(shop);
-                  const canApprove = hasPaidCurrentSubscription;
+                  const canApprove = String(shop.payment_status).toLowerCase() === "paid";
                   const canActivate = Boolean(shop.approved_at) && hasPaidCurrentSubscription;
-                  const approvalUnavailableLabel = shop.payment_status !== "paid" ? "Payment pending" : "Subscription not current";
+                  const approvalUnavailableLabel = !canApprove
+                    ? "Confirm payment in View details before approval."
+                    : "";
                   const action = shop.status === "active" ? "Suspend Shop" : "Activate Shop";
                   return (
                     <tr key={shop.id} className="transition hover:bg-amber-50/30">
@@ -671,12 +688,12 @@ export default function AllGoldsShop() {
                       <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.created_at)}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-1">
-                          <button type="button" title="View details" aria-label={`View ${shop.shop_name}`} onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><Eye size={16} /></button>
+                          <button type="button" title="View details and confirm payment" aria-label={`View details and confirm payment for ${shop.shop_name}`} onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><Eye size={16} /></button>
                           <button type="button" title="Edit shop" aria-label={`Edit ${shop.shop_name}`} onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil size={16} /></button>
                           <button type="button" title="Change subscription" aria-label={`Change subscription for ${shop.shop_name}`} onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50"><CreditCard size={16} /></button>
                           {shop.status !== "active" && (
-                            <button type="button" disabled={!canApprove} title={canApprove ? "Approve and create login" : "A current paid subscription is required before approval"} aria-label={canApprove ? `Approve ${shop.shop_name}` : `Approval unavailable for ${shop.shop_name}: ${approvalUnavailableLabel}`} onClick={() => approveShop(shop)} className="rounded-lg px-2 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent">
-                              {canApprove ? "Approve" : approvalUnavailableLabel}
+                            <button type="button" disabled={!canApprove} title={canApprove ? "Approve and create login" : approvalUnavailableLabel} aria-label={`Approve ${shop.shop_name}${canApprove ? "" : `; unavailable: ${approvalUnavailableLabel}`}`} onClick={() => approveShop(shop)} className="whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500">
+                              Approve
                             </button>
                           )}
                           <button type="button" title={canActivate || shop.status === "active" ? action : "Approval and a current paid subscription are required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>

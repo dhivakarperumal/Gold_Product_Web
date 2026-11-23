@@ -159,7 +159,7 @@ test('creates the shop admin user only after approval and preserves the submitte
       }
       if (sql.includes('INSERT INTO subscriptions')) return [{ insertId: 12 }, []];
       if (sql.includes('SELECT id, payment_status, subscription_status')) {
-        return [[{ id: 12, payment_status: 'paid', subscription_status: 'pending', is_current: 1 }], []];
+        return [[{ id: 12, payment_status: 'paid', subscription_status: 'pending' }], []];
       }
       if (sql.includes('SELECT username, password_hash FROM gold_shop_pending_credentials')) {
         return [[state.pendingCredentials], []];
