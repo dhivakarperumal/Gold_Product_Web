@@ -111,3 +111,46 @@ test('rate activation audits with user_id and retains numeric ID only for produc
     assert.equal(res.body.id, 1);
   });
 });
+
+test('daily rate history is requested only for the authenticated owner user_id', async () => {
+  const scopes = [];
+  await withControllerMocks({
+    listRateHistory: async (options) => {
+      scopes.push(options);
+      return [];
+    },
+    listRateBatches: async (options) => {
+      scopes.push(options);
+      return [];
+    }
+  }, async ({ getHistory }) => {
+    const res = responseRecorder();
+    await getHistory({
+      adminUser: { user_id: 'authenticated-user-uuid' }
+    }, res, (error) => { throw error; });
+
+    assert.deepEqual(scopes, [
+      { userId: 'authenticated-user-uuid' },
+      { limit: 100, userId: 'authenticated-user-uuid' }
+    ]);
+    assert.deepEqual(res.body, { history: [], batches: [] });
+  });
+});
+
+test('current daily rates are requested for the authenticated user_id', async () => {
+  let requestedUserId;
+  await withControllerMocks({
+    getCurrentGoldRates: async (userId) => {
+      requestedUserId = userId;
+      return { user_id: userId };
+    }
+  }, async ({ getCurrent }) => {
+    const res = responseRecorder();
+    await getCurrent({
+      adminUser: { user_id: 'authenticated-user-uuid' }
+    }, res, (error) => { throw error; });
+
+    assert.equal(requestedUserId, 'authenticated-user-uuid');
+    assert.deepEqual(res.body, { user_id: 'authenticated-user-uuid' });
+  });
+});

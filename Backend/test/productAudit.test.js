@@ -66,17 +66,20 @@ test('product creation stores the authenticated user UUID and ignores client aud
 
 test('product updates store the authenticated user UUID as updated_by', async () => {
   let updatedProduct;
+  let updatedOwner;
   const existingProduct = {
     id: 1,
     product_code: 'SKU-1',
+    created_by: 'authenticated-user-uuid',
     gold_rate_per_gram: null,
     gold_rate_date: null,
     final_selling_price: 0
   };
   await withControllerMocks({
     getProductById: async () => existingProduct,
-    updateProduct: async (id, product) => {
+    updateProduct: async (id, product, ownerUserId) => {
       updatedProduct = product;
+      updatedOwner = ownerUserId;
       return { ...existingProduct, ...product };
     }
   }, async ({ putProduct }) => {
@@ -94,6 +97,7 @@ test('product updates store the authenticated user UUID as updated_by', async ()
 
     assert.equal(res.statusCode, null);
     assert.equal(updatedProduct.updated_by, 'authenticated-user-uuid');
+    assert.equal(updatedOwner, 'authenticated-user-uuid');
   });
 });
 

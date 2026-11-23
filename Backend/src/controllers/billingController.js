@@ -279,7 +279,7 @@ function mapSelectedProducts(rawProducts, catalogProducts) {
   return { products };
 }
 
-async function resolveSelectedProducts(rawProducts) {
+async function resolveSelectedProducts(rawProducts, userId) {
   if (!Array.isArray(rawProducts) || rawProducts.length < 1 || rawProducts.length > MAX_ITEMS) {
     return { error: `Add between 1 and ${MAX_ITEMS} products` };
   }
@@ -288,7 +288,7 @@ async function resolveSelectedProducts(rawProducts) {
     return Number.isSafeInteger(id) && id > 0 ? id : null;
   });
   if (productIds.some((id) => id == null)) return mapSelectedProducts(rawProducts, []);
-  const catalogProducts = await getBillingProductsByIds([...new Set(productIds)]);
+  const catalogProducts = await getBillingProductsByIds([...new Set(productIds)], userId);
   return mapSelectedProducts(rawProducts, catalogProducts);
 }
 
@@ -304,9 +304,11 @@ async function getBillings(req, res, next) {
 
 async function postBilling(req, res, next) {
   try {
-    const { products, error: productsError } = await resolveSelectedProducts(req.body?.products);
+    const { products, error: productsError } = await resolveSelectedProducts(req.body?.products, req.adminUser.user_id);
     if (productsError) return res.status(400).json({ message: productsError });
-    const currentRateSet = req.body?.payment_type === 'EXCHANGE_GOLD' ? await getCurrentGoldRates() : null;
+    const currentRateSet = req.body?.payment_type === 'EXCHANGE_GOLD'
+      ? await getCurrentGoldRates(req.adminUser.user_id)
+      : null;
     const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet);
     if (error) return res.status(400).json({ message: error });
     return res.status(201).json(await createBilling(billing));
@@ -329,9 +331,11 @@ async function putBilling(req, res, next) {
     if (Number(existing.paid_amount) > 0) {
       return res.status(409).json({ message: 'A bill with recorded payments cannot be edited.' });
     }
-    const { products, error: productsError } = await resolveSelectedProducts(req.body?.products);
+    const { products, error: productsError } = await resolveSelectedProducts(req.body?.products, req.adminUser.user_id);
     if (productsError) return res.status(400).json({ message: productsError });
-    const currentRateSet = req.body?.payment_type === 'EXCHANGE_GOLD' ? await getCurrentGoldRates() : null;
+    const currentRateSet = req.body?.payment_type === 'EXCHANGE_GOLD'
+      ? await getCurrentGoldRates(req.adminUser.user_id)
+      : null;
     const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet);
     if (error) return res.status(400).json({ message: error });
     billing.invoice_no = existing.invoice_no;

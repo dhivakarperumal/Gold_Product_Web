@@ -525,7 +525,7 @@ async function postLoan(req, res, next) {
     return;
   }
   try {
-    const activeRateSet = await getCurrentGoldRates();
+    const activeRateSet = await getCurrentGoldRates(req.adminUser.user_id);
     const activeRate = findGoldRateForPurity(activeRateSet, loan.gold_purity, loan.metal_type);
     if (!activeRate) {
       const cleanupStatus = await rejectUploadedImage(req, next, 409);
@@ -614,7 +614,7 @@ async function putLoan(req, res, next) {
       loan.gold_rate_date = existingLoan.gold_rate_date;
       loan.gold_valuation = calculateMetalValuation(loan.net_gold_weight, existingLoan.gold_rate_per_gram);
     } else if (existingLoan.gold_rate_per_gram != null) {
-      const activeRateSet = await getCurrentGoldRates();
+      const activeRateSet = await getCurrentGoldRates(req.adminUser.user_id);
       const activeRate = findGoldRateForPurity(activeRateSet, loan.gold_purity, loan.metal_type);
       if (!activeRate) {
         const cleanupStatus = await rejectUploadedImage(req, next, 409);

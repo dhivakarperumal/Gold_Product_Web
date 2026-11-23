@@ -88,17 +88,18 @@ function rateForProduct(rates, purity, metalType) {
   return null;
 }
 
-async function recalculateProductPrices(connection, rates, { reason, userId, rateDate }) {
-  const [products] = await connection.query(`
+async function recalculateProductPrices(connection, rates, { reason, userId, rateDate, createdByUserId }) {
+  if (!createdByUserId) throw new Error('A user_id is required to recalculate product prices');
+  const [products] = await connection.execute(`
     SELECT id, product_code, metal_type, purity, net_gold_weight, making_charge_type,
       making_charge, wastage_type, wastage, stone_charges, other_charges, gst_rate,
       price_includes_gst, offer_type, offer, fixed_discount_amount,
       gold_rate_per_gram, gold_value, pre_discount_price, tax_amount, applied_discount,
       offer_price, final_selling_price
     FROM products
-    WHERE metal_type IS NOT NULL AND purity IS NOT NULL
+    WHERE created_by = ? AND metal_type IS NOT NULL AND purity IS NOT NULL
     FOR UPDATE
-  `);
+  `, [createdByUserId]);
   let changed = 0;
   for (const product of products) {
     const rate = rateForProduct(rates, product.purity, product.metal_type);

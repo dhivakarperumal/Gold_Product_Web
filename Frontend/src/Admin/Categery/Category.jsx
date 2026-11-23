@@ -41,6 +41,12 @@ const getCategoryImageUrl = (images) => {
     return typeof image === "string" ? resolveBackendImageUrl(image) : "";
 };
 
+const formatAuditDateTime = (dateString) => (
+    dateString
+        ? new Date(dateString).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })
+        : "—"
+);
+
 const Category = () => {
     const { user } = useAuth();
     // ---- Global State ----
@@ -50,7 +56,7 @@ const Category = () => {
         loading,
         refreshing
     } = useAdminCachedList("admin:categories", async () => {
-        const response = await api.get("/categories");
+        const response = await api.get("/categories/manage");
         return response.data;
     }, []);
 
@@ -261,21 +267,6 @@ const Category = () => {
         setIsModalOpen(true);
     };
 
-    // Helper for dummy date formatting if missing
-    const formatDate = (dateString) => {
-        if (!dateString) {
-            return {
-                date: "20 May 2024",
-                time: "10:30 AM"
-            };
-        }
-        const d = new Date(dateString);
-        return {
-            date: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-            time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-        };
-    };
-
     // ---- Renderers ----
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-screen pb-20 font-sans">
@@ -386,6 +377,7 @@ const Category = () => {
                                     <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider w-10">DESCRIPTION</th>
                                     <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider w-10">PRODUCTS</th>
                                     <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider w-10">STATUS</th>
+                                    <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider">CREATED / UPDATED</th>
                                     <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider w-10">ACTIONS</th>
                                 </tr>
                             </thead>
@@ -430,6 +422,10 @@ const Category = () => {
                                                         Inactive
                                                     </span>
                                                 )}
+                                            </td>
+                                            <td className="px-4 py-3 text-xs text-gray-500">
+                                                <div><span className="font-bold text-slate-600">Created:</span> {cat.created_by_name || cat.created_by || "—"} · {formatAuditDateTime(cat.created_at)}</div>
+                                                <div className="mt-1"><span className="font-bold text-slate-600">Updated:</span> {cat.updated_by_name || cat.updated_by || "—"} · {formatAuditDateTime(cat.updated_at)}</div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -488,6 +484,10 @@ const Category = () => {
                                                 <span className="inline-block px-2 py-0.5 mt-0.5 bg-stone-100 text-stone-600 text-[10px] font-bold uppercase rounded">Inactive</span>
                                             )}
                                         </div>
+                                    </div>
+                                    <div className="mb-4 space-y-1 border-t border-gray-100 pt-3 text-[10px] text-gray-500">
+                                        <p><span className="font-bold text-slate-600">Created:</span> {cat.created_by_name || cat.created_by || "—"} · {formatAuditDateTime(cat.created_at)}</p>
+                                        <p><span className="font-bold text-slate-600">Updated:</span> {cat.updated_by_name || cat.updated_by || "—"} · {formatAuditDateTime(cat.updated_at)}</p>
                                     </div>
                                 </div>
 

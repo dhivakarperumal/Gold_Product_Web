@@ -108,6 +108,7 @@ async function initializeGoldRateModule() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS gold_rates (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
       batch_id CHAR(36) NOT NULL,
       rate_date DATE NOT NULL,
       metal_type ENUM('Gold', 'Silver', 'Platinum', 'Diamond') NOT NULL,
@@ -125,11 +126,18 @@ async function initializeGoldRateModule() {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       UNIQUE KEY uq_gold_rates_batch_metal_purity (batch_id, metal_type, purity),
+      UNIQUE KEY uq_gold_rates_user_date_metal_purity (user_id, rate_date, metal_type, purity),
+      INDEX idx_gold_rates_user_current (user_id, status, effective_from),
       INDEX idx_gold_rates_current (status, effective_from),
       INDEX idx_gold_rates_rate_date (rate_date)
     )
   `);
   const [rateColumns] = await pool.query('SHOW COLUMNS FROM gold_rates');
+  if (!rateColumns.some((column) => column.Field === 'user_id')) {
+    await pool.query(
+      'ALTER TABLE gold_rates ADD COLUMN user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER id'
+    );
+  }
   if (!rateColumns.some((column) => column.Field === 'created_by')) {
     await pool.query(
       'ALTER TABLE gold_rates ADD COLUMN created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER effective_from'
@@ -195,6 +203,27 @@ async function initializeGoldRateModule() {
     'fk_gold_rates_created_by_user_id',
     { nullable: true }
   );
+  await pool.query('UPDATE gold_rates SET user_id = created_by WHERE user_id IS NULL AND created_by IS NOT NULL');
+  await migrateGoldRateAuditColumn('gold_rates', 'user_id', 'fk_gold_rates_user_id');
+  await ensureGoldRateIndexes();
+}
+
+async function ensureGoldRateIndexes() {
+  const [rows] = await pool.execute(
+    `SELECT INDEX_NAME FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_rates'`
+  );
+  const indexes = new Set(rows.map((row) => row.INDEX_NAME));
+  if (!indexes.has('uq_gold_rates_user_date_metal_purity')) {
+    await pool.query(
+      'ALTER TABLE gold_rates ADD UNIQUE KEY uq_gold_rates_user_date_metal_purity (user_id, rate_date, metal_type, purity)'
+    );
+  }
+  if (!indexes.has('idx_gold_rates_user_current')) {
+    await pool.query(
+      'ALTER TABLE gold_rates ADD INDEX idx_gold_rates_user_current (user_id, status, effective_from)'
+    );
+  }
 }
 
 function groupRows(rows) {
@@ -210,6 +239,7 @@ function groupRows(rows) {
         making_charge_value: Number(row.making_charge_value),
         wastage_percentage: Number(row.wastage_percentage),
         effective_from: row.effective_from_utc,
+        user_id: row.user_id,
         status: row.status,
         updated_by: row.updated_by,
         created_by: row.created_by,
@@ -244,10 +274,17 @@ const RATE_SELECT = `
   LEFT JOIN users updater ON updater.user_id = r.updated_by
 `;
 
-async function listRateBatches({ status, limit = 100 } = {}) {
+async function listRateBatches({ status, limit = 100, userId } = {}) {
+  if (!userId) throw new Error('A user_id is required to list daily gold rates');
+  const conditions = [];
   const params = [];
-  const where = status ? 'WHERE r.status = ?' : '';
-  if (status) params.push(status);
+  if (status) {
+    conditions.push('r.status = ?');
+    params.push(status);
+  }
+  conditions.push('r.user_id = ?');
+  params.push(userId);
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const [rows] = await pool.execute(
     `${RATE_SELECT} ${where} ORDER BY rate_date DESC, created_at DESC, id`,
     params
@@ -255,12 +292,13 @@ async function listRateBatches({ status, limit = 100 } = {}) {
   return groupRows(rows).slice(0, limit);
 }
 
-async function getCurrentGoldRates() {
-  const [rows] = await pool.query(`
+async function getCurrentGoldRates(userId) {
+  if (!userId) throw new Error('A user_id is required to load daily gold rates');
+  const [rows] = await pool.execute(`
     ${RATE_SELECT}
-    WHERE r.status = 'Active' AND r.effective_from <= UTC_TIMESTAMP()
+    WHERE r.user_id = ? AND r.status = 'Active' AND r.effective_from <= UTC_TIMESTAMP()
     ORDER BY r.effective_from DESC, r.created_at DESC, r.id DESC
-  `);
+  `, [userId]);
   const batches = groupRows(rows);
   return batches[0] || null;
 }
@@ -287,11 +325,11 @@ async function createRateBatch(batch, actorUserId) {
       const ratePerGram = batch.rates[spec.key];
       const [result] = await connection.execute(
         `INSERT INTO gold_rates
-          (batch_id, rate_date, metal_type, purity, rate_per_gram, rate_unit, making_charge_type,
+          (user_id, batch_id, rate_date, metal_type, purity, rate_per_gram, rate_unit, making_charge_type,
            making_charge_value, wastage_percentage, status, effective_from, created_by, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?, ?, ?)` ,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?, ?, ?)` ,
         [
-          batchId, batch.rate_date, spec.metal_type, spec.purity, ratePerGram, spec.rate_unit,
+          actorUserId, batchId, batch.rate_date, spec.metal_type, spec.purity, ratePerGram, spec.rate_unit,
           batch.making_charge_type, batch.making_charge_value, batch.wastage_percentage,
           batch.effective_from, actorUserId, actorUserId
         ]
@@ -309,18 +347,21 @@ async function createRateBatch(batch, actorUserId) {
   } finally {
     connection.release();
   }
-  return getRateBatchById(batchId);
+  return getRateBatchById(batchId, pool, actorUserId);
 }
 
-async function getRateBatchById(id, connection = pool) {
+async function getRateBatchById(id, connection = pool, userId) {
+  if (!userId) throw new Error('A user_id is required to load a daily rate set');
+  const params = [String(id), String(id), userId];
   const [rows] = await connection.execute(
-    `${RATE_SELECT} WHERE r.batch_id = ? OR r.id = ? ORDER BY r.id`,
-    [String(id), String(id)]
+    `${RATE_SELECT} WHERE (r.batch_id = ? OR r.id = ?) AND r.user_id = ? ORDER BY r.id`,
+    params
   );
   return groupRows(rows)[0] || null;
 }
 
-async function getRateBatchRowsForUpdate(batchId, connection) {
+async function getRateBatchRowsForUpdate(batchId, connection, userId) {
+  if (!userId) throw new Error('A user_id is required to lock a daily rate set');
   const [rows] = await connection.execute(`
     SELECT r.*, creator.username AS created_by_name, updater.username AS updated_by_name,
       DATE_FORMAT(r.rate_date, '%Y-%m-%d') AS rate_date_display,
@@ -329,8 +370,8 @@ async function getRateBatchRowsForUpdate(batchId, connection) {
     FROM gold_rates r
     LEFT JOIN users creator ON creator.user_id = r.created_by
     LEFT JOIN users updater ON updater.user_id = r.updated_by
-    WHERE r.batch_id = ? ORDER BY r.id FOR UPDATE
-  `, [batchId]);
+    WHERE r.batch_id = ? AND r.user_id = ? ORDER BY r.id FOR UPDATE
+  `, [batchId, userId]);
   return rows;
 }
 
@@ -338,14 +379,18 @@ async function updateRateBatch(id, batch, actorUserId, expectedVersion) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    const existing = await getRateBatchById(id, connection);
+    const existing = await getRateBatchById(id, connection, actorUserId);
     if (!existing) {
       await connection.rollback();
       return { error: 'NOT_FOUND' };
     }
-    const lockedRows = await getRateBatchRowsForUpdate(existing.batch_id, connection);
+    const lockedRows = await getRateBatchRowsForUpdate(existing.batch_id, connection, actorUserId);
     const lockedBatch = groupRows(lockedRows)[0];
     if (!lockedBatch) {
+      await connection.rollback();
+      return { error: 'NOT_FOUND' };
+    }
+    if (lockedRows.some((row) => row.user_id !== actorUserId)) {
       await connection.rollback();
       return { error: 'NOT_FOUND' };
     }
@@ -367,8 +412,9 @@ async function updateRateBatch(id, batch, actorUserId, expectedVersion) {
       || existingEffectiveFrom !== nextEffectiveFrom;
     await connection.execute(
       `UPDATE gold_rates SET rate_date = ?, making_charge_type = ?, making_charge_value = ?,
-        wastage_percentage = ?, effective_from = ?, updated_by = ?, version = version + 1 WHERE batch_id = ?`,
-      [batch.rate_date, batch.making_charge_type, batch.making_charge_value, batch.wastage_percentage, batch.effective_from, actorUserId, existing.batch_id]
+        wastage_percentage = ?, effective_from = ?, updated_by = ?, version = version + 1
+       WHERE batch_id = ? AND user_id = ?`,
+      [batch.rate_date, batch.making_charge_type, batch.making_charge_value, batch.wastage_percentage, batch.effective_from, actorUserId, existing.batch_id, actorUserId]
     );
     const existingRates = new Map(lockedRows.map((row) => [`${row.metal_type}:${row.purity}`, row]));
     for (const spec of RATE_SPECS) {
@@ -377,11 +423,11 @@ async function updateRateBatch(id, batch, actorUserId, expectedVersion) {
       if (!row) {
         const [result] = await connection.execute(
           `INSERT INTO gold_rates
-            (batch_id, rate_date, metal_type, purity, rate_per_gram, rate_unit, making_charge_type,
+            (user_id, batch_id, rate_date, metal_type, purity, rate_per_gram, rate_unit, making_charge_type,
              making_charge_value, wastage_percentage, status, effective_from, created_by, updated_by, version)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?, ?, ?, ?)`,
           [
-            existing.batch_id, batch.rate_date, spec.metal_type, spec.purity, newRate, spec.rate_unit,
+            actorUserId, existing.batch_id, batch.rate_date, spec.metal_type, spec.purity, newRate, spec.rate_unit,
             batch.making_charge_type, batch.making_charge_value, batch.wastage_percentage,
             batch.effective_from, actorUserId, actorUserId, lockedBatch.version + 1
           ]
@@ -402,13 +448,16 @@ async function updateRateBatch(id, batch, actorUserId, expectedVersion) {
         });
       }
       await connection.execute(
-        'UPDATE gold_rates SET rate_per_gram = ?, rate_unit = ? WHERE id = ?',
-        [newRate, spec.rate_unit, row.id]
+        'UPDATE gold_rates SET rate_per_gram = ?, rate_unit = ?, updated_by = ? WHERE id = ? AND user_id = ?',
+        [newRate, spec.rate_unit, actorUserId, row.id, actorUserId]
       );
     }
-    await connection.execute('UPDATE gold_rates SET version = ? WHERE batch_id = ?', [lockedBatch.version + 1, existing.batch_id]);
+    await connection.execute(
+      'UPDATE gold_rates SET version = ? WHERE batch_id = ? AND user_id = ?',
+      [lockedBatch.version + 1, existing.batch_id, actorUserId]
+    );
     await connection.commit();
-    return { batch: await getRateBatchById(existing.batch_id) };
+    return { batch: await getRateBatchById(existing.batch_id, pool, actorUserId) };
   } catch (error) {
     await connection.rollback();
     throw error;
@@ -429,14 +478,18 @@ async function activateRateBatch(id, reason, actorUserId, numericUserId) {
     }
     lockAcquired = true;
     await connection.beginTransaction();
-    let batch = await getRateBatchById(id, connection);
+    let batch = await getRateBatchById(id, connection, actorUserId);
     if (!batch) {
       await connection.rollback();
       return { error: 'NOT_FOUND' };
     }
-    const draftRows = await getRateBatchRowsForUpdate(batch.batch_id, connection);
+    const draftRows = await getRateBatchRowsForUpdate(batch.batch_id, connection, actorUserId);
     batch = groupRows(draftRows)[0];
     if (!batch) {
+      await connection.rollback();
+      return { error: 'NOT_FOUND' };
+    }
+    if (draftRows.some((row) => row.user_id !== actorUserId)) {
       await connection.rollback();
       return { error: 'NOT_FOUND' };
     }
@@ -447,7 +500,10 @@ async function activateRateBatch(id, reason, actorUserId, numericUserId) {
     }
     const [activeRows] = await connection.execute(
       `SELECT id, batch_id, metal_type, purity, rate_per_gram, rate_unit
-       FROM gold_rates WHERE status = 'Active' AND effective_from <= UTC_TIMESTAMP() FOR UPDATE`
+       FROM gold_rates
+       WHERE user_id = ? AND status = 'Active' AND effective_from <= UTC_TIMESTAMP()
+       FOR UPDATE`,
+      [actorUserId]
     );
     for (const row of activeRows) {
       await recordHistory(connection, {
@@ -459,12 +515,12 @@ async function activateRateBatch(id, reason, actorUserId, numericUserId) {
     }
     await connection.execute(
       `UPDATE gold_rates SET status = 'Archived', updated_by = ?
-       WHERE status = 'Active' AND effective_from <= UTC_TIMESTAMP()`,
-      [actorUserId]
+       WHERE user_id = ? AND status = 'Active' AND effective_from <= UTC_TIMESTAMP()`,
+      [actorUserId, actorUserId]
     );
     await connection.execute(
-      `UPDATE gold_rates SET status = 'Active', updated_by = ? WHERE batch_id = ?`,
-      [actorUserId, batch.batch_id]
+      `UPDATE gold_rates SET status = 'Active', updated_by = ? WHERE batch_id = ? AND user_id = ?`,
+      [actorUserId, batch.batch_id, actorUserId]
     );
     for (const row of batch.rates) {
       await recordHistory(connection, {
@@ -475,19 +531,20 @@ async function activateRateBatch(id, reason, actorUserId, numericUserId) {
       });
     }
     const [[effectiveRow]] = await connection.execute(
-      'SELECT effective_from <= UTC_TIMESTAMP() AS effective_now FROM gold_rates WHERE batch_id = ? LIMIT 1',
-      [batch.batch_id]
+      'SELECT effective_from <= UTC_TIMESTAMP() AS effective_now FROM gold_rates WHERE batch_id = ? AND user_id = ? LIMIT 1',
+      [batch.batch_id, actorUserId]
     );
     let priceRecalculation = null;
     if (Number(effectiveRow.effective_now) === 1) {
       priceRecalculation = await recalculateProductPrices(connection, batch.rates, {
         reason: `Daily rate activated: ${reason}`,
         rateDate: batch.rate_date,
-        userId: numericUserId
+        userId: numericUserId,
+        createdByUserId: actorUserId
       });
     }
     await connection.commit();
-    return { batch: await getRateBatchById(batch.batch_id), priceRecalculation };
+    return { batch: await getRateBatchById(batch.batch_id, pool, actorUserId), priceRecalculation };
   } catch (error) {
     await connection.rollback();
     throw error;
@@ -500,13 +557,59 @@ async function activateRateBatch(id, reason, actorUserId, numericUserId) {
   }
 }
 
-async function listRateHistory({ limit = 250 } = {}) {
+async function deleteRateBatch(id, userId) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const batch = await getRateBatchById(id, connection, userId);
+    if (!batch) {
+      await connection.rollback();
+      return { error: 'NOT_FOUND' };
+    }
+    const rows = await getRateBatchRowsForUpdate(batch.batch_id, connection, userId);
+    if (!rows.length || rows.some((row) => row.user_id !== userId)) {
+      await connection.rollback();
+      return { error: 'NOT_FOUND' };
+    }
+    if (rows.some((row) => row.status !== 'Draft')) {
+      await connection.rollback();
+      return { error: 'NOT_DRAFT' };
+    }
+    await connection.execute(
+      `DELETE FROM gold_rate_history
+       WHERE batch_id = ? AND EXISTS (
+         SELECT 1 FROM gold_rates owner_rate
+         WHERE owner_rate.batch_id = gold_rate_history.batch_id AND owner_rate.user_id = ?
+       )`,
+      [batch.batch_id, userId]
+    );
+    await connection.execute(
+      'DELETE FROM gold_rates WHERE batch_id = ? AND user_id = ?',
+      [batch.batch_id, userId]
+    );
+    await connection.commit();
+    return { deleted: true };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+async function listRateHistory({ limit = 250, userId } = {}) {
+  if (!userId) throw new Error('A user_id is required to list daily rate history');
+  const params = [userId, limit];
   const [rows] = await pool.execute(
     `SELECT h.id, h.batch_id, h.rate_id, h.metal_type, h.purity, h.rate_unit, h.previous_rate,
       h.new_rate, h.action, h.reason, h.changed_by, h.changed_at, u.username AS updated_by_name
      FROM gold_rate_history h LEFT JOIN users u ON u.user_id = h.changed_by
+     WHERE EXISTS (
+       SELECT 1 FROM gold_rates owner_rate
+       WHERE owner_rate.batch_id = h.batch_id AND owner_rate.user_id = ?
+     )
      ORDER BY h.changed_at DESC, h.id DESC LIMIT ?`,
-    [limit]
+    params
   );
   return rows.map((row) => ({
     ...row,
@@ -519,6 +622,7 @@ module.exports = {
   RATE_SPECS,
   activateRateBatch,
   createRateBatch,
+  deleteRateBatch,
   getCurrentGoldRates,
   getRateBatchById,
   findGoldRateForPurity,

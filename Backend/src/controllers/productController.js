@@ -190,7 +190,7 @@ async function postRecalculatePrices(req, res, next) {
       return res.status(400).json({ message: 'A reason of 1 to 500 characters is required' });
     }
     try {
-      const rateSet = await getCurrentGoldRates();
+      const rateSet = await getCurrentGoldRates(req.adminUser.user_id);
       if (!rateSet) return res.status(409).json({ message: 'Activate a daily gold rate before recalculating product prices' });
       const connection = await pool.getConnection();
       let result;
@@ -199,7 +199,8 @@ async function postRecalculatePrices(req, res, next) {
         result = await recalculateProductPrices(connection, rateSet.rates, {
           reason,
           rateDate: rateSet.rate_date,
-          userId: req.adminUser.id
+          userId: req.adminUser.id,
+          createdByUserId: req.adminUser.user_id
         });
         await connection.commit();
       } catch (error) {
@@ -227,7 +228,7 @@ async function postProduct(req, res, next) {
   if (error) return res.status(400).json({ message: error });
   try {
     if (Number(product.net_gold_weight) > 0) {
-      const activeRateSet = await getCurrentGoldRates();
+      const activeRateSet = await getCurrentGoldRates(req.adminUser.user_id);
       const activeRate = findGoldRateForPurity(activeRateSet, product.purity, product.metal_type);
       if (!activeRate) return res.status(409).json({ message: `No active ${product.metal_type || 'metal'} rate matches this product purity. Configure and activate the daily precious rates first.` });
       product.gold_rate_per_gram = activeRate.rate_per_gram;
@@ -257,9 +258,11 @@ async function putProduct(req, res, next) {
   if (error) return res.status(400).json({ message: error });
   try {
     const existingProduct = await getProductById(id);
-    if (!existingProduct) return res.status(404).json({ message: 'Product not found' });
+    if (!existingProduct || existingProduct.created_by !== req.adminUser.user_id) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
     if (Number(product.net_gold_weight) > 0) {
-      const activeRateSet = await getCurrentGoldRates();
+      const activeRateSet = await getCurrentGoldRates(req.adminUser.user_id);
       const activeRate = findGoldRateForPurity(activeRateSet, product.purity, product.metal_type);
       if (!activeRate) return res.status(409).json({ message: `No active ${product.metal_type || 'metal'} rate matches the updated product purity.` });
       product.gold_rate_per_gram = activeRate.rate_per_gram;
@@ -270,7 +273,12 @@ async function putProduct(req, res, next) {
       product.gold_rate_per_gram = existingProduct.gold_rate_per_gram;
       product.gold_rate_date = existingProduct.gold_rate_date;
     }
-    const updated = await updateProduct(id, { ...product, updated_by: req.adminUser.user_id });
+    const updated = await updateProduct(
+      id,
+      { ...product, updated_by: req.adminUser.user_id },
+      req.adminUser.user_id
+    );
+    if (!updated) return res.status(404).json({ message: 'Product not found' });
     if (product.gold_rate_per_gram != null
       && Number(existingProduct.final_selling_price) !== Number(updated.final_selling_price)) {
       await pool.execute(`
@@ -293,7 +301,11 @@ async function removeProduct(req, res, next) {
   const id = Number(req.params.id);
   if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ message: 'Product ID is invalid' });
   try {
-    if (!await deleteProduct(id)) return res.status(404).json({ message: 'Product not found' });
+    const existing = await getProductById(id);
+    if (!existing || existing.created_by !== req.adminUser.user_id) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    if (!await deleteProduct(id, req.adminUser.user_id)) return res.status(404).json({ message: 'Product not found' });
     return res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     return next(error);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { FiChevronLeft, FiChevronRight, FiEdit2, FiEye, FiPlus, FiSave, FiX } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiEdit2, FiEye, FiPlus, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 import { formatRateDate } from "../../PrivateRouter/goldRateUtils";
@@ -126,6 +126,7 @@ export default function DailyGoldRate() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingBatchId, setDeletingBatchId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [reasonOption, setReasonOption] = useState("");
   const [batchPage, setBatchPage] = useState(1);
@@ -243,6 +244,26 @@ export default function DailyGoldRate() {
     setFormOpen(true);
   };
 
+  const handleDeleteDraft = async (batch) => {
+    if (batch.status !== "Draft" || deletingBatchId !== null) return;
+    if (!window.confirm(`Delete the draft rate set for ${formatRateDate(batch.rate_date)}? This cannot be undone.`)) return;
+    setDeletingBatchId(batch.id);
+    try {
+      await api.delete(`/gold-rates/${batch.id}`);
+      if (form.id === batch.id) {
+        setForm(blankForm());
+        setFormOpen(false);
+      }
+      await loadHistory();
+      toast.success("Draft rate set deleted.");
+    } catch (error) {
+      console.error("Failed to delete draft gold rates:", error);
+      toast.error(error.response?.data?.message || "Could not delete the draft rate set.");
+    } finally {
+      setDeletingBatchId(null);
+    }
+  };
+
   const rateSetStatus = currentLoading ? "Loading" : current?.status || "Not configured";
 
   return (
@@ -253,7 +274,7 @@ export default function DailyGoldRate() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">Settings · Pricing</p>
             <h1 className="mt-1 text-2xl font-black sm:text-3xl">Daily Precious Rates</h1>
-            <p className="mt-2 max-w-2xl text-sm text-white/75">Manage audited Gold, Silver, Platinum and Diamond rates. Activation applies to new calculations only.</p>
+            <p className="mt-2 max-w-2xl text-sm text-white/75">Manage your own audited Gold, Silver, Platinum and Diamond rates. Activation applies to your new calculations only.</p>
           </div>
           <button type="button" onClick={() => { setForm(blankForm()); setReasonOption(""); setFormOpen(true); }} className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-white/20">
             <FiPlus /> New Rate Set
@@ -446,7 +467,7 @@ export default function DailyGoldRate() {
               <table className="w-full min-w-[1100px] text-left text-sm">
                 <thead className="bg-[#003B3B] text-xs uppercase tracking-wide text-white"><tr><th className="px-4 py-4">Rate date</th><th className="px-4 py-4">Status</th><th className="px-4 py-4">Effective from</th><th className="px-4 py-4">Created by (user_id)</th><th className="px-4 py-4">Created at</th><th className="px-4 py-4">Updated by (user_id)</th><th className="px-4 py-4">Last updated</th><th className="px-4 py-4">Action</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">{visibleBatches.map((batch) => <tr key={batch.batch_id} className="transition hover:bg-emerald-50/40">
-                  <td className="px-4 py-3 font-semibold text-slate-800">{formatRateDate(batch.rate_date)}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${batch.status === "Active" ? "bg-emerald-50 text-emerald-700" : batch.status === "Draft" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{batch.status}</span></td><td className="px-4 py-3 text-slate-600">{new Date(batch.effective_from).toLocaleString()}</td><td className="px-4 py-3 text-slate-600">{batch.created_by_name || batch.created_by || "Unknown"}{batch.created_by_name && batch.created_by && <span className="block text-[10px] text-slate-400">{batch.created_by}</span>}</td><td className="px-4 py-3 text-slate-600">{batch.created_at ? new Date(batch.created_at).toLocaleString() : "—"}</td><td className="px-4 py-3 text-slate-600">{batch.updated_by_name || batch.updated_by || "Unknown"}{batch.updated_by_name && batch.updated_by && <span className="block text-[10px] text-slate-400">{batch.updated_by}</span>}</td><td className="px-4 py-3 text-slate-600">{new Date(batch.updated_at).toLocaleString()}</td><td className="px-4 py-3">{batch.status === "Draft" || batch.status === "Active" ? <button type="button" onClick={() => handleEditRateBatch(batch)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-bold text-[#008577] transition hover:bg-emerald-50"><FiEdit2 />{batch.status === "Draft" ? "Edit" : "Edit rates"}</button> : <span className="text-slate-400">—</span>}</td>
+                  <td className="px-4 py-3 font-semibold text-slate-800">{formatRateDate(batch.rate_date)}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${batch.status === "Active" ? "bg-emerald-50 text-emerald-700" : batch.status === "Draft" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{batch.status}</span></td><td className="px-4 py-3 text-slate-600">{new Date(batch.effective_from).toLocaleString()}</td><td className="px-4 py-3 text-slate-600">{batch.created_by_name || batch.created_by || "Unknown"}{batch.created_by_name && batch.created_by && <span className="block text-[10px] text-slate-400">{batch.created_by}</span>}</td><td className="px-4 py-3 text-slate-600">{batch.created_at ? new Date(batch.created_at).toLocaleString() : "—"}</td><td className="px-4 py-3 text-slate-600">{batch.updated_by_name || batch.updated_by || "Unknown"}{batch.updated_by_name && batch.updated_by && <span className="block text-[10px] text-slate-400">{batch.updated_by}</span>}</td><td className="px-4 py-3 text-slate-600">{new Date(batch.updated_at).toLocaleString()}</td><td className="px-4 py-3"><div className="flex items-center gap-1">{batch.status === "Draft" || batch.status === "Active" ? <button type="button" onClick={() => handleEditRateBatch(batch)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-bold text-[#008577] transition hover:bg-emerald-50"><FiEdit2 />{batch.status === "Draft" ? "Edit" : "Edit rates"}</button> : <span className="text-slate-400">—</span>}{batch.status === "Draft" && <button type="button" disabled={deletingBatchId !== null} onClick={() => handleDeleteDraft(batch)} aria-label={`Delete draft rate set for ${formatRateDate(batch.rate_date)}`} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-bold text-rose-600 transition hover:bg-rose-50 disabled:cursor-wait disabled:opacity-50"><FiTrash2 />{deletingBatchId === batch.id ? "Deleting..." : "Delete"}</button>}</div></td>
                 </tr>)}</tbody>
               </table>
               {!batches.length && <p className="px-4 py-6 text-center text-sm text-slate-500">No rate sets found.</p>}

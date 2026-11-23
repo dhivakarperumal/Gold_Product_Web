@@ -5,15 +5,17 @@ const {
   getCurrent,
   getHistory,
   postRates,
-  putRates
+  putRates,
+  removeRates
 } = require('../controllers/goldRateController');
 
 const router = express.Router();
 
-router.get('/current', getCurrent);
+router.get('/current', requireAdmin, getCurrent);
 router.get('/history', requireAdmin, getHistory);
 router.post('/', requireAdmin, postRates);
 router.put('/:id', requireAdmin, putRates);
 router.post('/:id/activate', requireAdmin, activateRates);
+router.delete('/:id', requireAdmin, removeRates);
 
 module.exports = router;

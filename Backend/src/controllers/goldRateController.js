@@ -1,6 +1,7 @@
 const {
   activateRateBatch,
   createRateBatch,
+  deleteRateBatch,
   getCurrentGoldRates,
   listRateBatches,
   listRateHistory,
@@ -72,7 +73,7 @@ function sendBatchError(res, error) {
 
 async function getCurrent(req, res, next) {
   try {
-    return res.json(await getCurrentGoldRates());
+    return res.json(await getCurrentGoldRates(req.adminUser.user_id));
   } catch (error) {
     return next(error);
   }
@@ -80,8 +81,12 @@ async function getCurrent(req, res, next) {
 
 async function getHistory(req, res, next) {
   try {
-    const history = await listRateHistory();
-    return res.json({ history, batches: await listRateBatches({ limit: 100 }) });
+    const userId = req.adminUser.user_id;
+    const history = await listRateHistory({ userId });
+    return res.json({
+      history,
+      batches: await listRateBatches({ limit: 100, userId })
+    });
   } catch (error) {
     return next(error);
   }
@@ -94,6 +99,9 @@ async function postRates(req, res, next) {
     const batch = await createRateBatch(normalized.batch, req.adminUser.user_id);
     return res.status(201).json(batch);
   } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'A rate set already exists for this date and metal type' });
+    }
     return next(error);
   }
 }
@@ -115,6 +123,9 @@ async function putRates(req, res, next) {
     if (result.error) return sendBatchError(res, result.error);
     return res.json(result.batch);
   } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'A rate set already exists for this date and metal type' });
+    }
     return next(error);
   }
 }
@@ -144,4 +155,22 @@ async function activateRates(req, res, next) {
   }
 }
 
-module.exports = { activateRates, getCurrent, getHistory, normalizeBatch, postRates, putRates };
+async function removeRates(req, res, next) {
+  try {
+    const result = await deleteRateBatch(req.params.id, req.adminUser.user_id);
+    if (result.error) return sendBatchError(res, result.error);
+    return res.json({ message: 'Draft rate set deleted successfully' });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = {
+  activateRates,
+  getCurrent,
+  getHistory,
+  normalizeBatch,
+  postRates,
+  putRates,
+  removeRates
+};

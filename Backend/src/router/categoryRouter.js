@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   getCategories,
+  getManagedCategories,
   postCategory,
   putCategory,
   removeCategory
@@ -14,6 +15,7 @@ const {
 const router = express.Router();
 
 router.get('/', getCategories);
+router.get('/manage', requireAdmin, getManagedCategories);
 const receiveCategoryImages = (req, res, next) => {
   uploadCategoryImages.array('images', 20)(req, res, (error) => {
     if (!error) return next();

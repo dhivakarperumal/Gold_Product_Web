@@ -1,6 +1,10 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { calculateProductPricing, rateForProduct } = require('../src/services/productPricing');
+const {
+  calculateProductPricing,
+  rateForProduct,
+  recalculateProductPrices
+} = require('../src/services/productPricing');
 
 const baseProduct = {
   net_gold_weight: 10,
@@ -100,4 +104,26 @@ test('uses the gold rate for diamond-labelled karat jewellery and the only silve
 test('rejects invalid inputs and offer types', () => {
   assert.throws(() => calculateProductPricing({ ...baseProduct, net_gold_weight: -1 }, 8000), /non-negative/);
   assert.throws(() => calculateProductPricing({ ...baseProduct, offer_type: 'Invalid' }, 8000), /Offer type/);
+});
+
+test('product price recalculation requires and filters by the authenticated owner user_id', async () => {
+  const queries = [];
+  const connection = {
+    async execute(sql, params) {
+      queries.push({ sql, params });
+      return [[], []];
+    }
+  };
+  await assert.rejects(
+    recalculateProductPrices(connection, [], { reason: 'Rate update', userId: 12, rateDate: '2026-06-01' }),
+    /user_id is required/
+  );
+  await recalculateProductPrices(connection, [], {
+    reason: 'Rate update',
+    userId: 12,
+    rateDate: '2026-06-01',
+    createdByUserId: 'authenticated-user-uuid'
+  });
+  assert.match(queries[0].sql, /WHERE created_by = \?/);
+  assert.deepEqual(queries[0].params, ['authenticated-user-uuid']);
 });

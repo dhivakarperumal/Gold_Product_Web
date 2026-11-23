@@ -78,7 +78,7 @@ async function getBillingById(id) {
   return rows[0] || null;
 }
 
-async function getBillingProductsByIds(productIds) {
+async function getBillingProductsByIds(productIds, createdByUserId) {
   if (productIds.length === 0) return [];
   const placeholders = productIds.map(() => '?').join(', ');
   const [rows] = await pool.execute(
@@ -86,8 +86,8 @@ async function getBillingProductsByIds(productIds) {
       gold_rate_per_gram, gold_value, mrp, offer_type, offer_price, applied_discount, tax_amount,
       final_selling_price, status
      FROM products
-     WHERE id IN (${placeholders})`,
-    productIds
+     WHERE id IN (${placeholders}) AND created_by = ?`,
+    [...productIds, createdByUserId]
   );
   return rows;
 }

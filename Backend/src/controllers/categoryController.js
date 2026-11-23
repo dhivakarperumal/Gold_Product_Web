@@ -106,6 +106,14 @@ async function getCategories(req, res, next) {
   }
 }
 
+async function getManagedCategories(req, res, next) {
+  try {
+    return res.json(await listCategories({ includeAudit: true }));
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function postCategory(req, res, next) {
   let uploaded;
   let persisted = false;
@@ -120,7 +128,11 @@ async function postCategory(req, res, next) {
       await uploaded.cleanup();
       return res.status(400).json({ message: validationError });
     }
-    const created = await createCategory(category);
+    const created = await createCategory({
+      ...category,
+      createdBy: req.adminUser.user_id,
+      updatedBy: req.adminUser.user_id
+    });
     persisted = true;
     return res.status(201).json(created);
   } catch (error) {
@@ -152,7 +164,10 @@ async function putCategory(req, res, next) {
       await uploaded.cleanup();
       return res.status(404).json({ message: 'Category not found' });
     }
-    const updated = await updateCategory(req.params.catId, category);
+    const updated = await updateCategory(req.params.catId, {
+      ...category,
+      updatedBy: req.adminUser.user_id
+    });
     if (!updated) {
       await uploaded.cleanup();
       return res.status(404).json({ message: 'Category not found' });
@@ -182,4 +197,10 @@ async function removeCategory(req, res, next) {
   }
 }
 
-module.exports = { getCategories, postCategory, putCategory, removeCategory };
+module.exports = {
+  getCategories,
+  getManagedCategories,
+  postCategory,
+  putCategory,
+  removeCategory
+};

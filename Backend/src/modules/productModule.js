@@ -399,20 +399,29 @@ async function createProduct(product) {
   return getProductById(result.insertId);
 }
 
-async function updateProduct(id, product) {
+async function updateProduct(id, product, createdByUserId) {
   const columns = Object.keys(product);
   const values = columns.map((column) =>
     JSON_COLUMNS.has(column) && product[column] != null ? JSON.stringify(product[column]) : product[column]
   );
   await pool.execute(
-    `UPDATE products SET ${columns.map((column) => `\`${column}\` = ?`).join(', ')} WHERE id = ?`,
-    [...values, id]
+    `UPDATE products SET ${columns.map((column) => `\`${column}\` = ?`).join(', ')}
+     WHERE id = ? AND created_by = ?`,
+    [...values, id, createdByUserId]
   );
+  const [[{ matches }]] = await pool.execute(
+    'SELECT COUNT(*) AS matches FROM products WHERE id = ? AND created_by = ?',
+    [id, createdByUserId]
+  );
+  if (!matches) return null;
   return getProductById(id);
 }
 
-async function deleteProduct(id) {
-  const [result] = await pool.execute('DELETE FROM products WHERE id = ?', [id]);
+async function deleteProduct(id, createdByUserId) {
+  const [result] = await pool.execute(
+    'DELETE FROM products WHERE id = ? AND created_by = ?',
+    [id, createdByUserId]
+  );
   return result.affectedRows > 0;
 }
 
