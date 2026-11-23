@@ -105,8 +105,8 @@ export default function AddGoldShop({
       city: form.city.trim(),
       state: form.state.trim(),
       pincode: form.pincode.trim(),
-      maxBranches: Number(form.maxBranches),
-      maxStaff: Number(form.maxStaff),
+      maxBranches: isEditing ? (initialShop?.max_branches || 1) : 1,
+      maxStaff: isEditing ? (initialShop?.max_staff || 1) : 1,
       notes: form.notes.trim()
     };
     if (!isEditing) {
@@ -239,8 +239,6 @@ export default function AddGoldShop({
           <section className={sectionClass}>
             <h3 className="mb-4 font-bold text-stone-800">Additional settings</h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Maximum branches" name="maxBranches" value={form.maxBranches} onChange={handleChange} required type="number" min="1" max="100000" />
-              <Field label="Maximum staff accounts" name="maxStaff" value={form.maxStaff} onChange={handleChange} required type="number" min="1" max="100000" />
               <label className={`${labelClass} sm:col-span-2`}>
                 Admin notes
                 <textarea className={`${inputClass} min-h-20 resize-y`} name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Internal notes about this shop" />
