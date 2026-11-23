@@ -14,6 +14,11 @@ function formatDate(value) {
   return `${day} ${monthName} ${year}`;
 }
 
+function formatStoredDate(value) {
+  const date = value instanceof Date ? value.toISOString().slice(0, 10) : String(value || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatDate(date) : "—";
+}
+
 function estimatedEndDate(startDate, duration) {
   const months = { monthly: 1, quarterly: 3, half_yearly: 6, yearly: 12 }[duration];
   if (!months || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return "";
@@ -434,9 +439,23 @@ export default function AddGoldShop({
                 )}
               </div>
 
-              {!isEditing && (
-                <div className={sectionClass}>
-                  <h3 className="mb-4 font-bold text-stone-800">Subscription Details</h3>
+              {isEditing && <p className="text-xs text-stone-500">Current status: <span className="font-semibold capitalize text-stone-700">{initialShop?.status || "unknown"}</span>. Change status from the shop actions.</p>}
+            </section>
+
+            <section id="gold-shop-panel-subscription" role="tabpanel" aria-labelledby="gold-shop-tab-subscription" hidden={activeTab !== "subscription"} className={sectionClass}>
+              <h3 className="mb-4 font-bold text-stone-800">Subscription Details</h3>
+              {isEditing ? (
+                <div className="grid gap-3 text-sm sm:grid-cols-2">
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Plan</p><p className="mt-1 font-semibold text-stone-800">{shopDetails?.plan_name || "No plan"}</p></div>
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Duration</p><p className="mt-1 font-semibold capitalize text-stone-800">{shopDetails?.duration?.replace("_", " ") || "—"}</p></div>
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Amount</p><p className="mt-1 font-semibold text-stone-800">{shopDetails?.subscription_amount == null ? "—" : `₹${Number(shopDetails.subscription_amount).toLocaleString("en-IN")}`}</p></div>
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className="mt-1 font-semibold capitalize text-stone-800">{shopDetails?.payment_status || "—"}</p></div>
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Start date</p><p className="mt-1 font-semibold text-stone-800">{formatStoredDate(shopDetails?.start_date)}</p></div>
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Expiry date</p><p className="mt-1 font-semibold text-stone-800">{formatStoredDate(shopDetails?.end_date)}</p></div>
+                  <p className="text-xs text-stone-500 sm:col-span-2">Use Change Subscription from the shop actions to modify this subscription.</p>
+                </div>
+              ) : (
+                <>
                   <p className="mb-4 text-xs text-stone-500">Price is read from the selected plan; payment remains pending until confirmed.</p>
                   {!plans.length ? (
                     <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">No active subscription plans are available.</p>
@@ -467,9 +486,8 @@ export default function AddGoldShop({
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className="mt-1 text-sm font-semibold text-amber-800">Pending gateway confirmation</p></div>
                     </div>
                   )}
-                </div>
+                </>
               )}
-              {isEditing && <p className="text-xs text-stone-500">Current status: <span className="font-semibold capitalize text-stone-700">{initialShop?.status || "unknown"}</span>. Change status from the shop actions.</p>}
             </section>
 
             <section id="gold-shop-panel-login" role="tabpanel" aria-labelledby="gold-shop-tab-login" hidden={activeTab !== "login"} className={sectionClass}>
