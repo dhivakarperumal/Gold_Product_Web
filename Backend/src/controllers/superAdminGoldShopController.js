@@ -2,6 +2,7 @@ const path = require('node:path');
 const {
   GoldShopError,
   approveGoldShop,
+  rejectGoldShop,
   addSubscription,
   confirmGoldShopPayment,
   createGoldShop,
@@ -175,10 +176,6 @@ function validateShop(body, { creating = false } = {}) {
     return { error: 'Maximum staff accounts must be between 1 and 100000' };
   }
   if (!SHOP_STATUSES.has(status)) return { error: 'Shop status is invalid' };
-  if (creating && status === 'active') {
-    return { error: 'A new shop cannot be active until its subscription payment is confirmed' };
-  }
-
   return {
     shop: {
       shop_name: shopName,
@@ -193,7 +190,7 @@ function validateShop(body, { creating = false } = {}) {
       notes,
       max_branches: maxBranches,
       max_staff: maxStaff,
-      status: creating ? status : undefined
+      status: creating ? 'pending' : undefined
     }
   };
 }
@@ -261,9 +258,9 @@ async function postGoldShop(req, res, next) {
     return res.status(400).json({ message: error });
   }
   const { credentials, error: credentialsError } = validateLoginCredentials(body.credentials, shop.email);
-  if (credentialsError) {
+  if (!credentials || credentialsError) {
     await cleanupUploadedDocuments(req);
-    return res.status(400).json({ message: credentialsError });
+    return res.status(400).json({ message: credentialsError || 'Shop login credentials are required' });
   }
   const { subscription, error: subscriptionError } = validateSubscription(body.subscription || {});
   if (subscriptionError) {
@@ -375,6 +372,17 @@ async function approveShop(req, res, next) {
   }
 }
 
+async function rejectShop(req, res, next) {
+  if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
+  try {
+    const shop = await rejectGoldShop(Number(req.params.id), req.adminUser.id);
+    if (!shop) return res.status(404).json({ message: 'Gold shop not found' });
+    return res.json({ message: 'Gold shop rejected', shop });
+  } catch (error) {
+    return handleError(error, res, next);
+  }
+}
+
 async function deleteGoldShop(req, res, next) {
   if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
   try {
@@ -440,6 +448,7 @@ module.exports = {
   getPlans,
   patchGoldShopStatus,
   postGoldShop,
+  rejectShop,
   postSubscription,
   postConfirmShopPayment,
   validatePaymentConfirmation,

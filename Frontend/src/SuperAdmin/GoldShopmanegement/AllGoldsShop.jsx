@@ -30,9 +30,11 @@ const today = () => {
 };
 
 const STATUS_STYLES = {
+  approved: "bg-emerald-50 text-emerald-800 ring-emerald-200",
   active: "bg-emerald-50 text-emerald-800 ring-emerald-200",
   inactive: "bg-stone-100 text-stone-700 ring-stone-200",
   pending: "bg-amber-50 text-amber-800 ring-amber-200",
+  rejected: "bg-rose-50 text-rose-800 ring-rose-200",
   suspended: "bg-rose-50 text-rose-800 ring-rose-200",
   expired: "bg-orange-50 text-orange-800 ring-orange-200",
   paid: "bg-emerald-50 text-emerald-800 ring-emerald-200",
@@ -49,6 +51,7 @@ const formatDate = (value) => {
 
 const hasCurrentSubscription = (shop) => shop.subscription_is_current === true
   || Number(shop.subscription_is_current) === 1;
+const approvalStatus = (shop) => shop.approval_status || (shop.approved_at ? "approved" : "pending");
 
 const formatAmount = (value) =>
   Number.isFinite(Number(value)) ? `₹${Number(value).toLocaleString("en-IN")}` : "—";
@@ -173,7 +176,7 @@ function ShopDetails({ shop, loading, onConfirmPayment }) {
           <h3 className="text-lg font-bold text-stone-900">{shop.shop_name}</h3>
           <p className="mt-1 text-xs text-stone-600">Shop UUID: {shop.shop_uuid}</p>
         </div>
-        <StatusBadge value={shop.status} />
+        <StatusBadge value={approvalStatus(shop)} />
       </div>
 
       <section>
@@ -289,6 +292,7 @@ export default function AllGoldsShop() {
   const [viewMode, setViewMode] = useState("table");
   const [pendingApproval, setPendingApproval] = useState(null);
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
+  const [rejectingShopId, setRejectingShopId] = useState(null);
   const [approvalCredentials, setApprovalCredentials] = useState(null);
   const [paymentToConfirm, setPaymentToConfirm] = useState(null);
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
@@ -483,10 +487,6 @@ export default function AllGoldsShop() {
   };
 
   const approveShop = (shop) => {
-    if (String(shop.payment_status).toLowerCase() !== "paid") {
-      toast.error("Confirm the subscription payment before approving this shop.");
-      return;
-    }
     setPendingApproval(shop);
   };
 
@@ -510,6 +510,21 @@ export default function AllGoldsShop() {
       toast.error(error.response?.data?.message || "Could not approve this gold shop.");
     } finally {
       setApprovalSubmitting(false);
+    }
+  };
+
+  const rejectShop = async (shop) => {
+    if (!window.confirm(`Reject ${shop.shop_name}? Its pending login credentials will be removed.`)) return;
+    setRejectingShopId(shop.id);
+    try {
+      const { data } = await api.post(`/super-admin/gold-shops/${shop.id}/reject`);
+      toast.success(data.message || "Gold shop rejected.");
+      refreshList();
+    } catch (error) {
+      console.error("Failed to reject gold shop:", error);
+      toast.error(error.response?.data?.message || "Could not reject this gold shop.");
+    } finally {
+      setRejectingShopId(null);
     }
   };
 
@@ -566,7 +581,7 @@ export default function AllGoldsShop() {
             <input value={search} onChange={(event) => { setLoading(true); setSearch(event.target.value); setPage(1); }} className="min-h-9 w-full rounded-lg border border-slate-200 pl-9 pr-3 text-xs outline-none focus:border-[#008577]" placeholder="Search by name, code, owner or mobile..." />
           </label>
           <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-            <select value={statusFilter} onChange={(event) => { setLoading(true); setStatusFilter(event.target.value); setPage(1); }} aria-label="Filter by shop status" className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#008577]">
+            <select value={statusFilter} onChange={(event) => { setLoading(true); setStatusFilter(event.target.value); setPage(1); }} aria-label="Filter by operational shop status" className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#008577]">
               <option value="all">All statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
@@ -602,13 +617,10 @@ export default function AllGoldsShop() {
         ) : viewMode === "grid" ? (
           <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
             {shops.map((shop) => {
-              const canApprove = String(shop.payment_status).toLowerCase() === "paid";
+              const isPendingApproval = approvalStatus(shop) === "pending";
               const canActivate = Boolean(shop.approved_at)
                 && shop.subscription_status !== "expired"
                 && hasCurrentSubscription(shop);
-              const approvalUnavailableLabel = !canApprove
-                ? "Confirm payment in View details before approval."
-                : "";
               const action = shop.status === "active" ? "Suspend Shop" : "Activate Shop";
               return (
               <article key={shop.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -618,7 +630,10 @@ export default function AllGoldsShop() {
                     <h3 className="mt-1 font-bold text-slate-900">{shop.shop_name}</h3>
                     <p className="mt-1 text-xs text-slate-500">{shop.owner_name}</p>
                   </div>
-                  <StatusBadge value={shop.status} />
+                  <div className="shrink-0 text-right">
+                    <StatusBadge value={approvalStatus(shop)} />
+                    <p className="mt-1 text-[11px] capitalize text-slate-500">Shop {shop.status}</p>
+                  </div>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
                   <div><dt className="text-slate-400">Mobile</dt><dd className="mt-1 font-semibold text-slate-700">{shop.mobile}</dd></div>
@@ -628,16 +643,27 @@ export default function AllGoldsShop() {
                   <div><dt className="text-slate-400">Payment</dt><dd className="mt-1"><StatusBadge value={shop.payment_status || "unpaid"} /></dd></div>
                 </dl>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                  {shop.status !== "active" && (
-                    <button
-                      type="button"
-                      disabled={!canApprove}
-                      onClick={() => approveShop(shop)}
-                      title={canApprove ? "Approve and create login" : approvalUnavailableLabel}
-                      className="whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
-                    >
-                      Approve
-                    </button>
+                  {isPendingApproval && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={approvalSubmitting || rejectingShopId !== null}
+                        onClick={() => approveShop(shop)}
+                        title="Approve and create login"
+                        className="whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-50"
+                      >
+                        {approvalSubmitting && pendingApproval?.id === shop.id ? "Approving…" : "Approve"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={approvalSubmitting || rejectingShopId !== null}
+                        onClick={() => rejectShop(shop)}
+                        title="Reject this shop"
+                        className="whitespace-nowrap rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:cursor-wait disabled:opacity-50"
+                      >
+                        {rejectingShopId === shop.id ? "Rejecting…" : "Reject"}
+                      </button>
+                    </>
                   )}
                   <div className="flex items-center gap-1">
                   <button type="button" onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="View details and confirm payment"><Eye size={16} /></button>
@@ -647,9 +673,6 @@ export default function AllGoldsShop() {
                   <button type="button" onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50" title="Archive shop"><Trash2 size={16} /></button>
                   </div>
                 </div>
-                {shop.status !== "active" && !canApprove && (
-                  <p className="mt-2 text-xs text-slate-500">{approvalUnavailableLabel}</p>
-                )}
               </article>
               );
             })}
@@ -659,7 +682,7 @@ export default function AllGoldsShop() {
             <table className="w-full min-w-[1120px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
               <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
                 <tr>
-                  <th className="w-16 whitespace-nowrap rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Mobile</th><th className="px-4 py-4">City</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Expiry</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Shop status</th><th className="px-4 py-4">Created</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
+                  <th className="w-16 whitespace-nowrap rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Mobile</th><th className="px-4 py-4">City</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Expiry</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Approval status</th><th className="px-4 py-4">Created</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -667,11 +690,8 @@ export default function AllGoldsShop() {
                   const hasPaidCurrentSubscription = String(shop.payment_status).toLowerCase() === "paid"
                     && shop.subscription_status !== "expired"
                     && hasCurrentSubscription(shop);
-                  const canApprove = String(shop.payment_status).toLowerCase() === "paid";
+                  const isPendingApproval = approvalStatus(shop) === "pending";
                   const canActivate = Boolean(shop.approved_at) && hasPaidCurrentSubscription;
-                  const approvalUnavailableLabel = !canApprove
-                    ? "Confirm payment in View details before approval."
-                    : "";
                   const action = shop.status === "active" ? "Suspend Shop" : "Activate Shop";
                   return (
                     <tr key={shop.id} className="transition hover:bg-amber-50/30">
@@ -684,17 +704,22 @@ export default function AllGoldsShop() {
                       <td className="whitespace-nowrap px-4 py-4">{shop.plan_name || "No plan"}</td>
                       <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.subscription_expiry)}</td>
                       <td className="px-4 py-4"><StatusBadge value={shop.payment_status || "unpaid"} /></td>
-                      <td className="px-4 py-4"><StatusBadge value={shop.status} /></td>
+                      <td className="px-4 py-4"><StatusBadge value={approvalStatus(shop)} /></td>
                       <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.created_at)}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-1">
                           <button type="button" title="View details and confirm payment" aria-label={`View details and confirm payment for ${shop.shop_name}`} onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><Eye size={16} /></button>
                           <button type="button" title="Edit shop" aria-label={`Edit ${shop.shop_name}`} onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil size={16} /></button>
                           <button type="button" title="Change subscription" aria-label={`Change subscription for ${shop.shop_name}`} onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50"><CreditCard size={16} /></button>
-                          {shop.status !== "active" && (
-                            <button type="button" disabled={!canApprove} title={canApprove ? "Approve and create login" : approvalUnavailableLabel} aria-label={`Approve ${shop.shop_name}${canApprove ? "" : `; unavailable: ${approvalUnavailableLabel}`}`} onClick={() => approveShop(shop)} className="whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500">
-                              Approve
-                            </button>
+                          {isPendingApproval && (
+                            <>
+                              <button type="button" disabled={approvalSubmitting || rejectingShopId !== null} title="Approve and create login" aria-label={`Approve ${shop.shop_name}`} onClick={() => approveShop(shop)} className="whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-50">
+                                {approvalSubmitting && pendingApproval?.id === shop.id ? "Approving…" : "Approve"}
+                              </button>
+                              <button type="button" disabled={approvalSubmitting || rejectingShopId !== null} title="Reject this shop" aria-label={`Reject ${shop.shop_name}`} onClick={() => rejectShop(shop)} className="whitespace-nowrap rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:cursor-wait disabled:opacity-50">
+                                {rejectingShopId === shop.id ? "Rejecting…" : "Reject"}
+                              </button>
+                            </>
                           )}
                           <button type="button" title={canActivate || shop.status === "active" ? action : "Approval and a current paid subscription are required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>
                           <button type="button" title="Archive shop" aria-label={`Archive ${shop.shop_name}`} onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50"><Trash2 size={16} /></button>
@@ -787,7 +812,7 @@ export default function AllGoldsShop() {
           }}
         >
           <div className="space-y-4 p-5">
-            <p className="text-sm text-slate-600">Confirm the shop and owner details before approving. This activates the Shop Admin account.</p>
+            <p className="text-sm text-slate-600">Confirm the shop and owner details before approving. This creates the Shop Admin account; subscription activation continues through the existing payment workflow.</p>
             <dl className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-2">
               <div><dt className="text-xs font-semibold text-slate-500">Shop name</dt><dd className="mt-1 font-semibold text-slate-800">{pendingApproval.shop_name || "—"}</dd></div>
               <div><dt className="text-xs font-semibold text-slate-500">Owner name</dt><dd className="mt-1 font-semibold text-slate-800">{pendingApproval.owner_name || "—"}</dd></div>

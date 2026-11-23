@@ -14,6 +14,7 @@ const {
   postGoldShop,
   postConfirmShopPayment,
   postSubscription,
+  rejectShop,
   putGoldShop
 } = require('../controllers/superAdminGoldShopController');
 
@@ -34,6 +35,7 @@ router.post('/gold-shops/:id/payments/:paymentId/confirm', postConfirmShopPaymen
 router.get('/gold-shops/:id/documents/:documentId', downloadGoldShopDocument);
 router.post('/gold-shops/:id/subscription', postSubscription);
 router.post('/gold-shops/:id/approve', approveShop);
+router.post('/gold-shops/:id/reject', rejectShop);
 router.patch('/gold-shops/:id/status', patchGoldShopStatus);
 router.get('/gold-shops/:id', getGoldShop);
 router.put('/gold-shops/:id', handleGoldShopDocumentUpload, putGoldShop);

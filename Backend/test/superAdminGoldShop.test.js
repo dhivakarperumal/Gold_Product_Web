@@ -7,7 +7,8 @@ const {
   createGoldShop,
   getPlanPrice,
   isValidDate,
-  approveGoldShop
+  approveGoldShop,
+  rejectGoldShop
 } = require('../src/modules/superAdminGoldShopModule');
 const {
   validateShop,
@@ -59,6 +60,14 @@ test('validates required shop identity and normalizes contact details', () => {
   assert.equal(result.shop.email, 'owner@example.com');
   assert.equal(validateShop({ maxBranches: 1, maxStaff: 1 }).error,
     'Shop name, owner name, and mobile number are required');
+  assert.equal(validateShop({
+    shopName: 'Gold House',
+    ownerName: 'A Owner',
+    mobile: '+919876543210',
+    maxBranches: 1,
+    maxStaff: 1,
+    status: 'suspended'
+  }, { creating: true }).shop.status, 'pending');
 });
 
 test('validates custom shop admin credentials', () => {
@@ -129,7 +138,8 @@ test('creates the shop admin user only after approval and preserves the submitte
       email: 'owner@example.com',
       mobile: '+919876543210',
       owner_name: 'Shop Owner',
-      owner_user_id: null
+      owner_user_id: null,
+      approval_status: 'pending'
     }
   };
   const connection = {
@@ -158,9 +168,6 @@ test('creates the shop admin user only after approval and preserves the submitte
         }], []];
       }
       if (sql.includes('INSERT INTO subscriptions')) return [{ insertId: 12 }, []];
-      if (sql.includes('SELECT id, payment_status, subscription_status')) {
-        return [[{ id: 12, payment_status: 'paid', subscription_status: 'pending' }], []];
-      }
       if (sql.includes('SELECT username, password_hash FROM gold_shop_pending_credentials')) {
         return [[state.pendingCredentials], []];
       }
@@ -169,18 +176,21 @@ test('creates the shop admin user only after approval and preserves the submitte
         state.user = {
           username: values[1],
           email: values[3],
-          password_hash: values[5],
+          gold_shop_id: values[5],
+          password_hash: values[6],
           role: 'admin',
           status: 'active'
         };
         return [{ insertId: 50 }, []];
       }
-      if (sql.includes('DELETE FROM gold_shop_pending_credentials')) {
-        state.pendingCredentials = null;
+      if (sql.includes("SET approval_status='approved'")) {
+        state.shop.owner_user_id = values[0];
+        state.shop.approval_status = 'approved';
+        state.shop.approved_at = new Date();
         return [{ affectedRows: 1 }, []];
       }
-      if (sql.includes("UPDATE gold_shops\n       SET status='active'")) {
-        state.shop.owner_user_id = values[0];
+      if (sql.includes('DELETE FROM gold_shop_pending_credentials')) {
+        state.pendingCredentials = null;
         return [{ affectedRows: 1 }, []];
       }
       return [{ affectedRows: 1 }, []];
@@ -212,10 +222,55 @@ test('creates the shop admin user only after approval and preserves the submitte
 
     assert.equal(state.user.username, 'shop.owner');
     assert.equal(state.user.email, state.shop.email);
+    assert.equal(state.user.gold_shop_id, state.shop.id);
     assert.equal(state.user.role, 'admin');
     assert.equal(state.user.status, 'active');
     assert.equal(await bcrypt.compare('secure-password', state.user.password_hash), true);
     assert.equal(state.pendingCredentials, null);
+    assert.equal(state.shop.approval_status, 'approved');
+    await assert.rejects(approveGoldShop(state.shop.id, 3), /already been approved/);
+    assert.equal(state.user.gold_shop_id, state.shop.id);
+  } finally {
+    pool.getConnection = originalGetConnection;
+    pool.execute = originalExecute;
+  }
+});
+
+test('rejecting a pending shop removes credentials without creating a user', async () => {
+  const originalGetConnection = pool.getConnection;
+  const originalExecute = pool.execute;
+  const state = {
+    pendingCredentials: { username: 'shop.owner', password_hash: 'bcrypt-hash' },
+    user: null,
+    shop: { id: 8, approval_status: 'pending', status: 'pending' }
+  };
+  const connection = {
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => {},
+    release: () => {},
+    execute: async (sql) => {
+      if (sql.includes('SELECT id, approval_status FROM gold_shops')) return [[state.shop], []];
+      if (sql.includes("SET approval_status = 'rejected'")) {
+        state.shop.approval_status = 'rejected';
+        state.shop.status = 'inactive';
+        return [{ affectedRows: 1 }, []];
+      }
+      if (sql.includes('DELETE FROM gold_shop_pending_credentials')) {
+        state.pendingCredentials = null;
+      }
+      return [{ affectedRows: 1 }, []];
+    }
+  };
+  pool.getConnection = async () => connection;
+  pool.execute = async () => [[], []];
+
+  try {
+    await rejectGoldShop(state.shop.id, 3);
+    assert.equal(state.shop.approval_status, 'rejected');
+    assert.equal(state.shop.status, 'inactive');
+    assert.equal(state.pendingCredentials, null);
+    assert.equal(state.user, null);
   } finally {
     pool.getConnection = originalGetConnection;
     pool.execute = originalExecute;

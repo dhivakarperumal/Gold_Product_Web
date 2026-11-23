@@ -67,18 +67,6 @@ function getPlanPrice(plan, duration) {
 }
 
 async function initializeSuperAdminGoldShopModule() {
-  const [shopOwnerColumn] = await pool.execute(
-    "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops' AND COLUMN_NAME = 'owner_user_id'"
-  );
-  if (!shopOwnerColumn.length) {
-    await pool.query('ALTER TABLE gold_shops ADD COLUMN owner_user_id INT UNSIGNED NULL AFTER shop_uuid');
-  }
-  const [shopApprovedColumn] = await pool.execute(
-    "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops' AND COLUMN_NAME = 'approved_at'"
-  );
-  if (!shopApprovedColumn.length) {
-    await pool.query('ALTER TABLE gold_shops ADD COLUMN approved_at TIMESTAMP NULL DEFAULT NULL');
-  }
   await pool.query(`
     CREATE TABLE IF NOT EXISTS subscription_plans (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -136,6 +124,36 @@ async function initializeSuperAdminGoldShopModule() {
       CONSTRAINT fk_gold_shops_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
+  const [shopColumns] = await pool.execute(
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops'"
+  );
+  const existingShopColumns = new Set(shopColumns.map((column) => column.COLUMN_NAME));
+  if (!existingShopColumns.has('owner_user_id')) {
+    await pool.query('ALTER TABLE gold_shops ADD COLUMN owner_user_id INT UNSIGNED NULL AFTER shop_uuid');
+  }
+  if (!existingShopColumns.has('approved_at')) {
+    await pool.query('ALTER TABLE gold_shops ADD COLUMN approved_at TIMESTAMP NULL DEFAULT NULL');
+  }
+  if (!existingShopColumns.has('approval_status')) {
+    await pool.query(
+      "ALTER TABLE gold_shops ADD COLUMN approval_status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending'"
+    );
+    await pool.query(
+      "UPDATE gold_shops SET approval_status = 'approved' WHERE approved_at IS NOT NULL OR owner_user_id IS NOT NULL"
+    );
+  }
+  const [userShopColumn] = await pool.execute(
+    "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'gold_shop_id'"
+  );
+  if (!userShopColumn.length) {
+    await pool.query(
+      `ALTER TABLE users
+       ADD COLUMN gold_shop_id INT UNSIGNED NULL,
+       ADD UNIQUE KEY uq_users_gold_shop_id (gold_shop_id),
+       ADD CONSTRAINT fk_users_gold_shop
+         FOREIGN KEY (gold_shop_id) REFERENCES gold_shops(id) ON DELETE SET NULL`
+    );
+  }
   await pool.query(`
     CREATE TABLE IF NOT EXISTS gold_shop_pending_credentials (
       gold_shop_id INT UNSIGNED NOT NULL,
@@ -376,7 +394,7 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
   const offset = (page - 1) * pageSize;
   const [shops] = await pool.execute(
     `SELECT gs.id, gs.shop_uuid, gs.shop_code, gs.shop_name, gs.owner_name, gs.mobile,
-            gs.email, gs.city, gs.state, gs.status, gs.max_branches, gs.max_staff,
+            gs.email, gs.city, gs.state, gs.status, gs.approval_status, gs.max_branches, gs.max_staff,
             gs.approved_at, gs.created_at, sub.id AS subscription_id, sub.duration, sub.amount,
             sub.start_date, sub.end_date AS subscription_expiry,
             sub.payment_status, sub.subscription_status, sub.plan_id, sp.plan_name,
@@ -725,17 +743,14 @@ async function approveGoldShop(id, actorId) {
       [id]
     );
     const shop = shops[0];
-    if (!shop) return null;
-
-    const [subscriptions] = await connection.execute(
-      `SELECT id, payment_status, subscription_status
-       FROM subscriptions WHERE gold_shop_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE`,
-      [id]
-    );
-    const subscription = subscriptions[0];
-    if (!subscription || String(subscription.payment_status).toLowerCase() !== 'paid') {
-      throw new GoldShopError(409, 'Approve this shop only after subscription payment is confirmed');
+    if (!shop) {
+      await connection.rollback();
+      return null;
     }
+    if ((shop.approval_status || 'pending') !== 'pending') {
+      throw new GoldShopError(409, `This shop has already been ${shop.approval_status}`);
+    }
+
     if (!shop.email) {
       throw new GoldShopError(400, 'A shop email address is required to create login access');
     }
@@ -758,9 +773,9 @@ async function approveGoldShop(id, actorId) {
         }
         const [userResult] = await connection.execute(
           `INSERT INTO users
-           (user_id, username, name, email, phone, password_hash, role, status)
-           VALUES (?, ?, ?, ?, ?, ?, 'admin', 'active')`,
-          [crypto.randomUUID(), pending.username, shop.owner_name, normalizedEmail, shop.mobile, pending.password_hash]
+           (user_id, username, name, email, phone, gold_shop_id, password_hash, role, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'admin', 'active')`,
+          [crypto.randomUUID(), pending.username, shop.owner_name, normalizedEmail, shop.mobile, id, pending.password_hash]
         );
         ownerUserId = userResult.insertId;
         credentials = { identifier: normalizedEmail };
@@ -776,9 +791,9 @@ async function approveGoldShop(id, actorId) {
         const passwordHash = await bcrypt.hash(temporaryPassword, 12);
         const [userResult] = await connection.execute(
           `INSERT INTO users
-           (user_id, username, name, email, phone, password_hash, role, status)
-           VALUES (?, ?, ?, ?, ?, ?, 'admin', 'active')`,
-          [crypto.randomUUID(), shop.owner_name, shop.owner_name, normalizedEmail, shop.mobile, passwordHash]
+           (user_id, username, name, email, phone, gold_shop_id, password_hash, role, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'admin', 'active')`,
+          [crypto.randomUUID(), shop.owner_name, shop.owner_name, normalizedEmail, shop.mobile, id, passwordHash]
         );
         ownerUserId = userResult.insertId;
         credentials = { identifier: normalizedEmail, temporaryPassword };
@@ -800,13 +815,9 @@ async function approveGoldShop(id, actorId) {
 
     await connection.execute(
       `UPDATE gold_shops
-       SET status='active', owner_user_id=?, approved_at=CURRENT_TIMESTAMP, updated_by=?
+       SET approval_status='approved', owner_user_id=?, approved_at=CURRENT_TIMESTAMP, updated_by=?
        WHERE id=?`,
       [ownerUserId, actorId, id]
-    );
-    await connection.execute(
-      "UPDATE subscriptions SET subscription_status='active', updated_by=? WHERE id=?",
-      [actorId, subscription.id]
     );
     await logActivity(connection, id, actorId, 'shop.approved', {
       owner_user_id: ownerUserId,
@@ -820,6 +831,40 @@ async function approveGoldShop(id, actorId) {
     connection.release();
   }
   return { shop: await getGoldShopDetails(id), credentials };
+}
+
+async function rejectGoldShop(id, actorId) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [shops] = await connection.execute(
+      'SELECT id, approval_status FROM gold_shops WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
+      [id]
+    );
+    const shop = shops[0];
+    if (!shop) {
+      await connection.rollback();
+      return null;
+    }
+    if ((shop.approval_status || 'pending') !== 'pending') {
+      throw new GoldShopError(409, `This shop has already been ${shop.approval_status}`);
+    }
+    await connection.execute(
+      `UPDATE gold_shops
+       SET approval_status = 'rejected', status = 'inactive', updated_by = ?
+       WHERE id = ?`,
+      [actorId, id]
+    );
+    await connection.execute('DELETE FROM gold_shop_pending_credentials WHERE gold_shop_id = ?', [id]);
+    await logActivity(connection, id, actorId, 'shop.rejected', {});
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+  return getGoldShopDetails(id);
 }
 
 async function softDeleteGoldShop(id, actorId) {
@@ -952,6 +997,7 @@ module.exports = {
   DEFAULT_PLANS,
   GoldShopError,
   approveGoldShop,
+  rejectGoldShop,
   addSubscription,
   confirmGoldShopPayment,
   calculateEndDate,
