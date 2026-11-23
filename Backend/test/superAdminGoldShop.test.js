@@ -7,6 +7,8 @@ const {
 } = require('../src/modules/superAdminGoldShopModule');
 const {
   validateShop,
+  validateLoginCredentials,
+  validateDocumentConsent,
   validateSubscription
 } = require('../src/controllers/superAdminGoldShopController');
 
@@ -52,6 +54,29 @@ test('validates required shop identity and normalizes contact details', () => {
   assert.equal(result.shop.email, 'owner@example.com');
   assert.equal(validateShop({ maxBranches: 1, maxStaff: 1 }).error,
     'Shop name, owner name, and mobile number are required');
+});
+
+test('validates custom shop admin credentials', () => {
+  const result = validateLoginCredentials(
+    { username: 'shop.owner', password: 'secure-password' },
+    'owner@example.com'
+  );
+  assert.equal(result.error, undefined);
+  assert.deepEqual(result.credentials, { username: 'shop.owner', password: 'secure-password' });
+  assert.equal(validateLoginCredentials({ username: 'bad user', password: 'secure-password' }, 'owner@example.com').error,
+    'Username must be 3 to 150 letters, numbers, or . _ @ + - characters');
+  assert.equal(validateLoginCredentials({ username: 'shop.owner', password: 'short' }, 'owner@example.com').error,
+    'Password must be at least 8 characters and no more than 72 bytes');
+  assert.equal(validateLoginCredentials({ username: 'shop.owner', password: 'secure-password' }, null).error,
+    'An email address is required for the Shop Admin login');
+});
+
+test('requires owner authorization for uploaded identity and business documents', () => {
+  const documents = [{ document_type: 'aadhaar_card' }];
+  assert.equal(validateDocumentConsent({}, documents).error,
+    'Confirm authorization to upload the shop owner documents');
+  assert.deepEqual(validateDocumentConsent({ documentConsent: true }, documents), {});
+  assert.deepEqual(validateDocumentConsent({}, [{ document_type: 'profile_photo' }]), {});
 });
 
 test('creation never accepts client-supplied price or paid status', () => {

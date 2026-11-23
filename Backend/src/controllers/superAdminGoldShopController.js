@@ -1,8 +1,10 @@
+const path = require('node:path');
 const {
   GoldShopError,
   approveGoldShop,
   addSubscription,
   createGoldShop,
+  getGoldShopDocument,
   getGoldShopDetails,
   isValidDate,
   getSubscriptionPlans,
@@ -12,12 +14,24 @@ const {
   updateGoldShop,
   updateGoldShopStatus
 } = require('../modules/superAdminGoldShopModule');
+const {
+  removeGoldShopDocumentFiles,
+  resolveGoldShopDocumentPath,
+  uploadedGoldShopDocumentNames,
+  validateGoldShopDocumentSignature
+} = require('../middleware/goldShopDocumentUpload');
 
 const SHOP_STATUSES = new Set(['active', 'inactive', 'pending', 'suspended']);
 const DURATIONS = new Set(['monthly', 'quarterly', 'half_yearly', 'yearly']);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?[1-9]\d{9,14}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const SHOP_DOCUMENT_TYPES = {
+  profilePhoto: 'profile_photo',
+  aadhaarCard: 'aadhaar_card',
+  gstCertificate: 'gst_certificate',
+  otherDocuments: 'supporting_document'
+};
 
 function positiveId(value) {
   return /^\d+$/.test(String(value)) && Number.isSafeInteger(Number(value)) && Number(value) > 0;
@@ -25,6 +39,69 @@ function positiveId(value) {
 
 function normalizeOptionalString(value) {
   return value == null || value === '' ? null : String(value).trim() || null;
+}
+
+function getRequestPayload(req) {
+  if (typeof req.body?.payload !== 'string') return req.body || {};
+  try {
+    const payload = JSON.parse(req.body.payload);
+    return payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+function validateLoginCredentials(credentials, email) {
+  if (credentials == null) return { credentials: null };
+  if (!credentials || typeof credentials !== 'object' || Array.isArray(credentials)) {
+    return { error: 'Login credentials are invalid' };
+  }
+  const username = String(credentials.username || '').trim();
+  const password = credentials.password;
+  if (!username || username.length > 150 || !/^[A-Za-z0-9._@+-]{3,150}$/.test(username)) {
+    return { error: 'Username must be 3 to 150 letters, numbers, or . _ @ + - characters' };
+  }
+  if (!email) return { error: 'An email address is required for the Shop Admin login' };
+  if (typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password, 'utf8') > 72) {
+    return { error: 'Password must be at least 8 characters and no more than 72 bytes' };
+  }
+  return { credentials: { username, password } };
+}
+
+function prepareUploadedDocuments(files) {
+  const documents = [];
+  for (const [fieldName, documentFiles] of Object.entries(files || {})) {
+    const documentType = SHOP_DOCUMENT_TYPES[fieldName];
+    if (!documentType) throw new GoldShopError(400, 'Uploaded document type is invalid');
+    for (const file of documentFiles) {
+      if (!validateGoldShopDocumentSignature(file.path, file.mimetype)) {
+        throw new GoldShopError(400, `The ${path.extname(file.originalname).toUpperCase()} file content does not match its declared type`);
+      }
+      documents.push({
+        document_type: documentType,
+        original_name: path.basename(file.originalname).replace(/[\u0000-\u001f]/g, '_').slice(0, 255) || 'document',
+        storage_key: path.basename(file.filename),
+        mime_type: file.mimetype,
+        file_size: file.size
+      });
+    }
+  }
+  return documents;
+}
+
+function validateDocumentConsent(body, documents) {
+  const needsConsent = documents.some((document) => document.document_type !== 'profile_photo');
+  if (needsConsent && body.documentConsent !== true) {
+    return { error: 'Confirm authorization to upload the shop owner documents' };
+  }
+  return {};
+}
+
+async function cleanupUploadedDocuments(req, error) {
+  if (error?.uploadCommitted) return;
+  await removeGoldShopDocumentFiles(uploadedGoldShopDocumentNames(req.files)).catch((cleanupError) => {
+    console.error('Failed to clean rejected gold shop documents:', cleanupError);
+  });
 }
 
 function validateSubscription(body) {
@@ -155,29 +232,100 @@ async function getGoldShop(req, res, next) {
 }
 
 async function postGoldShop(req, res, next) {
-  const { shop, error } = validateShop(req.body || {}, { creating: true });
-  if (error) return res.status(400).json({ message: error });
-  const { subscription, error: subscriptionError } = validateSubscription(req.body?.subscription || {});
-  if (subscriptionError) return res.status(400).json({ message: subscriptionError });
+  const body = getRequestPayload(req);
+  if (!body) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: 'Shop form data is invalid' });
+  }
+  const { shop, error } = validateShop(body, { creating: true });
+  if (error) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: error });
+  }
+  const { credentials, error: credentialsError } = validateLoginCredentials(body.credentials, shop.email);
+  if (credentialsError) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: credentialsError });
+  }
+  const { subscription, error: subscriptionError } = validateSubscription(body.subscription || {});
+  if (subscriptionError) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: subscriptionError });
+  }
 
   try {
-    const created = await createGoldShop({ ...shop, subscription }, req.adminUser.id);
+    const documents = prepareUploadedDocuments(req.files);
+    const { error: consentError } = validateDocumentConsent(body, documents);
+    if (consentError) {
+      await cleanupUploadedDocuments(req);
+      return res.status(400).json({ message: consentError });
+    }
+    const created = await createGoldShop({
+      ...shop,
+      credentials,
+      subscription,
+      document_consent: body.documentConsent === true
+    }, req.adminUser.id, documents);
     return res.status(201).json({ message: 'Gold shop created; payment is pending gateway confirmation', shop: created });
   } catch (error) {
+    await cleanupUploadedDocuments(req, error);
     return handleError(error, res, next);
   }
 }
 
 async function putGoldShop(req, res, next) {
-  if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
-  const { shop, error } = validateShop(req.body || {});
-  if (error) return res.status(400).json({ message: error });
+  if (!positiveId(req.params.id)) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: 'Gold shop ID is invalid' });
+  }
+  const body = getRequestPayload(req);
+  if (!body) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: 'Shop form data is invalid' });
+  }
+  const { shop, error } = validateShop(body);
+  if (error) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: error });
+  }
   try {
-    const updated = await updateGoldShop(Number(req.params.id), shop, req.adminUser.id);
-    if (!updated) return res.status(404).json({ message: 'Gold shop not found' });
+    const documents = prepareUploadedDocuments(req.files);
+    const { error: consentError } = validateDocumentConsent(body, documents);
+    if (consentError) {
+      await cleanupUploadedDocuments(req);
+      return res.status(400).json({ message: consentError });
+    }
+    const updated = await updateGoldShop(Number(req.params.id), {
+      ...shop,
+      document_consent: body.documentConsent === true
+    }, req.adminUser.id, documents);
+    if (!updated) {
+      await cleanupUploadedDocuments(req);
+      return res.status(404).json({ message: 'Gold shop not found' });
+    }
     return res.json({ message: 'Gold shop updated', shop: updated });
   } catch (error) {
+    await cleanupUploadedDocuments(req, error);
     return handleError(error, res, next);
+  }
+}
+
+async function downloadGoldShopDocument(req, res, next) {
+  if (!positiveId(req.params.id) || !positiveId(req.params.documentId)) {
+    return res.status(400).json({ message: 'Gold shop or document ID is invalid' });
+  }
+  try {
+    const document = await getGoldShopDocument(Number(req.params.id), Number(req.params.documentId));
+    if (!document) return res.status(404).json({ message: 'Gold shop document not found' });
+    const filePath = resolveGoldShopDocumentPath(document.storage_key);
+    if (!filePath) return res.status(404).json({ message: 'Gold shop document is unavailable' });
+    res.set('Cache-Control', 'private, no-store');
+    res.type(document.mime_type);
+    return res.download(filePath, document.original_name, (error) => {
+      if (error && !res.headersSent) next(error);
+    });
+  } catch (error) {
+    return next(error);
   }
 }
 
@@ -247,6 +395,7 @@ async function getGoldShopPayments(req, res, next) {
 module.exports = {
   approveShop,
   deleteGoldShop,
+  downloadGoldShopDocument,
   getGoldShop,
   getGoldShopPayments,
   getGoldShops,
@@ -256,5 +405,7 @@ module.exports = {
   postSubscription,
   putGoldShop,
   validateShop,
+  validateLoginCredentials,
+  validateDocumentConsent,
   validateSubscription
 };

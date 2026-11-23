@@ -1,9 +1,11 @@
 const express = require('express');
 const requireSuperAdmin = require('../middleware/requireSuperAdmin');
+const { handleGoldShopDocumentUpload } = require('../middleware/goldShopDocumentUpload');
 const subscriptionPlanController = require('../controllers/subscriptionPlanController');
 const {
   approveShop,
   deleteGoldShop,
+  downloadGoldShopDocument,
   getGoldShop,
   getGoldShopPayments,
   getGoldShops,
@@ -25,13 +27,14 @@ router.patch('/subscription-plans/:id/status', subscriptionPlanController.patchP
 router.post('/subscription-plans/:id/duplicate', subscriptionPlanController.duplicatePlan);
 router.delete('/subscription-plans/:id', subscriptionPlanController.deletePlan);
 router.get('/gold-shops', getGoldShops);
-router.post('/gold-shops', postGoldShop);
+router.post('/gold-shops', handleGoldShopDocumentUpload, postGoldShop);
 router.get('/gold-shops/:id/payments', getGoldShopPayments);
+router.get('/gold-shops/:id/documents/:documentId', downloadGoldShopDocument);
 router.post('/gold-shops/:id/subscription', postSubscription);
 router.post('/gold-shops/:id/approve', approveShop);
 router.patch('/gold-shops/:id/status', patchGoldShopStatus);
 router.get('/gold-shops/:id', getGoldShop);
-router.put('/gold-shops/:id', putGoldShop);
+router.put('/gold-shops/:id', handleGoldShopDocumentUpload, putGoldShop);
 router.delete('/gold-shops/:id', deleteGoldShop);
 
 module.exports = router;

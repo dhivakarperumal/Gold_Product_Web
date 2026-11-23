@@ -388,10 +388,20 @@ export default function AllGoldsShop() {
   const saveShop = async (payload, addAnother = false) => {
     setSubmitting(true);
     try {
-      const { subscription, ...shop } = payload;
+      const { subscription, credentials, documents, ...shop } = payload;
+      const formData = new FormData();
+      formData.append("payload", JSON.stringify({
+        ...shop,
+        ...(credentials ? { credentials } : {}),
+        ...(subscription ? { subscription } : {})
+      }));
+      if (documents?.profilePhoto) formData.append("profilePhoto", documents.profilePhoto);
+      if (documents?.aadhaarCard) formData.append("aadhaarCard", documents.aadhaarCard);
+      if (documents?.gstCertificate) formData.append("gstCertificate", documents.gstCertificate);
+      documents?.otherDocuments?.forEach((document) => formData.append("otherDocuments", document));
       const response = modal === "edit"
-        ? await api.put(`/super-admin/gold-shops/${selectedShop.id}`, shop)
-        : await api.post("/super-admin/gold-shops", { ...shop, subscription });
+        ? await api.put(`/super-admin/gold-shops/${selectedShop.id}`, formData)
+        : await api.post("/super-admin/gold-shops", formData);
       toast.success(response.data?.message || (modal === "edit" ? "Shop updated." : "Gold shop created."));
       if (addAnother) {
         setFormKey((key) => key + 1);
@@ -400,7 +410,7 @@ export default function AllGoldsShop() {
       }
       refreshList();
     } catch (error) {
-      console.error("Failed to save gold shop:", error);
+      console.error("Failed to save gold shop.", { status: error.response?.status });
       toast.error(error.response?.data?.message || "Could not save this gold shop.");
     } finally {
       setSubmitting(false);

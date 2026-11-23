@@ -193,6 +193,23 @@ async function initializeSuperAdminGoldShopModule() {
       CONSTRAINT fk_gold_shop_activity_actor FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS gold_shop_documents (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      gold_shop_id INT UNSIGNED NOT NULL,
+      document_type VARCHAR(40) NOT NULL,
+      original_name VARCHAR(255) NOT NULL,
+      storage_key VARCHAR(50) NOT NULL,
+      mime_type VARCHAR(100) NOT NULL,
+      file_size INT UNSIGNED NOT NULL,
+      uploaded_by INT UNSIGNED NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_gold_shop_documents_shop (gold_shop_id, id),
+      CONSTRAINT fk_gold_shop_documents_shop FOREIGN KEY (gold_shop_id) REFERENCES gold_shops(id) ON DELETE RESTRICT,
+      CONSTRAINT fk_gold_shop_documents_uploader FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB
+  `);
 
   for (const plan of DEFAULT_PLANS) {
     const monthly = plan.monthly;
@@ -345,12 +362,14 @@ async function getSubscriptionPlans() {
 async function getGoldShopDetails(id) {
   await expireSubscriptions();
   const [shops] = await pool.execute(
-    `SELECT gs.*, creator.username AS created_by_name, updater.username AS updated_by_name,
+    `SELECT gs.*, owner.username AS owner_username, owner.email AS owner_email,
+            creator.username AS created_by_name, updater.username AS updated_by_name,
             sub.id AS current_subscription_id, sub.plan_id, sp.plan_name, sub.duration,
             sub.amount AS subscription_amount, sub.start_date, sub.end_date,
             sub.payment_status, sub.subscription_status
      FROM gold_shops gs
      ${latestSubscriptionJoin()}
+     LEFT JOIN users owner ON owner.id = gs.owner_user_id
      LEFT JOIN users creator ON creator.id = gs.created_by
      LEFT JOIN users updater ON updater.id = gs.updated_by
      WHERE gs.id = ? AND gs.deleted_at IS NULL`,
@@ -382,14 +401,49 @@ async function getGoldShopDetails(id) {
      WHERE l.gold_shop_id = ? ORDER BY l.id DESC LIMIT 50`,
     [id]
   );
-  return { ...shops[0], subscriptions, payments, activity };
+  const [documents] = await pool.execute(
+    `SELECT id, document_type, original_name, mime_type, file_size, created_at
+     FROM gold_shop_documents WHERE gold_shop_id = ? ORDER BY id`,
+    [id]
+  );
+  return { ...shops[0], subscriptions, payments, activity, documents };
 }
 
-async function createGoldShop(input, actorId) {
+async function insertGoldShopDocuments(connection, shopId, documents, actorId) {
+  for (const document of documents) {
+    await connection.execute(
+      `INSERT INTO gold_shop_documents
+         (gold_shop_id, document_type, original_name, storage_key, mime_type, file_size, uploaded_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [shopId, document.document_type, document.original_name, document.storage_key,
+        document.mime_type, document.file_size, actorId]
+    );
+  }
+}
+
+async function createGoldShop(input, actorId, documents = []) {
   const connection = await pool.getConnection();
   let shopId;
+  let committed = false;
   try {
     await connection.beginTransaction();
+    let ownerUserId = null;
+    if (input.credentials) {
+      const [existingUsers] = await connection.execute(
+        'SELECT id FROM users WHERE email = ? OR phone = ? OR username = ? LIMIT 1 FOR UPDATE',
+        [input.email, input.mobile, input.credentials.username]
+      );
+      if (existingUsers.length) {
+        throw new GoldShopError(409, 'The login email, mobile number, or username is already registered');
+      }
+      const passwordHash = await bcrypt.hash(input.credentials.password, 12);
+      const [userResult] = await connection.execute(
+        `INSERT INTO users (user_id, username, name, email, phone, password_hash, role, status)
+         VALUES (?, ?, ?, ?, ?, ?, 'shopadmin', 'inactive')`,
+        [crypto.randomUUID(), input.credentials.username, input.owner_name, input.email, input.mobile, passwordHash]
+      );
+      ownerUserId = userResult.insertId;
+    }
     const shopUuid = crypto.randomUUID();
     const temporaryCode = `TMP-${crypto.randomUUID()}`;
     const [shopResult] = await connection.execute(
@@ -403,18 +457,32 @@ async function createGoldShop(input, actorId) {
     );
     shopId = shopResult.insertId;
     const shopCode = `GOLD-${String(shopId).padStart(4, '0')}`;
-    await connection.execute('UPDATE gold_shops SET shop_code = ? WHERE id = ?', [shopCode, shopId]);
+    await connection.execute(
+      'UPDATE gold_shops SET shop_code = ?, owner_user_id = ? WHERE id = ?',
+      [shopCode, ownerUserId, shopId]
+    );
 
     await insertSubscription(connection, shopId, input.subscription, actorId);
-    await logActivity(connection, shopId, actorId, 'shop.created', { shop_code: shopCode });
+    await insertGoldShopDocuments(connection, shopId, documents, actorId);
+    await logActivity(connection, shopId, actorId, 'shop.created', {
+      shop_code: shopCode,
+      documents_uploaded: documents.length,
+      document_consent: Boolean(input.document_consent)
+    });
     await connection.commit();
+    committed = true;
   } catch (error) {
     await connection.rollback();
     throw error;
   } finally {
     connection.release();
   }
-  return getGoldShopDetails(shopId);
+  try {
+    return await getGoldShopDetails(shopId);
+  } catch (error) {
+    if (committed) error.uploadCommitted = true;
+    throw error;
+  }
 }
 
 async function insertSubscription(connection, shopId, input, actorId) {
@@ -448,8 +516,9 @@ async function insertSubscription(connection, shopId, input, actorId) {
   });
 }
 
-async function updateGoldShop(id, input, actorId) {
+async function updateGoldShop(id, input, actorId, documents = []) {
   const connection = await pool.getConnection();
+  let committed = false;
   try {
     await connection.beginTransaction();
     const [result] = await connection.execute(
@@ -466,15 +535,34 @@ async function updateGoldShop(id, input, actorId) {
       await connection.rollback();
       return null;
     }
-    await logActivity(connection, id, actorId, 'shop.updated', {});
+    await insertGoldShopDocuments(connection, id, documents, actorId);
+    await logActivity(connection, id, actorId, 'shop.updated', {
+      documents_uploaded: documents.length,
+      document_consent: Boolean(input.document_consent)
+    });
     await connection.commit();
+    committed = true;
   } catch (error) {
     await connection.rollback();
     throw error;
   } finally {
     connection.release();
   }
-  return getGoldShopDetails(id);
+  try {
+    return await getGoldShopDetails(id);
+  } catch (error) {
+    if (committed) error.uploadCommitted = true;
+    throw error;
+  }
+}
+
+async function getGoldShopDocument(shopId, documentId) {
+  const [documents] = await pool.execute(
+    `SELECT id, document_type, original_name, storage_key, mime_type, file_size
+     FROM gold_shop_documents WHERE id = ? AND gold_shop_id = ?`,
+    [documentId, shopId]
+  );
+  return documents[0] || null;
 }
 
 async function updateGoldShopStatus(id, status, actorId) {
@@ -685,6 +773,7 @@ module.exports = {
   addSubscription,
   calculateEndDate,
   createGoldShop,
+  getGoldShopDocument,
   getGoldShopDetails,
   getPlanPrice,
   getSubscriptionPlans,
