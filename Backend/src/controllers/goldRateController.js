@@ -91,7 +91,7 @@ async function postRates(req, res, next) {
   const normalized = normalizeBatch(req.body || {});
   if (normalized.error) return res.status(400).json({ message: normalized.error });
   try {
-    const batch = await createRateBatch(normalized.batch, req.adminUser.user_id);
+    const batch = await createRateBatch(normalized.batch, req.adminUser.id);
     return res.status(201).json(batch);
   } catch (error) {
     return next(error);
@@ -109,7 +109,7 @@ async function putRates(req, res, next) {
     const result = await updateRateBatch(
       req.params.id,
       normalized.batch,
-      req.adminUser.user_id,
+      req.adminUser.id,
       expectedVersion
     );
     if (result.error) return sendBatchError(res, result.error);
@@ -125,7 +125,7 @@ async function activateRates(req, res, next) {
     return res.status(400).json({ message: 'A reason of 1 to 500 characters is required' });
   }
   try {
-    const result = await activateRateBatch(req.params.id, reason, req.adminUser.user_id);
+    const result = await activateRateBatch(req.params.id, reason, req.adminUser.id);
     if (result.error) return sendBatchError(res, result.error);
     return res.json({
       ...result.batch,

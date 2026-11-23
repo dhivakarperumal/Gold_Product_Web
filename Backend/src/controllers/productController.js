@@ -170,7 +170,7 @@ async function getProductPriceHistory(req, res, next) {
       const [history] = await pool.execute(`
         SELECT h.*, u.username AS changed_by_name
         FROM product_price_history h
-        LEFT JOIN users u ON u.user_id = h.changed_by
+        LEFT JOIN users u ON u.id = h.changed_by
         WHERE h.product_id = ? ORDER BY h.changed_at DESC, h.id DESC LIMIT 100
       `, [id]);
       return res.json({ history });
@@ -194,7 +194,7 @@ async function postRecalculatePrices(req, res, next) {
         result = await recalculateProductPrices(connection, rateSet.rates, {
           reason,
           rateDate: rateSet.rate_date,
-          userId: req.adminUser.user_id
+          userId: req.adminUser.id
         });
         await connection.commit();
       } catch (error) {
@@ -236,7 +236,7 @@ async function postProduct(req, res, next) {
         INSERT INTO product_price_history
           (product_id, product_code, previous_price, new_price, rate_per_gram, reason, changed_by)
         VALUES (?, ?, NULL, ?, ?, 'Initial product pricing', ?)
-      `, [created.id, created.product_code, created.final_selling_price, product.gold_rate_per_gram, req.adminUser.user_id]);
+      `, [created.id, created.product_code, created.final_selling_price, product.gold_rate_per_gram, req.adminUser.id]);
     }
     return res.status(201).json(created);
   } catch (createError) {
@@ -274,7 +274,7 @@ async function putProduct(req, res, next) {
         VALUES (?, ?, ?, ?, ?, 'Product pricing updated', ?)
       `, [
         id, updated.product_code, existingProduct.final_selling_price,
-        updated.final_selling_price, product.gold_rate_per_gram, req.adminUser.user_id
+        updated.final_selling_price, product.gold_rate_per_gram, req.adminUser.id
       ]);
     }
     return res.json(updated);

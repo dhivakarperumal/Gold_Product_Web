@@ -50,8 +50,8 @@ async function initializeKycModule() {
       review_reason VARCHAR(2000) NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      CONSTRAINT fk_kyc_applications_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-      CONSTRAINT fk_kyc_applications_reviewer FOREIGN KEY (reviewer_id) REFERENCES users(user_id) ON DELETE SET NULL,
+      CONSTRAINT fk_kyc_applications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      CONSTRAINT fk_kyc_applications_reviewer FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE SET NULL,
       INDEX idx_kyc_applications_status_created (status, created_at),
       INDEX idx_kyc_applications_user_created (user_id, created_at)
     ) ENGINE=InnoDB
@@ -86,7 +86,7 @@ async function initializeKycModule() {
       reason VARCHAR(2000) NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_kyc_audit_application FOREIGN KEY (application_id) REFERENCES kyc_applications(id) ON DELETE CASCADE,
-      CONSTRAINT fk_kyc_audit_actor FOREIGN KEY (actor_id) REFERENCES users(user_id) ON DELETE SET NULL,
+      CONSTRAINT fk_kyc_audit_actor FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
       INDEX idx_kyc_audit_application_created (application_id, created_at)
     ) ENGINE=InnoDB
   `);
@@ -99,8 +99,8 @@ function applicationProjection() {
            u.name AS applicant_name, u.email AS applicant_email, u.phone AS applicant_phone,
            reviewer.name AS reviewer_name
     FROM kyc_applications a
-    JOIN users u ON u.user_id = a.user_id
-    LEFT JOIN users reviewer ON reviewer.user_id = a.reviewer_id
+    JOIN users u ON u.id = a.user_id
+    LEFT JOIN users reviewer ON reviewer.id = a.reviewer_id
   `;
 }
 
@@ -129,7 +129,7 @@ async function createOrResubmitApplication({ userId, actorId, documents, consent
   let action = 'submitted';
   try {
     await connection.beginTransaction();
-    await connection.execute('SELECT user_id FROM users WHERE user_id = ? FOR UPDATE', [userId]);
+    await connection.execute('SELECT id FROM users WHERE id = ? FOR UPDATE', [userId]);
     const [existingRows] = await connection.execute(
       `SELECT id, status FROM kyc_applications
        WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE`,
@@ -240,7 +240,7 @@ async function listKycApplications({ page, pageSize, status, search, dateFrom, d
     [...values, pageSize, offset]
   );
   const [countRows] = await pool.execute(
-    `SELECT COUNT(*) AS total FROM kyc_applications a JOIN users u ON u.user_id = a.user_id ${where}`,
+    `SELECT COUNT(*) AS total FROM kyc_applications a JOIN users u ON u.id = a.user_id ${where}`,
     values
   );
   return { applications, total: Number(countRows[0].total) };
@@ -280,7 +280,7 @@ async function getKycApplicationById(applicationId) {
   const [audit] = await pool.execute(
     `SELECT e.id, e.actor_id, e.action, e.previous_status, e.new_status, e.reason, e.created_at,
             u.name AS actor_name
-     FROM kyc_audit_events e LEFT JOIN users u ON u.user_id = e.actor_id
+     FROM kyc_audit_events e LEFT JOIN users u ON u.id = e.actor_id
      WHERE e.application_id = ? ORDER BY e.created_at DESC, e.id DESC`,
     [applicationId]
   );

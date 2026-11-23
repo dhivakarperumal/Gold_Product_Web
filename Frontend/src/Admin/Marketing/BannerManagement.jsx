@@ -129,7 +129,7 @@ const BannerManagement = () => {
         try {
             const bannerPayload = {
                 ...currentBanner,
-                user_id: user?.user_id || currentBanner.user_id || null,
+                user_id: user?.id || currentBanner.user_id || null,
             };
             if (isEditing) {
                 await api.put(`/banners/${currentBanner.id}`, bannerPayload);

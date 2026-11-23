@@ -70,11 +70,12 @@ test('creates an active customer user with a bcrypt-hashed password', async () =
   });
 
   assert.equal(userId, 14);
-  assert.equal(insertedValues[0], 'gold.customer');
-  assert.equal(insertedValues[1], 'Gold Customer');
-  assert.equal(insertedValues[2], 'customer@example.com');
-  assert.equal(insertedValues[3], '9876543210');
-  assert.equal(await bcrypt.compare('customer-pass-123', insertedValues[4]), true);
-  assert.equal(insertedValues[5], 'user');
-  assert.equal(insertedValues[6], 'Active');
+  assert.match(insertedValues[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  assert.equal(insertedValues[1], 'gold.customer');
+  assert.equal(insertedValues[2], 'Gold Customer');
+  assert.equal(insertedValues[3], 'customer@example.com');
+  assert.equal(insertedValues[4], '9876543210');
+  assert.equal(await bcrypt.compare('customer-pass-123', insertedValues[5]), true);
+  assert.equal(insertedValues[6], 'user');
+  assert.equal(insertedValues[7], 'active');
 });

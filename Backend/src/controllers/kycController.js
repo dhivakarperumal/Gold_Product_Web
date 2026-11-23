@@ -101,8 +101,8 @@ async function submitApplication(req, res, next) {
     }
     const documents = await prepareDocuments(req.files, req.body.document_types);
     const application = await createOrResubmitApplication({
-      userId: req.authenticatedUser.user_id,
-      actorId: req.authenticatedUser.user_id,
+      userId: req.authenticatedUser.id,
+      actorId: req.authenticatedUser.id,
       documents,
       consentVersion: CONSENT_VERSION
     });
@@ -122,7 +122,7 @@ async function submitApplication(req, res, next) {
 
 async function getCustomerStatus(req, res, next) {
   try {
-    const application = await getLatestApplication(req.authenticatedUser.user_id);
+    const application = await getLatestApplication(req.authenticatedUser.id);
     return res.json({
       applicant: {
         name: req.authenticatedUser.name,
@@ -220,7 +220,7 @@ async function reviewApplication(req, res, next) {
     }
     const application = await reviewKycApplication({
       applicationId: req.params.id,
-      reviewerId: req.adminUser.user_id,
+      reviewerId: req.adminUser.id,
       decision,
       reason
     });
@@ -235,7 +235,7 @@ async function serveDocument(req, res, next) {
     const document = await getKycDocument(req.params.documentId);
     if (!document) return res.status(404).json({ message: 'KYC document not found' });
     const isAdmin = Boolean(req.adminUser);
-    if (!canReadKycDocument(document, req.authenticatedUser?.user_id, isAdmin)) {
+    if (!canReadKycDocument(document, req.authenticatedUser?.id, isAdmin)) {
       return res.status(404).json({ message: 'KYC document not found' });
     }
     const filePath = resolveKycStoragePath(document.storage_key);
@@ -244,7 +244,7 @@ async function serveDocument(req, res, next) {
     await recordKycDocumentView({
       applicationId: document.application_id,
       documentId: document.id,
-      actorId: isAdmin ? req.adminUser.user_id : req.authenticatedUser.user_id
+      actorId: isAdmin ? req.adminUser.id : req.authenticatedUser.id
     });
     res.set({
       'Content-Type': document.mime_type,

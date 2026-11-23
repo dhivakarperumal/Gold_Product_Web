@@ -139,6 +139,7 @@ async function getCustomerById(req, res, next) {
 async function postCustomer(req, res, next) {
   const { customer, error } = normalizeCustomer(req.body || {});
   if (error) return res.status(400).json({ message: error });
+  if (!customer.email) return res.status(400).json({ message: 'Email is required to create a customer account' });
   const { username, error: usernameError } = normalizeCustomerUsername(customer.full_name);
   if (usernameError) return res.status(400).json({ message: usernameError });
   const password = typeof req.body.password === 'string' ? req.body.password : customer.mobile;

@@ -230,7 +230,7 @@ async function getCustomerLoans(req, res, next) {
 // Authenticated user — returns their own loans matched via loan_customers.user_id
 async function getMyLoans(req, res, next) {
   try {
-    const loans = await listLoansForUser(req.authenticatedUser.user_id);
+    const loans = await listLoansForUser(req.authenticatedUser.id);
     return res.json(loans);
   } catch (error) {
     return next(error);
@@ -308,7 +308,7 @@ async function postLoanRenewal(req, res, next) {
     : String(req.body.idempotency_key).trim();
   if (idempotencyKey.length > 150) return res.status(400).json({ message: 'Payment retry key is invalid' });
   try {
-    return res.json(await renewLoan(req.params.id, amount.value, req.adminUser.user_id, {
+    return res.json(await renewLoan(req.params.id, amount.value, req.adminUser.id, {
       account_id: req.body.account_id,
       payment_method: req.body.payment_method,
       reference_number: referenceNumber,
@@ -350,7 +350,7 @@ async function postLoanReviewAction(req, res, next) {
       req.params.id,
       action,
       req.body,
-      req.adminUser.user_id
+      req.adminUser.id
     ));
   } catch (error) {
     if (error.code === 'LOAN_NOT_FOUND') return res.status(404).json({ message: error.message });
@@ -425,7 +425,7 @@ async function postGoldRelease(req, res, next) {
   if (notes.length > 2000) return rejectUpload(400, 'Release notes must be 2000 characters or fewer');
   const documentUrl = `/api/loans/gold-release-documents/${req.file.filename}`;
   try {
-    return res.json(await releaseGold(req.params.id, recipient, notes, documentUrl, req.adminUser.user_id));
+    return res.json(await releaseGold(req.params.id, recipient, notes, documentUrl, req.adminUser.id));
   } catch (error) {
     try {
       await removeLoanGoldReleaseDocument(documentUrl);
@@ -542,7 +542,7 @@ async function postLoan(req, res, next) {
       rate_unit: activeRate.rate_unit,
       gold_rate_date: activeRateSet.rate_date,
       gold_image_url: req.file ? `/api/loans/gold-images/${req.file.filename}` : null,
-      created_by: req.adminUser.user_id
+      created_by: req.adminUser.id
     }, { idempotencyKey });
     return res.status(201).json(createdLoan);
   } catch (createError) {

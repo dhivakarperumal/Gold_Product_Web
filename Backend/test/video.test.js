@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { normalizeVideo, normalizeYouTubeId } = require('../src/controllers/videoController');
 
-const admin = { user_id: 7 };
+const admin = { id: 7, user_id: 'f9b88e68-08a4-4d58-a419-fb119048b260' };
 
 test('normalizes supported YouTube URL formats to an 11-character ID', () => {
   assert.equal(normalizeYouTubeId('abcdefghijk'), 'abcdefghijk');

@@ -73,7 +73,7 @@ function normalizeVideo(body, adminUser) {
       thumbnail: thumbnail || null,
       type,
       active,
-      user_id: adminUser.user_id
+      user_id: adminUser.id
     }
   };
 }

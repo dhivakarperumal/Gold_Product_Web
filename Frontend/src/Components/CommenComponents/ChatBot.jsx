@@ -250,7 +250,7 @@ const ChatBot = ({ isOpen, onClose }) => {
     try {
       const { data } = await api.get("/orders");
       const all = Array.isArray(data) ? data : data?.data || [];
-      let userOrders = all.filter((o) => o.user_id === user.user_id);
+      let userOrders = all.filter((o) => o.user_id === user.id);
       
       if (filterMode === "today") {
         const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
@@ -303,7 +303,7 @@ const ChatBot = ({ isOpen, onClose }) => {
       const orderIdToFind = match[1].toUpperCase();
       const { data } = await api.get("/orders");
       const all = Array.isArray(data) ? data : data?.data || [];
-      const userOrders = all.filter((o) => o.user_id === user.user_id);
+      const userOrders = all.filter((o) => o.user_id === user.id);
       
       const foundOrder = userOrders.find(o => o.order_id?.toUpperCase() === orderIdToFind || o.id.toString() === orderIdToFind);
 

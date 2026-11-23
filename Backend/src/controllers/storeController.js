@@ -13,8 +13,13 @@ function validId(value) {
   return /^\d+$/.test(String(value)) && Number.isSafeInteger(Number(value)) && Number(value) > 0;
 }
 
+function validUserId(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function userMatches(req, userId) {
-  return validId(userId) && Number(userId) === Number(req.storeUser.user_id);
+  return validUserId(userId) && userId === req.storeUser.user_id;
 }
 
 function parseProductMedia(value) {
@@ -71,7 +76,7 @@ function normalizeItem(body, userId, { cart = false } = {}) {
 async function getCart(req, res, next) {
   if (!userMatches(req, req.params.userId)) return res.status(403).json({ message: 'You can only access your own cart' });
   try {
-    return res.json((await listCartItems(req.storeUser.user_id)).map(presentStoreItem));
+    return res.json((await listCartItems(req.storeUser.id)).map(presentStoreItem));
   } catch (error) {
     return next(error);
   }
@@ -79,11 +84,11 @@ async function getCart(req, res, next) {
 
 async function postCart(req, res, next) {
   if (!userMatches(req, req.body?.user_id)) return res.status(403).json({ message: 'You can only update your own cart' });
-  const { item, error } = normalizeItem(req.body || {}, req.storeUser.user_id, { cart: true });
+  const { item, error } = normalizeItem(req.body || {}, req.storeUser.id, { cart: true });
   if (error) return res.status(400).json({ message: error });
   try {
     await addCartItem(item);
-    const items = await listCartItems(req.storeUser.user_id);
+    const items = await listCartItems(req.storeUser.id);
     return res.status(201).json(items.map(presentStoreItem));
   } catch (storeError) {
     if (storeError.code === 'PRODUCT_UNAVAILABLE') return res.status(404).json({ message: storeError.message });
@@ -99,7 +104,7 @@ async function putCart(req, res, next) {
     return res.status(400).json({ message: 'Quantity must be a whole number between 1 and 1000' });
   }
   try {
-    const updated = await updateCartItem({ userId: req.storeUser.user_id, itemId: req.params.itemId, quantity });
+    const updated = await updateCartItem({ userId: req.storeUser.id, itemId: req.params.itemId, quantity });
     if (!updated) return res.status(404).json({ message: 'Cart item not found' });
     return res.json({ message: 'Cart quantity updated' });
   } catch (error) {
@@ -111,7 +116,7 @@ async function putCart(req, res, next) {
 async function deleteCartItem(req, res, next) {
   if (!validId(req.params.itemId)) return res.status(400).json({ message: 'Cart item ID is invalid' });
   try {
-    if (!await removeCartItem(req.storeUser.user_id, req.params.itemId)) {
+    if (!await removeCartItem(req.storeUser.id, req.params.itemId)) {
       return res.status(404).json({ message: 'Cart item not found' });
     }
     return res.json({ message: 'Cart item removed' });
@@ -123,7 +128,7 @@ async function deleteCartItem(req, res, next) {
 async function deleteCart(req, res, next) {
   if (!userMatches(req, req.params.userId)) return res.status(403).json({ message: 'You can only clear your own cart' });
   try {
-    await clearCartItems(req.storeUser.user_id);
+    await clearCartItems(req.storeUser.id);
     return res.json({ message: 'Cart cleared' });
   } catch (error) {
     return next(error);
@@ -133,7 +138,7 @@ async function deleteCart(req, res, next) {
 async function getWishlist(req, res, next) {
   if (!userMatches(req, req.params.userId)) return res.status(403).json({ message: 'You can only access your own wishlist' });
   try {
-    return res.json((await listWishlistItems(req.storeUser.user_id)).map(presentStoreItem));
+    return res.json((await listWishlistItems(req.storeUser.id)).map(presentStoreItem));
   } catch (error) {
     return next(error);
   }
@@ -141,7 +146,7 @@ async function getWishlist(req, res, next) {
 
 async function postWishlist(req, res, next) {
   if (!userMatches(req, req.body?.user_id)) return res.status(403).json({ message: 'You can only update your own wishlist' });
-  const { item, error } = normalizeItem(req.body || {}, req.storeUser.user_id);
+  const { item, error } = normalizeItem(req.body || {}, req.storeUser.id);
   if (error) return res.status(400).json({ message: error });
   try {
     await addWishlistItem(item);
@@ -156,7 +161,7 @@ async function deleteWishlistItem(req, res, next) {
   if (!userMatches(req, req.params.userId)) return res.status(403).json({ message: 'You can only update your own wishlist' });
   if (!validId(req.params.productId)) return res.status(400).json({ message: 'Product ID is invalid' });
   try {
-    await removeWishlistItem(req.storeUser.user_id, req.params.productId);
+    await removeWishlistItem(req.storeUser.id, req.params.productId);
     return res.json({ message: 'Product removed from wishlist' });
   } catch (error) {
     return next(error);

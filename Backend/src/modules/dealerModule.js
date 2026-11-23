@@ -42,7 +42,7 @@ async function initializeDealerModule() {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       CONSTRAINT fk_dealers_category FOREIGN KEY (category_id) REFERENCES dealer_categories(id),
-      CONSTRAINT fk_dealers_user FOREIGN KEY (created_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealers_user FOREIGN KEY (created_by) REFERENCES users(id),
       INDEX idx_dealers_name (name),
       INDEX idx_dealers_status_category (status, category_id),
       INDEX idx_dealers_gstin (gstin)
@@ -57,7 +57,7 @@ async function initializeDealerModule() {
       reason VARCHAR(500) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_dealer_audit_dealer FOREIGN KEY (dealer_id) REFERENCES dealers(id),
-      CONSTRAINT fk_dealer_audit_user FOREIGN KEY (actor_id) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_audit_user FOREIGN KEY (actor_id) REFERENCES users(id),
       INDEX idx_dealer_audit (dealer_id, created_at)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_documents (
@@ -70,7 +70,7 @@ async function initializeDealerModule() {
       uploaded_by INT UNSIGNED NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_dealer_document_dealer FOREIGN KEY (dealer_id) REFERENCES dealers(id),
-      CONSTRAINT fk_dealer_document_user FOREIGN KEY (uploaded_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_document_user FOREIGN KEY (uploaded_by) REFERENCES users(id),
       INDEX idx_dealer_documents (dealer_id, created_at)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_purchases (
@@ -92,7 +92,7 @@ async function initializeDealerModule() {
       posted_by INT UNSIGNED NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_dealer_purchase_dealer FOREIGN KEY (dealer_id) REFERENCES dealers(id),
-      CONSTRAINT fk_dealer_purchase_user FOREIGN KEY (posted_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_purchase_user FOREIGN KEY (posted_by) REFERENCES users(id),
       CONSTRAINT uq_dealer_supplier_invoice UNIQUE (dealer_id, supplier_invoice_number),
       INDEX idx_dealer_purchase_due (dealer_id, due_date, document_type),
       INDEX idx_dealer_purchase_date (document_date, document_type)
@@ -132,7 +132,7 @@ async function initializeDealerModule() {
       posted_by INT UNSIGNED NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_dealer_ledger_dealer FOREIGN KEY (dealer_id) REFERENCES dealers(id),
-      CONSTRAINT fk_dealer_ledger_user FOREIGN KEY (posted_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_ledger_user FOREIGN KEY (posted_by) REFERENCES users(id),
       INDEX idx_dealer_financial_ledger (dealer_id, created_at, id)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_payments (
@@ -148,7 +148,7 @@ async function initializeDealerModule() {
       posted_by INT UNSIGNED NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_dealer_payment_dealer FOREIGN KEY (dealer_id) REFERENCES dealers(id),
-      CONSTRAINT fk_dealer_payment_user FOREIGN KEY (posted_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_payment_user FOREIGN KEY (posted_by) REFERENCES users(id),
       INDEX idx_dealer_payment_date (dealer_id, payment_date)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_payment_allocations (
@@ -167,7 +167,7 @@ async function initializeDealerModule() {
       reversed_by INT UNSIGNED NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_dealer_payment_reversal_payment FOREIGN KEY (payment_id) REFERENCES dealer_payments(id),
-      CONSTRAINT fk_dealer_payment_reversal_user FOREIGN KEY (reversed_by) REFERENCES users(user_id)
+      CONSTRAINT fk_dealer_payment_reversal_user FOREIGN KEY (reversed_by) REFERENCES users(id)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_metal_ledger (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -185,7 +185,7 @@ async function initializeDealerModule() {
       posted_by INT UNSIGNED NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_dealer_metal_dealer FOREIGN KEY (dealer_id) REFERENCES dealers(id),
-      CONSTRAINT fk_dealer_metal_user FOREIGN KEY (posted_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_metal_user FOREIGN KEY (posted_by) REFERENCES users(id),
       INDEX idx_dealer_metal_ledger (dealer_id, created_at, id, metal_type, purity)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_jobs (
@@ -200,7 +200,7 @@ async function initializeDealerModule() {
       created_by INT UNSIGNED NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_dealer_job_dealer FOREIGN KEY (dealer_id) REFERENCES dealers(id),
-      CONSTRAINT fk_dealer_job_user FOREIGN KEY (created_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_job_user FOREIGN KEY (created_by) REFERENCES users(id),
       INDEX idx_dealer_jobs (dealer_id, status, due_date)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_job_issues (
@@ -213,7 +213,7 @@ async function initializeDealerModule() {
       issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       posted_by INT UNSIGNED NOT NULL,
       CONSTRAINT fk_dealer_job_issue FOREIGN KEY (job_id) REFERENCES dealer_jobs(id),
-      CONSTRAINT fk_dealer_job_issue_user FOREIGN KEY (posted_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_job_issue_user FOREIGN KEY (posted_by) REFERENCES users(id),
       INDEX idx_dealer_job_issues (job_id)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_job_receipts (
@@ -229,7 +229,7 @@ async function initializeDealerModule() {
       received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       posted_by INT UNSIGNED NOT NULL,
       CONSTRAINT fk_dealer_job_receipt FOREIGN KEY (job_id) REFERENCES dealer_jobs(id),
-      CONSTRAINT fk_dealer_job_receipt_user FOREIGN KEY (posted_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_job_receipt_user FOREIGN KEY (posted_by) REFERENCES users(id),
       INDEX idx_dealer_job_receipts (job_id)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_job_reconciliations (
@@ -245,7 +245,7 @@ async function initializeDealerModule() {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       approved_at TIMESTAMP NULL,
       CONSTRAINT fk_dealer_job_reconciliation FOREIGN KEY (job_id) REFERENCES dealer_jobs(id),
-      CONSTRAINT fk_dealer_job_approver FOREIGN KEY (approved_by) REFERENCES users(user_id)
+      CONSTRAINT fk_dealer_job_approver FOREIGN KEY (approved_by) REFERENCES users(id)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_old_gold_receipts (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -265,7 +265,7 @@ async function initializeDealerModule() {
       received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       received_by INT UNSIGNED NOT NULL,
       CONSTRAINT fk_dealer_old_gold_dealer FOREIGN KEY (dealer_id) REFERENCES dealers(id),
-      CONSTRAINT fk_dealer_old_gold_user FOREIGN KEY (received_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_old_gold_user FOREIGN KEY (received_by) REFERENCES users(id),
       INDEX idx_dealer_old_gold (dealer_id, received_at)
     )`,
     `CREATE TABLE IF NOT EXISTS dealer_refining_receipts (
@@ -283,7 +283,7 @@ async function initializeDealerModule() {
       received_by INT UNSIGNED NOT NULL,
       CONSTRAINT fk_dealer_refining_dealer FOREIGN KEY (dealer_id) REFERENCES dealers(id),
       CONSTRAINT fk_dealer_refining_old_gold FOREIGN KEY (old_gold_receipt_id) REFERENCES dealer_old_gold_receipts(id),
-      CONSTRAINT fk_dealer_refining_user FOREIGN KEY (received_by) REFERENCES users(user_id),
+      CONSTRAINT fk_dealer_refining_user FOREIGN KEY (received_by) REFERENCES users(id),
       INDEX idx_dealer_refining (dealer_id, received_at)
     )`
   ];
@@ -491,7 +491,7 @@ async function getDealerById(id, connection = pool) {
 async function getDealerAudit(id) {
   const [rows] = await pool.execute(
     `SELECT a.id, a.action, a.before_data, a.after_data, a.reason, a.created_at, u.username AS actor
-     FROM dealer_audit_log a JOIN users u ON u.user_id = a.actor_id
+     FROM dealer_audit_log a JOIN users u ON u.id = a.actor_id
      WHERE a.dealer_id = ? ORDER BY a.created_at DESC, a.id DESC`,
     [id]
   );

@@ -122,7 +122,7 @@ const router = createHashRouter([
   {
     path: "/admin",
     element: (
-      <PrivateRoute allowedRoles={["admin"]}>
+      <PrivateRoute allowedRoles={["admin", "superadmin"]}>
         <AdminProvider>
           <AdminPanel />
         </AdminProvider>

@@ -32,7 +32,7 @@ import {
 
 /* ================= NAV ITEMS ================= */
 const navItems = [
-  { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { path: "/superadmin", label: "Dashboard", icon: LayoutDashboard, exact: true },
 
  
 

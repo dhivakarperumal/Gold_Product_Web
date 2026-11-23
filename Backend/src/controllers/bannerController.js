@@ -82,7 +82,7 @@ async function getActiveBanners(req, res, next) {
 async function postBanner(req, res, next) {
   const { banner, error } = normalizeBanner({
     ...req.body,
-    user_id: req.adminUser.user_id
+    user_id: req.adminUser.id
   });
   if (error) return res.status(400).json({ message: error });
   try {
@@ -96,7 +96,7 @@ async function putBanner(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Banner ID is invalid' });
   const { banner, error } = normalizeBanner({
     ...req.body,
-    user_id: req.adminUser.user_id
+    user_id: req.adminUser.id
   });
   if (error) return res.status(400).json({ message: error });
   try {

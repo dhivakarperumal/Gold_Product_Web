@@ -17,13 +17,13 @@ const {
 const { isValidProfileImage, removeProfileImage } = require('../middleware/profileImageUpload');
 const { parseDateRange } = require('../utils/dateRange');
 
-const VALID_STATUSES = new Set(['Active', 'Inactive']);
+const VALID_STATUSES = new Set(['active', 'inactive']);
 
 function normalizeStatus(status) {
-  if (status == null || status === '') return 'Active';
+  if (status == null || status === '') return 'active';
   const normalized = String(status).trim().toLowerCase();
-  if (normalized === 'active') return 'Active';
-  if (normalized === 'inactive') return 'Inactive';
+  if (normalized === 'active') return 'active';
+  if (normalized === 'inactive') return 'inactive';
   return null;
 }
 
@@ -39,8 +39,11 @@ async function register(req, res, next) {
       message: 'Name, email, and a password of at least 8 characters are required'
     });
   }
+  if (username.length > 150 || email.length > 255 || phone.length > 20) {
+    return res.status(400).json({ message: 'Username, email, or phone exceeds the allowed length' });
+  }
   if (status == null || !VALID_STATUSES.has(status)) {
-    return res.status(400).json({ message: 'Status must be Active or Inactive' });
+    return res.status(400).json({ message: 'Status must be active or inactive' });
   }
 
   try {
@@ -100,7 +103,7 @@ async function updateMyProfile(req, res, next) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ message: 'Enter a valid email address' });
   }
-  if (username.length > 150 || name.length > 150 || email.length > 254 || phone.length > 32 || address.length > 5000) {
+  if (username.length > 150 || name.length > 150 || email.length > 255 || phone.length > 20 || address.length > 5000) {
     return res.status(400).json({ message: 'One or more profile fields exceed the allowed length' });
   }
 
@@ -211,6 +214,9 @@ async function createManagedUser(req, res, next) {
       message: 'Username, name, email, and a password of at least 8 characters are required'
     });
   }
+  if (username.length > 150 || name.length > 150 || email.length > 255 || phone.length > 20) {
+    return res.status(400).json({ message: 'Username, name, email, or phone exceeds the allowed length' });
+  }
   if (!['admin', 'manager', 'dealer', 'user'].includes(role)) {
     return res.status(400).json({ message: 'Role must be admin, manager, dealer, or user' });
   }
@@ -240,10 +246,13 @@ async function updateManagedUser(req, res, next) {
   if (!username || !name || !email) {
     return res.status(400).json({ message: 'Username, name, and email are required' });
   }
+  if (username.length > 150 || name.length > 150 || email.length > 255 || phone.length > 20) {
+    return res.status(400).json({ message: 'Username, name, email, or phone exceeds the allowed length' });
+  }
   if (!['admin', 'manager', 'dealer', 'user'].includes(role)) {
     return res.status(400).json({ message: 'Role must be admin, manager, dealer, or user' });
   }
-  if (userId === req.adminUser.user_id && role !== req.adminUser.role) {
+  if (userId === req.adminUser.id && role !== req.adminUser.role) {
     return res.status(400).json({ message: 'You cannot change your own administrator role' });
   }
 
@@ -264,7 +273,7 @@ async function removeManagedUser(req, res, next) {
   if (!Number.isSafeInteger(userId) || userId < 1) {
     return res.status(400).json({ message: 'Customer ID is invalid' });
   }
-  if (userId === req.adminUser.user_id) {
+  if (userId === req.adminUser.id) {
     return res.status(400).json({ message: 'You cannot delete your own administrator account' });
   }
 

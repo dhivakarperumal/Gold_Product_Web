@@ -90,7 +90,7 @@ function parseTransaction(body, transactionType, adminId) {
 
 function transactionHandler(transactionType) {
   return async (req, res, next) => {
-    const parsed = parseTransaction(req.body || {}, transactionType, req.adminUser.user_id);
+    const parsed = parseTransaction(req.body || {}, transactionType, req.adminUser.id);
     if (parsed.error) return res.status(400).json({ message: parsed.error });
     try {
       return res.status(201).json(await createFundTransaction(parsed.value));
@@ -187,7 +187,7 @@ async function postTransfer(req, res, next) {
       description,
       idempotency_key: idempotencyKey,
       transfer_id: randomUUID(),
-      created_by: req.adminUser.user_id
+      created_by: req.adminUser.id
     });
     return res.status(201).json(result);
   } catch (error) {

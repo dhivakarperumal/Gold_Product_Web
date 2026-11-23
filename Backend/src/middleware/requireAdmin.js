@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { getUserById } = require('../modules/authModule');
+const { getUserByUserId } = require('../modules/authModule');
 
 async function requireAdmin(req, res, next) {
   const authorization = req.get('authorization') || '';
@@ -24,7 +24,7 @@ async function requireAdmin(req, res, next) {
   }
 
   try {
-    const user = await getUserById(claims.user_id);
+    const user = await getUserByUserId(claims.user_id);
     if (!user || user.status !== 'Active') {
       return res.status(401).json({ message: 'Your account is unavailable' });
     }

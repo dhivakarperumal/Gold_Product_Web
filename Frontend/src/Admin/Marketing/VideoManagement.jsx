@@ -147,7 +147,7 @@ const VideoManagement = () => {
             const videoPayload = {
                 ...currentVideo,
                 title: currentVideo.title.trim(),
-                user_id: user?.user_id || currentVideo.user_id || null,
+                user_id: user?.id || currentVideo.user_id || null,
             };
             if (isEditing) {
                 await api.put(`/videos/${currentVideo.id}`, videoPayload);

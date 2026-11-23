@@ -388,7 +388,7 @@ async function postBillingPayment(req, res, next) {
       payment_date: paymentDate,
       reference_number: referenceNumber.trim(),
       idempotency_key: idempotencyKey,
-      created_by: req.adminUser.user_id
+      created_by: req.adminUser.id
     });
     return res.status(201).json(bill);
   } catch (error) {

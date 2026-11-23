@@ -306,13 +306,13 @@ const getDealers = asyncHandler(async (req, res) => {
 const postDealer = asyncHandler(async (req, res) => {
   const { dealer, error } = normalizeDealer(req.body || {}, { creating: true });
   if (error) return res.status(400).json({ message: error });
-  return res.status(201).json(await createDealer(dealer, req.adminUser.user_id));
+  return res.status(201).json(await createDealer(dealer, req.adminUser.id));
 });
 const putDealer = asyncHandler(async (req, res) => {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Dealer ID is invalid' });
   const { dealer, error } = normalizeDealer(req.body || {});
   if (error) return res.status(400).json({ message: error });
-  const result = await updateDealer(req.params.id, dealer, req.adminUser.user_id);
+  const result = await updateDealer(req.params.id, dealer, req.adminUser.id);
   return result ? res.json(result) : res.status(404).json({ message: 'Dealer not found' });
 });
 const getDealer = asyncHandler(async (req, res) => {
@@ -363,40 +363,40 @@ const getJobs = asyncHandler(async (req, res) => {
 const postPurchase = asyncHandler(async (req, res) => {
   const { purchase, error } = normalizePurchase(req.body || {});
   if (error) return res.status(400).json({ message: error });
-  return res.status(201).json(await createPurchase(purchase, req.adminUser.user_id));
+  return res.status(201).json(await createPurchase(purchase, req.adminUser.id));
 });
 const postDealerPayment = asyncHandler(async (req, res) => {
   const { payment, error } = normalizePayment(req.body || {});
   if (error) return res.status(400).json({ message: error });
-  return res.status(201).json(await postPayment(payment, req.adminUser.user_id));
+  return res.status(201).json(await postPayment(payment, req.adminUser.id));
 });
 const reverseDealerPayment = asyncHandler(async (req, res) => {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Payment ID is invalid' });
   const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
   if (!reason || reason.length > 500) return res.status(400).json({ message: 'A reversal reason of 1 to 500 characters is required' });
-  return res.json(await reversePayment(req.params.id, reason, req.adminUser.user_id));
+  return res.json(await reversePayment(req.params.id, reason, req.adminUser.id));
 });
 const postJob = asyncHandler(async (req, res) => {
   const { job, error } = normalizeJob(req.body || {});
   if (error) return res.status(400).json({ message: error });
-  return res.status(201).json(await createJob(job, req.adminUser.user_id));
+  return res.status(201).json(await createJob(job, req.adminUser.id));
 });
 const postJobIssue = asyncHandler(async (req, res) => {
   const { line, error } = normalizeMetalLine(req.body || {}, { issue: true });
   if (error) return res.status(400).json({ message: error });
-  return res.status(201).json(await issueJob(line, req.adminUser.user_id));
+  return res.status(201).json(await issueJob(line, req.adminUser.id));
 });
 const postJobReceipt = asyncHandler(async (req, res) => {
   const { line, error } = normalizeMetalLine(req.body || {});
   if (error) return res.status(400).json({ message: error });
-  return res.status(201).json(await receiveJob(line, req.adminUser.user_id));
+  return res.status(201).json(await receiveJob(line, req.adminUser.id));
 });
 const postJobReconciliation = asyncHandler(async (req, res) => {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Job ID is invalid' });
   const approvedLoss = numeric(req.body?.approved_loss ?? 0, { max: 100000, decimals: 3 });
   const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
   if (approvedLoss === null || reason.length > 500) return res.status(400).json({ message: 'Approved loss or approval reason is invalid' });
-  const result = await reconcileJob(req.params.id, { approved_loss: approvedLoss, reason }, req.adminUser.user_id);
+  const result = await reconcileJob(req.params.id, { approved_loss: approvedLoss, reason }, req.adminUser.id);
   return result.error === 'APPROVAL_REQUIRED'
     ? res.status(409).json({ ...result, message: 'Metal difference requires an authorized approval reason' })
     : res.json(result);
@@ -405,7 +405,7 @@ const approvePendingJobReconciliation = asyncHandler(async (req, res) => {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Job ID is invalid' });
   const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
   if (!reason || reason.length > 500) return res.status(400).json({ message: 'An approval reason of 1 to 500 characters is required' });
-  return res.json(await approveJobReconciliation(req.params.id, reason, req.adminUser.user_id));
+  return res.json(await approveJobReconciliation(req.params.id, reason, req.adminUser.id));
 });
 const postOldGold = asyncHandler(async (req, res) => {
   const { receipt, error } = normalizeOldGold(req.body || {});
@@ -417,12 +417,12 @@ const postOldGold = asyncHandler(async (req, res) => {
     receipt.rate_batch_id = rate.batch_id;
     receipt.gold_rate_date = rate.rate_date;
   }
-  return res.status(201).json(await createOldGoldReceipt(receipt, req.adminUser.user_id));
+  return res.status(201).json(await createOldGoldReceipt(receipt, req.adminUser.id));
 });
 const postRefining = asyncHandler(async (req, res) => {
   const { receipt, error } = normalizeRefining(req.body || {});
   if (error) return res.status(400).json({ message: error });
-  return res.status(201).json(await createRefiningReceipt(receipt, req.adminUser.user_id));
+  return res.status(201).json(await createRefiningReceipt(receipt, req.adminUser.id));
 });
 const getGlobalRate = asyncHandler(async (req, res) => {
   const metal = req.query.metal_type || 'Gold';
@@ -459,7 +459,7 @@ const postDocument = asyncHandler(async (req, res) => {
   try {
     id = await addDealerDocument({
       dealerId: req.params.id, documentType, originalName: path.basename(req.file.originalname).slice(0, 255),
-      storedName: req.file.filename, mimeType: req.file.mimetype, userId: req.adminUser.user_id
+      storedName: req.file.filename, mimeType: req.file.mimetype, userId: req.adminUser.id
     });
   } catch (error) {
     await removeDealerDocument(req.file);

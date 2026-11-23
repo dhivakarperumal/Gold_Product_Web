@@ -116,7 +116,7 @@ const RATE_SELECT = `
     DATE_FORMAT(r.rate_date, '%Y-%m-%d') AS rate_date_display,
     DATE_FORMAT(r.effective_from, '%Y-%m-%dT%H:%i:%s.000Z') AS effective_from_utc,
     (SELECT MIN(first_row.id) FROM gold_rates first_row WHERE first_row.batch_id = r.batch_id) AS batch_first_id
-  FROM gold_rates r LEFT JOIN users u ON u.user_id = r.updated_by
+  FROM gold_rates r LEFT JOIN users u ON u.id = r.updated_by
 `;
 
 async function listRateBatches({ status, limit = 100 } = {}) {
@@ -201,7 +201,7 @@ async function getRateBatchRowsForUpdate(batchId, connection) {
       DATE_FORMAT(r.rate_date, '%Y-%m-%d') AS rate_date_display,
       DATE_FORMAT(r.effective_from, '%Y-%m-%dT%H:%i:%s.000Z') AS effective_from_utc,
       (SELECT MIN(first_row.id) FROM gold_rates first_row WHERE first_row.batch_id = r.batch_id) AS batch_first_id
-    FROM gold_rates r LEFT JOIN users u ON u.user_id = r.updated_by
+    FROM gold_rates r LEFT JOIN users u ON u.id = r.updated_by
     WHERE r.batch_id = ? ORDER BY r.id FOR UPDATE
   `, [batchId]);
   return rows;
@@ -376,7 +376,7 @@ async function listRateHistory({ limit = 250 } = {}) {
   const [rows] = await pool.execute(
     `SELECT h.id, h.batch_id, h.rate_id, h.metal_type, h.purity, h.rate_unit, h.previous_rate,
       h.new_rate, h.action, h.reason, h.changed_by, h.changed_at, u.username AS updated_by_name
-     FROM gold_rate_history h LEFT JOIN users u ON u.user_id = h.changed_by
+     FROM gold_rate_history h LEFT JOIN users u ON u.id = h.changed_by
      ORDER BY h.changed_at DESC, h.id DESC LIMIT ?`,
     [limit]
   );

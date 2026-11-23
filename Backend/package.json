@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node index.js",
+    "migrate:users-uuid": "node scripts/migrateUsersUuid.js",
     "test": "node --test"
   },
   "dependencies": {

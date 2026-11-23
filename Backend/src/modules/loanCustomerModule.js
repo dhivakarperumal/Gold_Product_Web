@@ -31,7 +31,7 @@ async function linkExistingCustomerAccounts() {
     try {
       await connection.beginTransaction();
       const [existingUsers] = await connection.execute(
-        `SELECT user_id, email, phone
+        `SELECT id, email, phone
          FROM users
          WHERE email = ? OR phone = ? OR username = ?
          FOR UPDATE`,
@@ -46,7 +46,7 @@ async function linkExistingCustomerAccounts() {
         }
         await connection.execute(
           'UPDATE loan_customers SET user_id = ? WHERE id = ? AND user_id IS NULL',
-          [matchingUser.user_id, customer.id]
+          [matchingUser.id, customer.id]
         );
       } else {
         const userId = await insertUser(connection, {
@@ -179,7 +179,7 @@ async function createLoanCustomer(customer, username, password = customer.mobile
   try {
     await connection.beginTransaction();
     const [existingUsers] = await connection.execute(
-      'SELECT user_id FROM users WHERE username = ? LIMIT 1 FOR UPDATE',
+      'SELECT id FROM users WHERE username = ? LIMIT 1 FOR UPDATE',
       [username]
     );
     if (existingUsers.length > 0) {

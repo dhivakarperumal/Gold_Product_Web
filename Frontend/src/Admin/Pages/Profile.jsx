@@ -338,7 +338,7 @@ const Profile = () => {
             <span><h2 className="text-xs font-extrabold text-slate-900">Account Information</h2><p className="text-[10px] text-slate-500">Your account and access details.</p></span>
           </div>
           <dl className="divide-y divide-slate-100 rounded-lg bg-slate-50 px-2.5 text-[10px]">
-            <div className="flex justify-between gap-3 py-1.5"><dt className="text-slate-500">User ID</dt><dd className="font-semibold text-slate-700">#ADM{String(profile.user_id || "").padStart(3, "0")}</dd></div>
+            <div className="flex justify-between gap-3 py-1.5"><dt className="text-slate-500">User ID</dt><dd className="font-semibold text-slate-700">{profile.user_id}</dd></div>
             <div className="flex justify-between gap-3 py-1.5"><dt className="text-slate-500">Role</dt><dd className="font-semibold text-slate-700">{roleLabel}</dd></div>
             <div className="flex justify-between gap-3 py-1.5"><dt className="text-slate-500">Status</dt><dd><span className="rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-800">{profile.status || "Active"}</span></dd></div>
             <div className="flex justify-between gap-3 py-1.5"><dt className="text-slate-500">Last Login</dt><dd className="font-semibold text-slate-700">Not tracked</dd></div>

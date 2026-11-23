@@ -1,37 +1,46 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('node:crypto');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
 const { addDateRangeCondition } = require('../utils/dateRange');
 
 const USER_COLUMNS = `
+  id,
   user_id,
   username,
   name,
   email,
   phone,
   role,
-  status,
+  CASE WHEN status = 'active' THEN 'Active' ELSE 'Inactive' END AS status,
   created_at
 `;
 
 async function initializeAuthModule() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      user_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
       username VARCHAR(150) NOT NULL,
       name VARCHAR(150) NOT NULL,
-      email VARCHAR(254) NOT NULL UNIQUE,
-      phone VARCHAR(32) NULL UNIQUE,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      phone VARCHAR(20) NULL UNIQUE,
       password_hash VARCHAR(255) NOT NULL,
       address TEXT NULL,
       profile_image VARCHAR(255) NULL,
       notification_preferences TEXT NULL,
       role VARCHAR(32) NOT NULL DEFAULT 'user',
-      status ENUM('Active', 'Inactive') NOT NULL DEFAULT 'Active',
+      status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_users_user_id (user_id)
     )
   `);
+  const [idColumns] = await pool.query("SHOW COLUMNS FROM users LIKE 'id'");
+  const [userIdColumns] = await pool.query("SHOW COLUMNS FROM users LIKE 'user_id'");
+  if (!idColumns.length || !/^varchar\(255\)$/i.test(userIdColumns[0]?.Type || '')) {
+    throw new Error('The users table needs the UUID migration. Run the users UUID migration before starting the backend.');
+  }
   const [nameColumns] = await pool.query("SHOW COLUMNS FROM users LIKE 'name'");
   const nameLength = Number(String(nameColumns[0]?.Type || '').match(/^varchar\((\d+)\)$/i)?.[1] || 0);
   if (nameLength < 150) {
@@ -42,24 +51,33 @@ async function initializeAuthModule() {
   if (usernameLength < 150) {
     await pool.query('ALTER TABLE users MODIFY COLUMN username VARCHAR(150) NOT NULL');
   }
-  const [emailColumns] = await pool.query("SHOW COLUMNS FROM users LIKE 'email'");
-  if (emailColumns[0]?.Null === 'NO') {
-    await pool.query('ALTER TABLE users MODIFY COLUMN email VARCHAR(254) NULL');
-  }
   for (const column of ['address', 'profile_image', 'notification_preferences']) {
     const [columns] = await pool.query(`SHOW COLUMNS FROM users LIKE '${column}'`);
     if (!columns.length) {
       await pool.query(`ALTER TABLE users ADD COLUMN ${column} TEXT NULL`);
     }
   }
+  const [uuidTriggers] = await pool.execute(
+    `SELECT TRIGGER_NAME FROM information_schema.TRIGGERS
+     WHERE TRIGGER_SCHEMA = DATABASE() AND EVENT_OBJECT_TABLE = 'users'
+       AND TRIGGER_NAME = 'bi_users_uuid'`
+  );
+  if (!uuidTriggers.length) {
+    await pool.query(`
+      CREATE TRIGGER bi_users_uuid
+      BEFORE INSERT ON users
+      FOR EACH ROW
+      SET NEW.user_id = IF(NEW.user_id IS NULL OR NEW.user_id = '', UUID(), NEW.user_id)
+    `);
+  }
 }
 
 async function insertUser(connection, { username, name = username, email, phone, password, status, role = 'user' }) {
   const passwordHash = await bcrypt.hash(password, 12);
   const [result] = await connection.execute(
-    `INSERT INTO users (username, name, email, phone, password_hash, role, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [username, name, email, phone || null, passwordHash, role, status]
+    `INSERT INTO users (user_id, username, name, email, phone, password_hash, role, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [crypto.randomUUID(), username, name, email, phone || null, passwordHash, role, String(status).toLowerCase()]
   );
   return result.insertId;
 }
@@ -69,7 +87,15 @@ async function createUser({ username, email, phone, password, status, role = 'us
   return getUserById(userId);
 }
 
-async function getUserById(userId) {
+async function getUserById(id) {
+  const [users] = await pool.execute(
+    `SELECT ${USER_COLUMNS} FROM users WHERE id = ?`,
+    [id]
+  );
+  return users[0] || null;
+}
+
+async function getUserByUserId(userId) {
   const [users] = await pool.execute(
     `SELECT ${USER_COLUMNS} FROM users WHERE user_id = ?`,
     [userId]
@@ -79,8 +105,9 @@ async function getUserById(userId) {
 
 async function getOwnProfile(userId) {
   const [users] = await pool.execute(
-    `SELECT user_id, username, name, email, phone, address, profile_image, notification_preferences,
-            role, status, created_at, updated_at
+    `SELECT id, user_id, username, name, email, phone, address, profile_image, notification_preferences,
+            role, CASE WHEN status = 'active' THEN 'Active' ELSE 'Inactive' END AS status,
+            created_at, updated_at
      FROM users WHERE user_id = ?`,
     [userId]
   );
@@ -151,7 +178,7 @@ async function listUsers(dateRange = {}) {
   addDateRangeCondition(conditions, values, 'created_at', dateRange);
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const [users] = await pool.execute(
-    `SELECT ${USER_COLUMNS} FROM users ${where} ORDER BY created_at DESC, user_id DESC`,
+    `SELECT ${USER_COLUMNS} FROM users ${where} ORDER BY created_at DESC, id DESC`,
     values
   );
   return users;
@@ -161,7 +188,7 @@ async function updateUser(userId, { username, name, email, phone, role }) {
   await pool.execute(
     `UPDATE users
      SET username = ?, name = ?, email = ?, phone = ?, role = ?
-     WHERE user_id = ?`,
+     WHERE id = ?`,
     [username, name, email, phone || null, role, userId]
   );
   return getUserById(userId);
@@ -169,7 +196,7 @@ async function updateUser(userId, { username, name, email, phone, role }) {
 
 async function deleteUser(userId) {
   const [result] = await pool.execute(
-    'DELETE FROM users WHERE user_id = ?',
+    'DELETE FROM users WHERE id = ?',
     [userId]
   );
   return result.affectedRows > 0;
@@ -209,6 +236,7 @@ module.exports = {
   getOwnProfile,
   getPasswordHash,
   getUserById,
+  getUserByUserId,
   hashPassword,
   initializeAuthModule,
   insertUser,
