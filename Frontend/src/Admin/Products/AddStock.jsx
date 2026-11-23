@@ -29,7 +29,7 @@ const AddStock = ({ onClose }) => {
         setLoading(true);
         try {
             const params = { search };
-            const res = await api.get("/products", { params });
+            const res = await api.get("/products/mine", { params });
             const data = res.data;
             setProducts(Array.isArray(data) ? data : (data.products || []));
         } catch (error) {
@@ -53,7 +53,7 @@ const AddStock = ({ onClose }) => {
         setManualTotalStockAdd("");
         setSearch("");
         try {
-            const res = await api.get(`/products/${prod.id}`);
+            const res = await api.get(`/products/mine/${prod.id}`);
             const p = res.data;
             let variants = [];
             if (p.variants) {

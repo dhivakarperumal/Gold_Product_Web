@@ -145,6 +145,20 @@ async function getProduct(req, res, next) {
   }
 }
 
+async function getMyProduct(req, res, next) {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ message: 'Product ID is invalid' });
+  try {
+    const product = await getProductById(id);
+    if (!product || product.created_by !== req.adminUser.user_id) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    return res.json(product);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function getProductPricing(req, res, next) {
     const id = Number(req.params.id);
     if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ message: 'Product ID is invalid' });
@@ -348,6 +362,7 @@ module.exports = {
   getProductPricing,
   getProductPriceHistory,
   getMyProducts,
+  getMyProduct,
   getProducts,
   latestProductCode,
   postProduct,

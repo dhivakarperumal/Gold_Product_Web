@@ -143,3 +143,28 @@ test('latest product codes are requested for the authenticated user UUID', async
     assert.deepEqual(res.body, { latestCode: 'GOLD-PRD-001' });
   });
 });
+
+test('private product details are limited to the authenticated user', async () => {
+  let res = responseRecorder();
+  await withControllerMocks({
+    getProductById: async () => ({ id: 1, created_by: 'authenticated-user-uuid' })
+  }, async ({ getMyProduct }) => {
+    await getMyProduct({
+      params: { id: '1' },
+      adminUser: { user_id: 'authenticated-user-uuid' }
+    }, res, (error) => { throw error; });
+    assert.equal(res.body.id, 1);
+  });
+
+  res = responseRecorder();
+  await withControllerMocks({
+    getProductById: async () => ({ id: 1, created_by: 'another-user-uuid' })
+  }, async ({ getMyProduct }) => {
+    await getMyProduct({
+      params: { id: '1' },
+      adminUser: { user_id: 'authenticated-user-uuid' }
+    }, res, (error) => { throw error; });
+    assert.equal(res.statusCode, 404);
+    assert.deepEqual(res.body, { message: 'Product not found' });
+  });
+});

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAdmin } from "../../PrivateRouter/AdminContext";
+import { useAuth } from "../../PrivateRouter/AuthContext";
 import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
 import { toast, Toaster } from "react-hot-toast";
@@ -21,6 +22,8 @@ import { getProductImageUrl } from "../../Components/Home/productDisplay";
 
 const StockDetails = () => {
     const { stockCache, setStockCached } = useAdmin();
+    const { user } = useAuth();
+    const ownerUserId = user?.user_id || "anonymous";
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
     const [currentPage, setCurrentPage] = useState(1);
@@ -28,6 +31,7 @@ const StockDetails = () => {
     const itemsPerPage = 10;
 
     const currentCacheKey = JSON.stringify({
+        userId: ownerUserId,
         page: currentPage,
         limit: itemsPerPage,
         search: searchTerm,
@@ -36,7 +40,9 @@ const StockDetails = () => {
     
     const pageData = stockCache[currentCacheKey];
     const [products, setProducts] = useState(pageData?.products || []);
+    const [loadedOwnerId, setLoadedOwnerId] = useState(ownerUserId);
     const [loading, setLoading] = useState(!pageData);
+    const fetchRequestRef = useRef(0);
 
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,17 +55,22 @@ const StockDetails = () => {
     const [manualTotalStock, setManualTotalStock] = useState("0");
     const [isUpdating, setIsUpdating] = useState(false);
     const [fetchingDetail, setFetchingDetail] = useState(false);
+    const ownerIsCurrent = loadedOwnerId === ownerUserId;
+    const visibleStats = ownerIsCurrent ? stats : { total: 0, active: 0, lowStock: 0, outOfStock: 0 };
 
     const fetchProducts = useCallback(async () => {
+        const requestId = ++fetchRequestRef.current;
+        setLoading(true);
         const params = {
             page: currentPage,
             limit: itemsPerPage,
             search: searchTerm,
             status: statusFilter
         };
-        const cacheKey = JSON.stringify(params);
+        const cacheKey = currentCacheKey;
         try {
-            const response = await api.get("/products", { params });
+            const response = await api.get("/products/mine", { params });
+            if (requestId !== fetchRequestRef.current) return;
             const data = response.data;
             let finalData = {};
  
@@ -73,17 +84,22 @@ const StockDetails = () => {
                 };
             }
             setProducts(finalData.products);
+            setLoadedOwnerId(ownerUserId);
             setPagination(finalData.pagination);
             setStats(finalData.stats);
             setStockCached(prev => ({ ...prev, [cacheKey]: finalData }));
         } catch (error) {
+            if (requestId !== fetchRequestRef.current) return;
             console.error("Error fetching products:", error);
             setProducts([]);
+            setLoadedOwnerId(ownerUserId);
+            setPagination({ total: 0, totalPages: 1 });
+            setStats({ total: 0, active: 0, lowStock: 0, outOfStock: 0 });
             toast.error(error.response?.data?.message || "Could not load stock details.");
         } finally {
-            setLoading(false);
+            if (requestId === fetchRequestRef.current) setLoading(false);
         }
-    }, [currentPage, searchTerm, statusFilter, setStockCached]);
+    }, [currentCacheKey, currentPage, searchTerm, statusFilter, ownerUserId, setStockCached]);
 
     useEffect(() => {
         void fetchProducts();
@@ -111,7 +127,8 @@ const StockDetails = () => {
     };
 
     const totalPages = Math.max(1, Number(pagination.totalPages) || 1);
-    const currentItems = products;
+    const currentItems = ownerIsCurrent ? products : [];
+    const isLoading = loading || !ownerIsCurrent;
     const changePage = (page) => {
         setLoading(true);
         setCurrentPage(page);
@@ -126,7 +143,7 @@ const StockDetails = () => {
         setFetchingDetail(true);
 
         try {
-            const res = await api.get(`/products/` + product.id);
+            const res = await api.get(`/products/mine/${product.id}`);
             const fullP = res.data;
             let vars = [];
             if (fullP.variants) {
@@ -250,10 +267,10 @@ const StockDetails = () => {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: "Total Products", value: stats.total || 0, sub: "All products",    icon: <FiBox size={22} />,          gradient: "from-[#003B3B] to-[#008577]" },
-                    { label: "Active",         value: stats.active || 0, sub: "Active products",     icon: <FiCheckCircle />,             gradient: "from-emerald-400 to-teal-500" },
-                    { label: "Out of Stock",   value: stats.outOfStock || 0, sub: "No units available", icon: <FiAlertCircle />,      gradient: "from-orange-400 to-amber-500" },
-                    { label: "Low Stock",      value: stats.lowStock || 0, sub: "Products below 10 units", icon: <FiTrendingDown />,             gradient: "from-rose-400 to-pink-500" },
+                    { label: "Total Products", value: visibleStats.total || 0, sub: "All products",    icon: <FiBox size={22} />,          gradient: "from-[#003B3B] to-[#008577]" },
+                    { label: "Active",         value: visibleStats.active || 0, sub: "Active products",     icon: <FiCheckCircle />,             gradient: "from-emerald-400 to-teal-500" },
+                    { label: "Out of Stock",   value: visibleStats.outOfStock || 0, sub: "No units available", icon: <FiAlertCircle />,      gradient: "from-orange-400 to-amber-500" },
+                    { label: "Low Stock",      value: visibleStats.lowStock || 0, sub: "Products below 10 units", icon: <FiTrendingDown />,             gradient: "from-rose-400 to-pink-500" },
                 ].map((stat, i) => (
                     <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition-all">
                         <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ` + stat.gradient + ` flex items-center justify-center text-white shadow-lg shrink-0`}>
@@ -336,7 +353,7 @@ const StockDetails = () => {
             {/* Inventory Table */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden text-slate-800">
                 <div className="overflow-x-auto">
-                    {loading ? (
+                    {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-20">
                             <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-[#008577] rounded-full animate-spin mb-4"></div>
                             <p className="text-gray-500 font-bold text-sm">Loading stock details...</p>
