@@ -20,6 +20,7 @@ const { initializeReceiptSettingsModule } = require('./src/modules/receiptSettin
 const { initializeHomeSectionModule } = require('./src/modules/homeSectionModule');
 const { initializeFundModule } = require('./src/modules/fundModule');
 const { initializeEnquiryModule } = require('./src/modules/enquiryModule');
+const { initializeSuperAdminGoldShopModule } = require('./src/modules/superAdminGoldShopModule');
 const apiRouter = require('./src/router');
 const { pool } = require('./src/config/db');
 const privateUploadGuard = require('./src/middleware/privateUploadGuard');
@@ -87,6 +88,7 @@ async function startServer() {
   await initializeBillingModule();
   await initializeReceiptSettingsModule();
   await initializeHomeSectionModule();
+  await initializeSuperAdminGoldShopModule();
   const server = app.listen(PORT, () => {
     console.log(`Backend server is running on port ${PORT}`);
   });
