@@ -16,7 +16,7 @@ import {
 const navItems = [
   { path: "/superadmin", label: "Dashboard Analytics", icon: LayoutDashboard, exact: true },
   { path: "/superadmin/goldshop", label: "Gold Shop Management", icon: Package, exact: true },
-  { path: "/superadmin/subscription-plans", label: "Subscription Plan Management", icon: Layers, exact: true },
+  { path: "/superadmin/subscription-plans", label: "Subscription Plan", icon: Layers, exact: true },
   { label: "Subscription Activation & Expiry", icon: CalendarDays, disabled: true },
   { label: "Payment Management", icon: Wallet, disabled: true },
   { label: "Transaction History", icon: Files, disabled: true },
