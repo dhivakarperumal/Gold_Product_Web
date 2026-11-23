@@ -3,7 +3,7 @@ import { useAdmin } from "../PrivateRouter/AdminContext";
 import { formatRateDate } from "../PrivateRouter/goldRateUtils";
 import useGoldRates from "../PrivateRouter/useGoldRates";
 import api from "../api";
-import DateRangeFilter from "./Components/DateRangeFilter";
+import DateRangeFilter from "../Admin/Components/DateRangeFilter.jsx";
 import { formatCurrency } from "../utils/currency";
 import { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";

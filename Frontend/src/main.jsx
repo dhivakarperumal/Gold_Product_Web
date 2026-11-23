@@ -26,6 +26,8 @@ const Register = React.lazy(() => import("./Components/Auth/Register.jsx"));
 // Lazy Load Admin Components
 const AdminPanel = React.lazy(() => import("./Admin/AdminPanel.jsx"));
 const Dashboard = React.lazy(() => import("./Admin/Dashboard.jsx"));
+const SuperAdminPanel = React.lazy(() => import("./SuperAdmin/SuperAdminPanel.jsx"));
+const SuperDashboard = React.lazy(() => import("./SuperAdmin/SuperDashboard.jsx"));
 const Users = React.lazy(() => import("./Admin/Pages/Users.jsx"));
 const Category = React.lazy(() => import("./Admin/Categery/Category.jsx"));
 const Metals = React.lazy(() => import("./Admin/Metal Type/Metals.jsx"));

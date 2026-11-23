@@ -28,7 +28,7 @@ async function requireAdmin(req, res, next) {
     if (!user || user.status !== 'Active') {
       return res.status(401).json({ message: 'Your account is unavailable' });
     }
-    if (user.role !== 'admin') {
+    if (!['admin', 'superadmin'].includes(user.role)) {
       return res.status(403).json({ message: 'Administrator access is required' });
     }
 
