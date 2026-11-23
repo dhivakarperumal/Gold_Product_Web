@@ -65,7 +65,9 @@ const Navbar = () => {
 
   const wishlistCount = wishlist.length;
   const cartCount = cart.length;
-  const isAdmin = String(user?.role || "").toLowerCase() === "admin";
+  const userRole = String(user?.role || "").trim().toLowerCase();
+  const isAdmin = userRole === "admin";
+  const isSuperAdmin = userRole === "superadmin";
   const currentParams = new URLSearchParams(location.search);
   const selectedCategories = currentParams.getAll("category");
   const selectedMetals = currentParams.getAll("metal");
@@ -662,6 +664,18 @@ const Navbar = () => {
                           My Profile
                         </button>
 
+                        {isSuperAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAccountOpen(false);
+                              navigate("/superadmin");
+                            }}
+                            className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-[#174a38] hover:bg-[#f8f0df]"
+                          >
+                            Super Admin Panel
+                          </button>
+                        )}
                         {isAdmin && (
                           <button
                             type="button"
@@ -930,12 +944,12 @@ const Navbar = () => {
                 type="button"
                 onClick={() => {
                   closeMenus();
-                  navigate(user ? "/profile" : "/login");
+                  navigate(user ? (isSuperAdmin ? "/superadmin" : "/profile") : "/login");
                 }}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#064638] px-4 py-3 text-sm font-semibold text-[#f3d795]"
               >
                 <UserRound size={17} />
-                {user ? "My Account" : "Login / Register"}
+                {user ? (isSuperAdmin ? "Super Admin Panel" : "My Account") : "Login / Register"}
               </button>
 
             </div>
