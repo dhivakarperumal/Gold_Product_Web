@@ -628,7 +628,6 @@ export default function AllGoldsShop() {
                   <div>
                     <p className="text-xs font-bold text-[#00796B]">{shop.shop_code}</p>
                     <h3 className="mt-1 font-bold text-slate-900">{shop.shop_name}</h3>
-                    <p className="mt-1 text-xs text-slate-500">{shop.owner_name}</p>
                   </div>
                   <div className="shrink-0 text-right">
                     <StatusBadge value={approvalStatus(shop)} />
@@ -636,7 +635,8 @@ export default function AllGoldsShop() {
                   </div>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                  <div><dt className="text-slate-400">Mobile</dt><dd className="mt-1 font-semibold text-slate-700">{shop.mobile}</dd></div>
+                  <div className="col-span-2"><dt className="text-slate-400">Owner</dt><dd className="mt-1 font-semibold text-slate-700">{shop.owner_name || "—"}</dd></div>
+                  <div className="col-span-2"><dt className="text-slate-400">Mobile</dt><dd className="mt-1 font-semibold text-slate-700">{shop.mobile || "—"}</dd></div>
                   <div><dt className="text-slate-400">City</dt><dd className="mt-1 font-semibold text-slate-700">{shop.city || "—"}</dd></div>
                   <div><dt className="text-slate-400">Plan</dt><dd className="mt-1 font-semibold text-slate-700">{shop.plan_name || "No plan"}</dd></div>
                   <div className="col-span-2"><dt className="text-slate-400">Start</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.start_date)}</dd></div>

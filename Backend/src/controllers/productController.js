@@ -230,7 +230,7 @@ async function postProduct(req, res, next) {
       product.price_updated_at = new Date();
       Object.assign(product, calculateProductPricing(product, activeRate.rate_per_gram));
     }
-    const created = await createProduct(product);
+    const created = await createProduct({ ...product, created_by: req.adminUser.user_id });
     if (product.gold_rate_per_gram != null) {
       await pool.execute(`
         INSERT INTO product_price_history
@@ -265,7 +265,7 @@ async function putProduct(req, res, next) {
       product.gold_rate_per_gram = existingProduct.gold_rate_per_gram;
       product.gold_rate_date = existingProduct.gold_rate_date;
     }
-    const updated = await updateProduct(id, product);
+    const updated = await updateProduct(id, { ...product, updated_by: req.adminUser.user_id });
     if (product.gold_rate_per_gram != null
       && Number(existingProduct.final_selling_price) !== Number(updated.final_selling_price)) {
       await pool.execute(`

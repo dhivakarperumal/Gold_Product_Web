@@ -15,7 +15,7 @@ const PRODUCT_COLUMNS = `
   warehouse, status, featured, new_arrival, best_seller, variants, material,
   wash_care, saree_length, blouse_length, top_length, bottom_length,
   dupatta_length, gown_length, sleeve_type, neck_type, fit_type, work_type,
-  zari_color, age, created_at, updated_at
+  zari_color, age, created_by, updated_by, created_at, updated_at
 `;
 
 const JSON_COLUMNS = new Set(['available_sizes', 'highlights', 'images', 'variants']);
@@ -101,8 +101,91 @@ const columnDefinitions = {
   fit_type: "VARCHAR(100) NULL",
   work_type: "VARCHAR(150) NULL",
   zari_color: "VARCHAR(100) NULL",
-  age: "VARCHAR(50) NULL"
+  age: "VARCHAR(50) NULL",
+  created_by: "VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL",
+  updated_by: "VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL"
 };
+
+async function migrateProductAuditColumn(column) {
+  const [columnRows] = await pool.execute(
+    `SELECT DATA_TYPE, COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = ?`,
+    [column]
+  );
+  const currentColumn = columnRows[0];
+  if (!currentColumn) throw new Error(`The products.${column} audit column was not created`);
+
+  const needsUuidType = currentColumn.DATA_TYPE !== 'varchar'
+    || currentColumn.COLUMN_TYPE.toLowerCase() !== 'varchar(255)'
+    || currentColumn.CHARACTER_SET_NAME !== 'ascii'
+    || currentColumn.COLLATION_NAME !== 'ascii_bin';
+  const [foreignKeys] = await pool.execute(
+    `SELECT CONSTRAINT_NAME, REFERENCED_COLUMN_NAME
+     FROM information_schema.KEY_COLUMN_USAGE
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products'
+       AND COLUMN_NAME = ? AND REFERENCED_TABLE_NAME = 'users'`,
+    [column]
+  );
+  for (const foreignKey of foreignKeys) {
+    if (needsUuidType || foreignKey.REFERENCED_COLUMN_NAME !== 'user_id') {
+      const constraintName = String(foreignKey.CONSTRAINT_NAME).replace(/`/g, '``');
+      await pool.query(`ALTER TABLE products DROP FOREIGN KEY \`${constraintName}\``);
+    }
+  }
+
+  const [orphanedLegacyIds] = await pool.execute(
+    `SELECT p.id
+     FROM products p
+     LEFT JOIN users legacy_user ON legacy_user.id = CAST(p.\`${column}\` AS UNSIGNED)
+     WHERE p.\`${column}\` IS NOT NULL
+       AND p.\`${column}\` REGEXP '^[0-9]+$'
+       AND legacy_user.id IS NULL
+     LIMIT 1`
+  );
+  if (orphanedLegacyIds.length) {
+    throw new Error(`Cannot migrate products.${column} for product ${orphanedLegacyIds[0].id}: the user id does not exist`);
+  }
+
+  if (needsUuidType) {
+    await pool.query(
+      `ALTER TABLE products
+       MODIFY COLUMN \`${column}\` VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL`
+    );
+  }
+  await pool.query(
+    `UPDATE products p
+     JOIN users legacy_user ON legacy_user.id = CAST(p.\`${column}\` AS UNSIGNED)
+     SET p.\`${column}\` = legacy_user.user_id
+     WHERE p.\`${column}\` REGEXP '^[0-9]+$'`
+  );
+
+  const [orphanedUserIds] = await pool.execute(
+    `SELECT p.id
+     FROM products p
+     LEFT JOIN users audit_user ON audit_user.user_id = p.\`${column}\`
+     WHERE p.\`${column}\` IS NOT NULL AND audit_user.user_id IS NULL
+     LIMIT 1`
+  );
+  if (orphanedUserIds.length) {
+    throw new Error(`Cannot link products.${column} for product ${orphanedUserIds[0].id}: the user_id does not exist`);
+  }
+
+  const [userIdForeignKeys] = await pool.execute(
+    `SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products'
+       AND COLUMN_NAME = ? AND REFERENCED_TABLE_NAME = 'users'
+       AND REFERENCED_COLUMN_NAME = 'user_id'`,
+    [column]
+  );
+  if (!userIdForeignKeys.length) {
+    await pool.query(
+      `ALTER TABLE products
+       ADD CONSTRAINT fk_products_${column}_user_id
+       FOREIGN KEY (\`${column}\`) REFERENCES users(user_id) ON DELETE SET NULL`
+    );
+  }
+}
 
 async function initializeProductModule() {
   await pool.query(`
@@ -119,6 +202,8 @@ async function initializeProductModule() {
       rating DECIMAL(3,2) NOT NULL DEFAULT 0,
       total_stock INT NOT NULL DEFAULT 0,
       status VARCHAR(32) NOT NULL DEFAULT 'Active',
+      created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
+      updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
@@ -130,6 +215,9 @@ async function initializeProductModule() {
     if (!existingColumns.has(column)) {
       await pool.query(`ALTER TABLE products ADD COLUMN \`${column}\` ${definition}`);
     }
+  }
+  for (const column of ['created_by', 'updated_by']) {
+    await migrateProductAuditColumn(column);
   }
   await pool.query("UPDATE products SET offer_type = 'Percentage' WHERE (offer_type IS NULL OR offer_type = 'None') AND offer > 0");
   await pool.query(`
