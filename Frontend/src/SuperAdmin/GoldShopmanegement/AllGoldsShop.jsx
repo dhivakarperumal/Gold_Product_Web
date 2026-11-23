@@ -476,8 +476,8 @@ export default function AllGoldsShop() {
         <StatCard label="Expired" value={summary.expired_subscriptions} note="Expired subscriptions" icon={ShieldAlert} theme="rose" />
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-        <div className="flex flex-col gap-2.5 border-b border-slate-100 p-3 lg:flex-row lg:items-center">
+      <section className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
           <label className="relative min-w-0 flex-1 lg:max-w-sm">
             <span className="sr-only">Search gold shops</span>
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -504,6 +504,9 @@ export default function AllGoldsShop() {
             </button>
           </div>
         </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         {loading ? (
           <div className="space-y-3 p-5" aria-label="Loading shops" role="status">
             {[1, 2, 3].map((row) => <div key={row} className="h-12 animate-pulse rounded-xl bg-stone-100" />)}
@@ -543,10 +546,10 @@ export default function AllGoldsShop() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] text-left text-sm">
+            <table className="w-full min-w-[1120px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
               <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
                 <tr>
-                  <th className="px-4 py-3">Shop ID</th><th className="px-4 py-3">Shop name</th><th className="px-4 py-3">Owner</th><th className="px-4 py-3">Mobile</th><th className="px-4 py-3">City</th><th className="px-4 py-3">Plan</th><th className="px-4 py-3">Expiry</th><th className="px-4 py-3">Payment</th><th className="px-4 py-3">Shop status</th><th className="px-4 py-3">Created</th><th className="px-4 py-3">Actions</th>
+                  <th className="rounded-tl-2xl px-4 py-3">Shop ID</th><th className="px-4 py-3">Shop name</th><th className="px-4 py-3">Owner</th><th className="px-4 py-3">Mobile</th><th className="px-4 py-3">City</th><th className="px-4 py-3">Plan</th><th className="px-4 py-3">Expiry</th><th className="px-4 py-3">Payment</th><th className="px-4 py-3">Shop status</th><th className="px-4 py-3">Created</th><th className="rounded-tr-2xl px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -616,7 +619,7 @@ export default function AllGoldsShop() {
             <label className="block text-xs font-semibold uppercase tracking-wide text-stone-600">
               Duration
               <select className="mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm normal-case" value={subscriptionForm.duration} onChange={(event) => setSubscriptionForm((current) => ({ ...current, duration: event.target.value }))}>
-                <option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option>
+                <option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="half_yearly">Half-Yearly</option><option value="yearly">Yearly</option>
               </select>
             </label>
             <label className="block text-xs font-semibold uppercase tracking-wide text-stone-600">

@@ -53,6 +53,7 @@ const getHeaderProductImage = (product) => {
 
 const pageTitles = {
   "/superadmin/goldshop": "Gold Shops Management",
+  "/superadmin/subscription-plans": "Subscription Plan Management",
   "/admin": "Dashboard",
   "/admin/products/all": "All Products",
   "/admin/products/add": "Add Product",

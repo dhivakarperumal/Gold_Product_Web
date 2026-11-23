@@ -7,10 +7,11 @@ const DEFAULT_PLANS = [
   { name: 'Premium', monthly: 999, features: ['Shop profile', 'Inventory', 'Reports', 'Priority support'] }
 ];
 
-const DURATION_MONTHS = { monthly: 1, quarterly: 3, yearly: 12 };
+const DURATION_MONTHS = { monthly: 1, quarterly: 3, half_yearly: 6, yearly: 12 };
 const PRICE_COLUMNS = {
   monthly: 'monthly_price',
   quarterly: 'quarterly_price',
+  half_yearly: 'half_yearly_price',
   yearly: 'yearly_price'
 };
 
@@ -65,6 +66,7 @@ async function initializeSuperAdminGoldShopModule() {
       plan_name VARCHAR(80) NOT NULL,
       monthly_price DECIMAL(10, 2) NOT NULL,
       quarterly_price DECIMAL(10, 2) NOT NULL,
+      half_yearly_price DECIMAL(10, 2) NULL,
       yearly_price DECIMAL(10, 2) NOT NULL,
       max_branches INT UNSIGNED NULL,
       max_staff INT UNSIGNED NULL,
@@ -120,7 +122,7 @@ async function initializeSuperAdminGoldShopModule() {
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       gold_shop_id INT UNSIGNED NOT NULL,
       plan_id INT UNSIGNED NOT NULL,
-      duration ENUM('monthly', 'quarterly', 'yearly') NOT NULL,
+      duration ENUM('monthly', 'quarterly', 'half_yearly', 'yearly') NOT NULL,
       amount DECIMAL(10, 2) NOT NULL,
       start_date DATE NOT NULL,
       end_date DATE NOT NULL,
@@ -313,7 +315,7 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
 
 async function getSubscriptionPlans() {
   const [plans] = await pool.execute(
-    `SELECT id, plan_name, monthly_price, quarterly_price, yearly_price,
+    `SELECT id, plan_name, monthly_price, quarterly_price, half_yearly_price, yearly_price,
             max_branches, max_staff, features, status
      FROM subscription_plans WHERE status = 'active' ORDER BY id`
   );
@@ -321,6 +323,7 @@ async function getSubscriptionPlans() {
     ...plan,
     monthly_price: Number(plan.monthly_price),
     quarterly_price: Number(plan.quarterly_price),
+    half_yearly_price: Number(plan.half_yearly_price || plan.quarterly_price),
     yearly_price: Number(plan.yearly_price),
     features: typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || [])
   }));
@@ -403,7 +406,7 @@ async function createGoldShop(input, actorId) {
 
 async function insertSubscription(connection, shopId, input, actorId) {
   const [plans] = await connection.execute(
-    `SELECT id, plan_name, monthly_price, quarterly_price, yearly_price
+    `SELECT id, plan_name, monthly_price, quarterly_price, half_yearly_price, yearly_price
      FROM subscription_plans WHERE id = ? AND status = 'active' FOR UPDATE`,
     [input.plan_id]
   );

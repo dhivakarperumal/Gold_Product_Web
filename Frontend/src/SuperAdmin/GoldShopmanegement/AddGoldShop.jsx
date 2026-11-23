@@ -195,6 +195,7 @@ export default function AddGoldShop({
                     <select className={inputClass} name="duration" value={form.duration} onChange={handleChange}>
                       <option value="monthly">Monthly</option>
                       <option value="quarterly">Quarterly</option>
+                      <option value="half_yearly">Half-Yearly</option>
                       <option value="yearly">Yearly</option>
                     </select>
                   </label>

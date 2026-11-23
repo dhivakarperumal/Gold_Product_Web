@@ -13,7 +13,7 @@ const {
 } = require('../modules/superAdminGoldShopModule');
 
 const SHOP_STATUSES = new Set(['active', 'inactive', 'pending', 'suspended']);
-const DURATIONS = new Set(['monthly', 'quarterly', 'yearly']);
+const DURATIONS = new Set(['monthly', 'quarterly', 'half_yearly', 'yearly']);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?[1-9]\d{9,14}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -31,7 +31,7 @@ function validateSubscription(body) {
   const duration = String(body.duration || '').trim().toLowerCase();
   const startDate = String(body.startDate || '').trim();
   if (!positiveId(planId)) return { error: 'Select a valid subscription plan' };
-  if (!DURATIONS.has(duration)) return { error: 'Subscription duration must be monthly, quarterly, or yearly' };
+  if (!DURATIONS.has(duration)) return { error: 'Subscription duration must be monthly, quarterly, half-yearly, or yearly' };
   if (!DATE_PATTERN.test(startDate) || !isValidDate(startDate)) {
     return { error: 'Enter a valid subscription start date' };
   }
