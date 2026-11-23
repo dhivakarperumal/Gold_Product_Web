@@ -2,6 +2,7 @@ const express = require('express');
 const requireSuperAdmin = require('../middleware/requireSuperAdmin');
 const { handleGoldShopDocumentUpload } = require('../middleware/goldShopDocumentUpload');
 const subscriptionPlanController = require('../controllers/subscriptionPlanController');
+const revenueReportRouter = require('./revenueReportRouter');
 const {
   approveShop,
   deleteGoldShop,
@@ -21,6 +22,7 @@ const {
 const router = express.Router();
 
 router.use(requireSuperAdmin);
+router.use('/revenue-reports', revenueReportRouter);
 router.get('/subscription-plans', subscriptionPlanController.getPlans);
 router.post('/subscription-plans', subscriptionPlanController.postPlan);
 router.get('/subscription-plans/:id', subscriptionPlanController.getPlan);

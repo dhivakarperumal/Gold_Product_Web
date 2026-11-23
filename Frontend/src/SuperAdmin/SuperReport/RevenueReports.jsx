@@ -1,0 +1,653 @@
+import { useState, useEffect, useCallback, useId } from "react";
+import {
+  BarChart3,
+  TrendingUp,
+  Download,
+  Printer,
+  FileSpreadsheet,
+  FileText,
+  Calendar,
+  Filter,
+  RefreshCw,
+  Store,
+  Layers,
+  CreditCard,
+  Search,
+  Eye,
+  Sparkles,
+  ChevronDown
+} from "lucide-react";
+import { toast } from "react-hot-toast";
+import api from "../../api";
+import { formatCurrency } from "../../utils/currency";
+import RevenueSummaryCards from "./RevenueSummaryCards";
+import RevenueCharts from "./RevenueCharts";
+import ShopRevenueTable from "./ShopRevenueTable";
+import SubscriptionRevenueSection from "./SubscriptionRevenueSection";
+import PaymentHistoryTable from "./PaymentHistoryTable";
+import ShopRevenueModal from "./ShopRevenueModal";
+import PaymentInvoiceModal from "./PaymentInvoiceModal";
+import RevenueComingSoon from "./RevenueComingSoon";
+import { exportToCsv, exportToExcel, printElement } from "./exportUtils";
+
+export default function RevenueReports() {
+  // Coming Soon toggle state
+  const [showComingSoon, setShowComingSoon] = useState(false);
+
+  // Active View Tab
+  const [activeView, setActiveView] = useState("all"); // "all" | "analytics" | "shops" | "plans" | "payments"
+
+  // Primary Data States
+  const [overview, setOverview] = useState({});
+  const [analytics, setAnalytics] = useState({});
+  const [shops, setShops] = useState([]);
+  const [shopPagination, setShopPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [subscriptions, setSubscriptions] = useState({ items: [], totalAllRevenue: 0 });
+  const [payments, setPayments] = useState([]);
+  const [paymentPagination, setPaymentPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [plansList, setPlansList] = useState([]);
+
+  // Filter States
+  const [datePreset, setDatePreset] = useState("all"); // all | today | yesterday | last7days | last30days | thismonth | lastmonth | thisyear | custom
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+
+  // Search & Pagination States
+  const [shopSearch, setShopSearch] = useState("");
+  const [shopPage, setShopPage] = useState(1);
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("all");
+  const [paymentPage, setPaymentPage] = useState(1);
+
+  // Loading & Error States
+  const [loading, setLoading] = useState(true);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Modals
+  const [selectedShopId, setSelectedShopId] = useState(null);
+  const [selectedPaymentId, setSelectedPaymentId] = useState(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const customStartDateId = useId();
+  const customEndDateId = useId();
+
+  // Helper to resolve dates from preset
+  const resolveDates = useCallback(() => {
+    const today = new Date();
+    const toYMD = (d) => d.toISOString().slice(0, 10);
+
+    switch (datePreset) {
+      case "today": {
+        const d = toYMD(today);
+        return { startDate: d, endDate: d };
+      }
+      case "yesterday": {
+        const y = new Date(today);
+        y.setDate(y.getDate() - 1);
+        const d = toYMD(y);
+        return { startDate: d, endDate: d };
+      }
+      case "last7days": {
+        const past = new Date(today);
+        past.setDate(past.getDate() - 6);
+        return { startDate: toYMD(past), endDate: toYMD(today) };
+      }
+      case "last30days": {
+        const past = new Date(today);
+        past.setDate(past.getDate() - 29);
+        return { startDate: toYMD(past), endDate: toYMD(today) };
+      }
+      case "thismonth": {
+        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        return { startDate: toYMD(start), endDate: toYMD(end) };
+      }
+      case "lastmonth": {
+        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const end = new Date(today.getFullYear(), today.getMonth(), 0);
+        return { startDate: toYMD(start), endDate: toYMD(end) };
+      }
+      case "thisyear": {
+        const start = new Date(today.getFullYear(), 0, 1);
+        const end = new Date(today.getFullYear(), 11, 31);
+        return { startDate: toYMD(start), endDate: toYMD(end) };
+      }
+      case "custom": {
+        return { startDate: customStart || undefined, endDate: customEnd || undefined };
+      }
+      case "all":
+      default:
+        return { startDate: undefined, endDate: undefined };
+    }
+  }, [datePreset, customStart, customEnd]);
+
+  // Load Overview & Analytics & Subscriptions
+  const loadDashboardData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { startDate, endDate } = resolveDates();
+      const params = {
+        startDate,
+        endDate,
+        planId: selectedPlan !== "all" ? selectedPlan : undefined,
+        status: selectedStatus !== "all" ? selectedStatus : undefined
+      };
+
+      const [overviewRes, analyticsRes, subsRes, plansListRes] = await Promise.all([
+        api.get("/super-admin/revenue-reports/overview", { params }),
+        api.get("/super-admin/revenue-reports/analytics", { params }),
+        api.get("/super-admin/revenue-reports/subscription-revenue"),
+        api.get("/super-admin/subscription-plans", { params: { pageSize: 50 } })
+      ]);
+
+      setOverview(overviewRes.data.data || {});
+      setAnalytics(analyticsRes.data.data || {});
+      setSubscriptions(subsRes.data.data || { items: [], totalAllRevenue: 0 });
+      setPlansList(plansListRes.data.plans || []);
+    } catch (err) {
+      console.error("Failed to load revenue overview:", err);
+      setError(err.response?.data?.message || "Failed to load revenue analytics.");
+      toast.error("Could not load revenue reports");
+    } finally {
+      setLoading(false);
+    }
+  }, [resolveDates, selectedPlan, selectedStatus]);
+
+  // Load Shop-wise Revenue
+  const loadShopData = useCallback(async () => {
+    setTableLoading(true);
+    try {
+      const { startDate, endDate } = resolveDates();
+      const params = {
+        page: shopPage,
+        limit: 10,
+        search: shopSearch,
+        status: selectedStatus !== "all" ? selectedStatus : undefined,
+        planId: selectedPlan !== "all" ? selectedPlan : undefined,
+        startDate,
+        endDate
+      };
+      const res = await api.get("/super-admin/revenue-reports/shop-revenue", { params });
+      setShops(res.data.data?.items || []);
+      setShopPagination(res.data.data?.pagination || { page: 1, totalPages: 1, total: 0 });
+    } catch (err) {
+      console.error("Failed to load shop revenue:", err);
+    } finally {
+      setTableLoading(false);
+    }
+  }, [resolveDates, shopPage, shopSearch, selectedStatus, selectedPlan]);
+
+  // Load Payments History
+  const loadPaymentData = useCallback(async () => {
+    setTableLoading(true);
+    try {
+      const { startDate, endDate } = resolveDates();
+      const params = {
+        page: paymentPage,
+        limit: 10,
+        search: paymentSearch,
+        status: selectedStatus !== "all" ? selectedStatus : undefined,
+        paymentMethod: paymentMethod !== "all" ? paymentMethod : undefined,
+        planId: selectedPlan !== "all" ? selectedPlan : undefined,
+        startDate,
+        endDate
+      };
+      const res = await api.get("/super-admin/revenue-reports/payments", { params });
+      setPayments(res.data.data?.items || []);
+      setPaymentPagination(res.data.data?.pagination || { page: 1, totalPages: 1, total: 0 });
+    } catch (err) {
+      console.error("Failed to load payments:", err);
+    } finally {
+      setTableLoading(false);
+    }
+  }, [resolveDates, paymentPage, paymentSearch, selectedStatus, paymentMethod, selectedPlan]);
+
+  // Trigger main dashboard load when filters change
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Trigger shop data when search/page/filters change
+  useEffect(() => {
+    loadShopData();
+  }, [loadShopData]);
+
+  // Trigger payment data when search/page/filters change
+  useEffect(() => {
+    loadPaymentData();
+  }, [loadPaymentData]);
+
+  // Reset pagination on search
+  const handleShopSearchChange = (val) => {
+    setShopSearch(val);
+    setShopPage(1);
+  };
+
+  const handlePaymentSearchChange = (val) => {
+    setPaymentSearch(val);
+    setPaymentPage(1);
+  };
+
+  // Export handlers
+  const handleExportCsv = async () => {
+    setExportOpen(false);
+    try {
+      toast.loading("Preparing CSV export...", { id: "export" });
+      const { startDate, endDate } = resolveDates();
+      const res = await api.get("/super-admin/revenue-reports/export", {
+        params: {
+          reportType: activeView === "shops" ? "shop_revenue" : activeView === "plans" ? "subscription_revenue" : "payments",
+          format: "csv",
+          startDate,
+          endDate,
+          planId: selectedPlan !== "all" ? selectedPlan : undefined,
+          status: selectedStatus !== "all" ? selectedStatus : undefined
+        },
+        responseType: "blob"
+      });
+
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: "text/csv;charset=utf-8;" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `revenue_report_${datePreset}_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("CSV export downloaded!", { id: "export" });
+    } catch (err) {
+      toast.error("Export failed", { id: "export" });
+    }
+  };
+
+  const handleExportExcel = () => {
+    setExportOpen(false);
+    if (activeView === "shops") {
+      const headers = ["S.No", "Shop Name", "Shop ID", "Plan", "Total Amount", "Paid Amount", "Pending Amount", "Status", "Last Payment Date"];
+      const rows = shops.map((s) => [
+        s.sNo,
+        s.shopName,
+        s.shopCode,
+        s.planName,
+        s.totalAmount,
+        s.paidAmount,
+        s.pendingAmount,
+        s.paymentStatus,
+        s.lastPaymentDate ? new Date(s.lastPaymentDate).toISOString().slice(0, 10) : "N/A"
+      ]);
+      exportToExcel(`shop_revenue_${new Date().toISOString().slice(0, 10)}`, "Shop Revenue", headers, rows);
+      toast.success("Excel report exported!");
+    } else if (activeView === "plans") {
+      const headers = ["Plan Name", "Monthly Price", "Subscribers", "Active", "Expired", "Total Revenue", "Share %"];
+      const rows = subscriptions.items.map((p) => [
+        p.planName,
+        p.monthlyPrice,
+        p.subscribersCount,
+        p.activeSubscriptions,
+        p.expiredSubscriptions,
+        p.totalRevenue,
+        `${p.percentageShare}%`
+      ]);
+      exportToExcel(`subscription_revenue_${new Date().toISOString().slice(0, 10)}`, "Subscription Revenue", headers, rows);
+      toast.success("Excel report exported!");
+    } else {
+      const headers = ["Txn ID", "Invoice No", "Shop Name", "Shop ID", "Plan", "Payment Date", "Method", "Amount", "Status"];
+      const rows = payments.map((p) => [
+        p.transactionId,
+        p.invoiceNumber,
+        p.shopName,
+        p.shopCode,
+        p.planName,
+        p.paymentDate ? new Date(p.paymentDate).toISOString().slice(0, 10) : "N/A",
+        p.paymentMethod,
+        p.amount,
+        p.paymentStatus
+      ]);
+      exportToExcel(`payment_transactions_${new Date().toISOString().slice(0, 10)}`, "Payment History", headers, rows);
+      toast.success("Excel report exported!");
+    }
+  };
+
+  const handlePrint = () => {
+    setExportOpen(false);
+    const targetId = activeView === "shops"
+      ? "shop-revenue-table-container"
+      : activeView === "plans"
+      ? "subscription-revenue-container"
+      : activeView === "payments"
+      ? "payment-history-table-container"
+      : "revenue-reports-main-content";
+
+    printElement(targetId, `Sri Golds Revenue Report - ${new Date().toLocaleDateString("en-IN")}`);
+  };
+
+  // If user explicitly views the Coming Soon preview screen:
+  if (showComingSoon) {
+    return <RevenueComingSoon onSwitchToLive={() => setShowComingSoon(false)} />;
+  }
+
+  return (
+    <div className="space-y-6 pb-12 font-sans" id="revenue-reports-main-content">
+      {/* ── TOP HEADER & ACTIONS ─────────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-200/80 pb-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#07564B] to-[#0A6F62] text-white shadow-md shadow-emerald-950/20">
+              <BarChart3 className="h-5 w-5" />
+            </span>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+                Revenue Reports
+              </h1>
+              <p className="text-xs text-slate-500 font-medium">
+                Super Admin financial analytics, subscription income, and verified transaction ledgers
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Global Toolbar: Date filter, Coming Soon toggle, Export, Refresh */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Refresh Button */}
+          <button
+            type="button"
+            onClick={() => {
+              loadDashboardData();
+              loadShopData();
+              loadPaymentData();
+              toast.success("Revenue data refreshed");
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
+            title="Refresh All Revenue Data"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+
+          {/* Export Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportOpen(!exportOpen)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#07564B] to-[#0A6F62] px-4 py-2 text-xs font-bold text-white shadow-md shadow-emerald-950/20 transition hover:from-[#06473E] hover:to-[#08594E] active:scale-95"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Export Reports</span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-80" />
+            </button>
+
+            {exportOpen && (
+              <div className="absolute right-0 mt-2 w-52 origin-top-right rounded-2xl border border-slate-100 bg-white p-1.5 shadow-xl ring-1 ring-black/5 z-30">
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                  <span>Export to Excel (.xls)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition"
+                >
+                  <FileText className="h-4 w-4 text-teal-600" />
+                  <span>Export to CSV (.csv)</span>
+                </button>
+                <div className="my-1 border-t border-slate-100" />
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  <Printer className="h-4 w-4 text-slate-500" />
+                  <span>Print / Download PDF</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Toggle Coming Soon Screen for Review */}
+          <button
+            type="button"
+            onClick={() => setShowComingSoon(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-emerald-600/40 bg-emerald-50/50 px-3 py-2 text-xs font-semibold text-[#07564B] transition hover:bg-emerald-50"
+            title="Preview Coming Soon Screen"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">Coming Soon Preview</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── SECTION 6: FILTERS & SEARCH TOOLBAR ──────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Date Presets */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-bold text-slate-500 flex items-center gap-1 mr-1">
+              <Calendar className="h-3.5 w-3.5 text-[#07564B]" />
+              Period:
+            </span>
+            {[
+              { id: "all", label: "All Time" },
+              { id: "today", label: "Today" },
+              { id: "yesterday", label: "Yesterday" },
+              { id: "last7days", label: "Last 7 Days" },
+              { id: "last30days", label: "Last 30 Days" },
+              { id: "thismonth", label: "This Month" },
+              { id: "lastmonth", label: "Last Month" },
+              { id: "thisyear", label: "This Year" },
+              { id: "custom", label: "Custom Date Range" }
+            ].map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setDatePreset(p.id)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                  datePreset === p.id
+                    ? "bg-[#07564B] text-white shadow-sm"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Plan & Payment Status Filter Dropdowns */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+            {/* Filter by Subscription Plan */}
+            <select
+              value={selectedPlan}
+              onChange={(e) => setSelectedPlan(e.target.value)}
+              aria-label="Filter revenue reports by subscription plan"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-[#07564B] focus:outline-none"
+            >
+              <option value="all">All Subscription Plans</option>
+              {plansList.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.plan_name}
+                </option>
+              ))}
+            </select>
+
+            {/* Filter by Payment Status */}
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              aria-label="Filter revenue reports by payment status"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-[#07564B] focus:outline-none"
+            >
+              <option value="all">All Payment Statuses</option>
+              <option value="paid">Paid Only</option>
+              <option value="pending">Pending Only</option>
+              <option value="failed">Failed Only</option>
+              <option value="refunded">Refunded Only</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Custom Date Range Picker when preset === 'custom' */}
+        {datePreset === "custom" && (
+          <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-3 text-xs">
+            <div className="flex items-center gap-1.5">
+              <label htmlFor={customStartDateId} className="font-semibold text-slate-600">Start Date:</label>
+              <input
+                id={customStartDateId}
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="rounded-lg border border-slate-200 px-2.5 py-1 text-slate-700 focus:border-[#07564B] focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <label htmlFor={customEndDateId} className="font-semibold text-slate-600">End Date:</label>
+              <input
+                id={customEndDateId}
+                type="date"
+                value={customEnd}
+                min={customStart || undefined}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="rounded-lg border border-slate-200 px-2.5 py-1 text-slate-700 focus:border-[#07564B] focus:outline-none"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                loadDashboardData();
+                loadShopData();
+                loadPaymentData();
+              }}
+              className="rounded-lg bg-[#07564B] px-3 py-1 font-bold text-white shadow-sm hover:bg-[#06473E] transition"
+            >
+              Apply Filter
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Filter Notice Banner if custom or specific filter is active */}
+      {overview.filteredSummary && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 flex items-center justify-between text-xs text-emerald-900">
+          <div className="flex items-center gap-2">
+            <span className="font-bold">Filtered Period Revenue:</span>
+            <span className="font-black text-sm font-sans">
+              {formatCurrency(overview.filteredSummary.filteredRevenue)}
+            </span>
+            <span className="text-emerald-700">
+              ({overview.filteredSummary.filteredPaidCount} Paid / {overview.filteredSummary.filteredTransactions} Total Invoices)
+            </span>
+          </div>
+          {overview.filteredSummary.filteredPending > 0 && (
+            <div className="font-semibold text-amber-800">
+              Filtered Pending: {formatCurrency(overview.filteredSummary.filteredPending)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── SECTION 1: DASHBOARD OVERVIEW SUMMARY CARDS ────────────────── */}
+      <RevenueSummaryCards data={overview} loading={loading} />
+
+      {/* ── NAVIGATION TABS (All / Analytics / Shop-wise / Subscription / Payments) ── */}
+      <div className="flex border-b border-slate-200">
+        {[
+          { id: "all", label: "Executive Overview", icon: BarChart3 },
+          { id: "analytics", label: "Analytics Charts", icon: TrendingUp },
+          { id: "shops", label: "Shop-wise Revenue", icon: Store },
+          { id: "plans", label: "Subscription Revenue", icon: Layers },
+          { id: "payments", label: "Payment History", icon: CreditCard }
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeView === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveView(tab.id)}
+              className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold transition-all ${
+                isActive
+                  ? "border-[#07564B] text-[#07564B]"
+                  : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── SECTION 2: REVENUE ANALYTICS INTERACTIVE CHARTS ────────────── */}
+      {(activeView === "all" || activeView === "analytics") && (
+        <RevenueCharts
+          analyticsData={analytics}
+          subscriptionData={subscriptions}
+          loading={loading}
+          onRefresh={loadDashboardData}
+        />
+      )}
+
+      {/* ── SECTION 3: SHOP-WISE REVENUE TABLE ──────────────────────────── */}
+      {(activeView === "all" || activeView === "shops") && (
+        <ShopRevenueTable
+          shops={shops}
+          pagination={shopPagination}
+          loading={tableLoading}
+          search={shopSearch}
+          onSearchChange={handleShopSearchChange}
+          status={selectedStatus}
+          onStatusChange={setSelectedStatus}
+          page={shopPage}
+          onPageChange={setShopPage}
+          onSelectShop={(shop) => setSelectedShopId(shop.shopId)}
+        />
+      )}
+
+      {/* ── SECTION 4: SUBSCRIPTION REVENUE BREAKDOWN ───────────────────── */}
+      {(activeView === "all" || activeView === "plans") && (
+        <SubscriptionRevenueSection
+          subscriptionData={subscriptions}
+          loading={loading}
+        />
+      )}
+
+      {/* ── SECTION 5: PAYMENT TRANSACTION HISTORY ──────────────────────── */}
+      {(activeView === "all" || activeView === "payments") && (
+        <PaymentHistoryTable
+          payments={payments}
+          pagination={paymentPagination}
+          loading={tableLoading}
+          search={paymentSearch}
+          onSearchChange={handlePaymentSearchChange}
+          status={selectedStatus}
+          onStatusChange={setSelectedStatus}
+          method={paymentMethod}
+          onMethodChange={setPaymentMethod}
+          page={paymentPage}
+          onPageChange={setPaymentPage}
+          onSelectPayment={(p) => setSelectedPaymentId(p.id)}
+        />
+      )}
+
+      {/* ── SECTION 8: MODALS FOR REVENUE DETAILS ──────────────────────── */}
+      {selectedShopId && (
+        <ShopRevenueModal
+          shopId={selectedShopId}
+          onClose={() => setSelectedShopId(null)}
+        />
+      )}
+
+      {selectedPaymentId && (
+        <PaymentInvoiceModal
+          paymentId={selectedPaymentId}
+          onClose={() => setSelectedPaymentId(null)}
+        />
+      )}
+    </div>
+  );
+}

@@ -15,13 +15,13 @@ import {
 
 const navItems = [
   { path: "/superadmin", label: "Dashboard Analytics", icon: LayoutDashboard, exact: true },
-  { path: "/superadmin/goldshop", label: "Gold Shop Management", icon: Package, exact: true },
+  { path: "/superadmin/goldshop", label: "Gold Shop Management", icon: Package },
   { path: "/superadmin/subscription-plans", label: "Subscription Plan", icon: Layers, exact: true },
   { label: "Subscription Activation & Expiry", icon: CalendarDays, disabled: true },
   { label: "Payment Management", icon: Wallet, disabled: true },
-  { label: "Transaction History", icon: Files, disabled: true },
-  { label: "Subscription Renewal History", icon: RefreshCw, disabled: true },
-  { label: "Revenue Reports", icon: BarChart3, disabled: true }
+  // { label: "Transaction History", icon: Files, disabled: true },
+  // { label: "Subscription Renewal History", icon: RefreshCw, disabled: true },
+  { path: "/superadmin/revenue-reports", label: "Revenue Reports", icon: BarChart3, exact: true }
 ];
 
 /* ================= SIDEBAR ================= */

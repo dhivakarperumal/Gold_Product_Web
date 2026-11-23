@@ -19,6 +19,7 @@ import {
   X
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 import api from "../../api";
 import AddGoldShop from "./AddGoldShop";
 
@@ -273,6 +274,7 @@ function ShopDetails({ shop, loading, onConfirmPayment }) {
 }
 
 export default function AllGoldsShop() {
+  const navigate = useNavigate();
   const [shops, setShops] = useState([]);
   const [plans, setPlans] = useState([]);
   const [summary, setSummary] = useState({});
@@ -435,9 +437,7 @@ export default function AllGoldsShop() {
   };
 
   const openDetails = (shop) => {
-    setSelectedShop(shop);
-    setDetailLoading(true);
-    setModal("details");
+    navigate(`/superadmin/goldshop/${shop.id}`);
   };
 
   const openPaymentConfirmation = (payment) => {
