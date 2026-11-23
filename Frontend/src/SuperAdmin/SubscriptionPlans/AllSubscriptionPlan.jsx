@@ -6,6 +6,7 @@ import AddSubScription from "./AddSubScription";
 
 const formatAmount = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 const formatDate = (value) => value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+const PAGE_SIZE = 10;
 
 function StatCard({ label, value, icon: Icon, theme }) {
   const themes = {
@@ -38,7 +39,7 @@ export default function AllSubscriptionPlan() {
   const loadPlans = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get("/super-admin/subscription-plans", { params: { page, pageSize: 10, search, status } });
+      const { data } = await api.get("/super-admin/subscription-plans", { params: { page, pageSize: PAGE_SIZE, search, status } });
       setPlans(data.plans || []);
       setSummary(data.summary || {});
       setPagination(data.pagination || { page: 1, totalPages: 1, total: 0 });
@@ -165,13 +166,8 @@ export default function AllSubscriptionPlan() {
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${plan.status === "active" ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>{plan.status}</span>
                 </div>
                 {plan.is_featured && <p className="mt-2 text-[10px] font-bold uppercase text-amber-700">Featured Plan</p>}
-                <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                <dl className="mt-4 grid grid-cols-1 gap-3 text-xs">
                   <div><dt className="text-slate-400">Monthly</dt><dd className="mt-1 font-semibold text-slate-800">{formatAmount(plan.monthly_price)}</dd></div>
-                  <div><dt className="text-slate-400">Quarterly</dt><dd className="mt-1 font-semibold text-slate-800">{formatAmount(plan.quarterly_price)}</dd></div>
-                  <div><dt className="text-slate-400">Half-Yearly</dt><dd className="mt-1 font-semibold text-slate-800">{formatAmount(plan.half_yearly_price)}</dd></div>
-                  <div><dt className="text-slate-400">Yearly</dt><dd className="mt-1 font-semibold text-slate-800">{formatAmount(plan.yearly_price)}</dd></div>
-                  <div><dt className="text-slate-400">Branches</dt><dd className="mt-1 font-semibold text-slate-800">{plan.max_branches ?? "Unlimited"}</dd></div>
-                  <div><dt className="text-slate-400">Staff</dt><dd className="mt-1 font-semibold text-slate-800">{plan.max_staff ?? "Unlimited"}</dd></div>
                 </dl>
                 <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
                   <span className="text-xs text-slate-500">{Number(plan.active_subscriptions || 0)} active subscriptions</span>
@@ -188,26 +184,25 @@ export default function AllSubscriptionPlan() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1180px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
+            <table className="w-full min-w-[980px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
               <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
                 <tr>
-                  <th className="rounded-tl-2xl px-4 py-3">Plan ID</th><th className="px-4 py-3">Plan Name</th><th className="px-4 py-3">Plan Code</th>
-                  <th className="px-4 py-3">Monthly</th><th className="px-4 py-3">Quarterly</th><th className="px-4 py-3">Half-Yearly</th><th className="px-4 py-3">Yearly</th>
-                  <th className="px-4 py-3">Branch Limit</th><th className="px-4 py-3">Staff Limit</th><th className="px-4 py-3">Active</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Created</th><th className="rounded-tr-2xl px-4 py-3">Actions</th>
+                  <th className="rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Plan ID</th><th className="px-4 py-4">Plan Name</th><th className="px-4 py-4">Plan Code</th>
+                  <th className="px-4 py-4">Monthly</th><th className="px-4 py-4">Active</th><th className="px-4 py-4">Status</th><th className="px-4 py-4">Created</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {plans.map((plan) => (
+                {plans.map((plan, index) => (
                   <tr key={plan.id} className="hover:bg-amber-50/30">
-                    <td className="px-4 py-3 font-mono text-xs font-bold text-[#00796B]">#{String(plan.id).padStart(4, "0")}</td>
-                    <td className="px-4 py-3"><p className="font-semibold text-slate-800">{plan.plan_name}</p>{plan.is_featured && <p className="text-[10px] font-bold uppercase text-amber-700">Featured</p>}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{plan.plan_code}</td>
-                    <td className="px-4 py-3">{formatAmount(plan.monthly_price)}</td><td className="px-4 py-3">{formatAmount(plan.quarterly_price)}</td><td className="px-4 py-3">{formatAmount(plan.half_yearly_price)}</td><td className="px-4 py-3">{formatAmount(plan.yearly_price)}</td>
-                    <td className="px-4 py-3">{plan.max_branches ?? "Unlimited"}</td><td className="px-4 py-3">{plan.max_staff ?? "Unlimited"}</td>
-                    <td className="px-4 py-3 font-semibold">{Number(plan.active_subscriptions || 0)}</td>
-                    <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${plan.status === "active" ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>{plan.status}</span></td>
-                    <td className="px-4 py-3">{formatDate(plan.created_at)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-4">{(page - 1) * PAGE_SIZE + index + 1}</td>
+                    <td className="px-4 py-4 font-mono text-xs font-bold text-[#00796B]">#{String(plan.id).padStart(4, "0")}</td>
+                    <td className="px-4 py-4"><p className="font-semibold text-slate-800">{plan.plan_name}</p>{plan.is_featured && <p className="text-[10px] font-bold uppercase text-amber-700">Featured</p>}</td>
+                    <td className="px-4 py-4 font-mono text-xs">{plan.plan_code}</td>
+                    <td className="px-4 py-4">{formatAmount(plan.monthly_price)}</td>
+                    <td className="px-4 py-4 font-semibold">{Number(plan.active_subscriptions || 0)}</td>
+                    <td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${plan.status === "active" ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>{plan.status}</span></td>
+                    <td className="px-4 py-4">{formatDate(plan.created_at)}</td>
+                    <td className="px-4 py-4">
                       <div className="flex gap-1">
                         <button type="button" onClick={() => viewPlan(plan)} title="View" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><Eye size={16} /></button>
                         <button type="button" onClick={() => openEdit(plan)} title="Edit" className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil size={16} /></button>

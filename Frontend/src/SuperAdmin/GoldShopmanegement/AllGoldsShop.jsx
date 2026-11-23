@@ -565,15 +565,16 @@ export default function AllGoldsShop() {
             <table className="w-full min-w-[1120px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
               <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
                 <tr>
-                  <th className="rounded-tl-2xl px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Mobile</th><th className="px-4 py-4">City</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Expiry</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Shop status</th><th className="px-4 py-4">Created</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
+                  <th className="w-16 whitespace-nowrap rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Mobile</th><th className="px-4 py-4">City</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Expiry</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Shop status</th><th className="px-4 py-4">Created</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {shops.map((shop) => {
+                {shops.map((shop, index) => {
                   const canActivate = shop.payment_status === "paid" && shop.subscription_status !== "expired";
                   const action = shop.status === "active" ? "Suspend Shop" : "Activate Shop";
                   return (
                     <tr key={shop.id} className="transition hover:bg-amber-50/30">
+                      <td className="px-4 py-4">{(page - 1) * PAGE_SIZE + index + 1}</td>
                       <td className="whitespace-nowrap px-4 py-4 font-mono text-xs font-bold text-amber-800">{shop.shop_code}</td>
                       <td className="px-4 py-4"><p className="font-semibold text-stone-800">{shop.shop_name}</p><p className="mt-0.5 text-xs text-stone-500">{shop.email || "No email"}</p></td>
                       <td className="whitespace-nowrap px-4 py-4">{shop.owner_name}</td>
