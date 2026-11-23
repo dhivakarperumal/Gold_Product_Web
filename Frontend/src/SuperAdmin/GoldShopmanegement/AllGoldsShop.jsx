@@ -12,7 +12,6 @@ import {
   MapPin,
   Pencil,
   Plus,
-  RefreshCw,
   Search,
   ShieldAlert,
   Store,
@@ -519,15 +518,40 @@ export default function AllGoldsShop() {
         ) : loadError ? (
           <div role="alert" className="p-8 text-center text-sm text-rose-700">{loadError}</div>
         ) : !shops.length ? (
-          <div className="p-10 text-center">
-            <Store className="mx-auto h-10 w-10 text-stone-300" />
-            <p className="mt-3 font-semibold text-stone-700">No gold shops found</p>
-            <p className="mt-1 text-sm text-stone-500">Add a shop or adjust your search and filters.</p>
+          <div className="min-h-36 p-10 text-center">
+            <p className="text-sm text-slate-500">No gold shops found. Add one to get started.</p>
+          </div>
+        ) : viewMode === "grid" ? (
+          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            {shops.map((shop) => (
+              <article key={shop.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold text-[#00796B]">{shop.shop_code}</p>
+                    <h3 className="mt-1 font-bold text-slate-900">{shop.shop_name}</h3>
+                    <p className="mt-1 text-xs text-slate-500">{shop.owner_name}</p>
+                  </div>
+                  <StatusBadge value={shop.status} />
+                </div>
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                  <div><dt className="text-slate-400">Mobile</dt><dd className="mt-1 font-semibold text-slate-700">{shop.mobile}</dd></div>
+                  <div><dt className="text-slate-400">City</dt><dd className="mt-1 font-semibold text-slate-700">{shop.city || "—"}</dd></div>
+                  <div><dt className="text-slate-400">Plan</dt><dd className="mt-1 font-semibold text-slate-700">{shop.plan_name || "No plan"}</dd></div>
+                  <div><dt className="text-slate-400">Expiry</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.subscription_expiry)}</dd></div>
+                </dl>
+                <div className="mt-4 flex items-center justify-end gap-1 border-t border-slate-100 pt-3">
+                  <button type="button" onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="View details"><Eye size={16} /></button>
+                  <button type="button" onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50" title="Edit shop"><Pencil size={16} /></button>
+                  <button type="button" onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50" title="Change subscription"><CreditCard size={16} /></button>
+                  <button type="button" onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50" title="Archive shop"><Trash2 size={16} /></button>
+                </div>
+              </article>
+            ))}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1120px] text-left text-sm">
-              <thead className="bg-stone-50 text-[11px] uppercase tracking-wide text-stone-500">
+              <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
                 <tr>
                   <th className="px-4 py-3">Shop ID</th><th className="px-4 py-3">Shop name</th><th className="px-4 py-3">Owner</th><th className="px-4 py-3">Mobile</th><th className="px-4 py-3">City</th><th className="px-4 py-3">Plan</th><th className="px-4 py-3">Expiry</th><th className="px-4 py-3">Payment</th><th className="px-4 py-3">Shop status</th><th className="px-4 py-3">Created</th><th className="px-4 py-3">Actions</th>
                 </tr>
@@ -564,8 +588,10 @@ export default function AllGoldsShop() {
             </table>
           </div>
         )}
-        <footer className="flex items-center justify-between border-t border-stone-100 px-4 py-3 sm:px-5">
-          <p className="text-xs text-stone-500">Page {pagination.page || page} of {Math.max(pagination.totalPages || 1, 1)}</p>
+        <footer className="flex items-center justify-between border-t border-slate-100 px-4 py-3 sm:px-5">
+          <p className="text-xs text-slate-500">
+            Showing {shops.length ? 1 : 0} to {shops.length} of {Number(pagination.total || 0)} gold shops
+          </p>
           <div className="flex gap-2">
             <button type="button" disabled={page <= 1 || loading} onClick={() => { setLoading(true); setPage((current) => Math.max(current - 1, 1)); }} className="rounded-lg border border-stone-200 p-2 text-stone-600 hover:bg-stone-50 disabled:opacity-40"><ChevronLeft size={17} /></button>
             <button type="button" disabled={page >= (pagination.totalPages || 1) || loading} onClick={() => { setLoading(true); setPage((current) => current + 1); }} className="rounded-lg border border-stone-200 p-2 text-stone-600 hover:bg-stone-50 disabled:opacity-40"><ChevronRight size={17} /></button>
@@ -617,6 +643,6 @@ export default function AllGoldsShop() {
           </form>
         </Modal>
       )}
-    </div>
+    </main>
   );
 }
