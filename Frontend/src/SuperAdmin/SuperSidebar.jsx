@@ -18,7 +18,7 @@ const navItems = [
   { path: "/superadmin/goldshop", label: "Gold Shop Management", icon: Package },
   { path: "/superadmin/subscription-plans", label: "Subscription Plan", icon: Layers, exact: true },
   // { label: "Subscription Activation & Expiry", icon: CalendarDays, disabled: true },
-  { label: "Payment Management", icon: Wallet, disabled: true },
+  { path: "/superadmin/payments", label: "Payment Management", icon: Wallet, exact: true },
   // { label: "Transaction History", icon: Files, disabled: true },
   // { label: "Subscription Renewal History", icon: RefreshCw, disabled: true },
   { path: "/superadmin/revenue-reports", label: "Revenue Reports", icon: BarChart3, exact: true }

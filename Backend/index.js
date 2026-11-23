@@ -26,6 +26,7 @@ const {
 } = require('./src/modules/superAdminGoldShopModule');
 const { initializeSubscriptionPlanModule } = require('./src/modules/subscriptionPlanModule');
 const { initializeRevenueReportModule } = require('./src/modules/revenueReportModule');
+const { initializePaymentManagementModule } = require('./src/modules/paymentManagementModule');
 const apiRouter = require('./src/router');
 const { pool } = require('./src/config/db');
 const privateUploadGuard = require('./src/middleware/privateUploadGuard');
@@ -97,6 +98,7 @@ async function startServer() {
   await startSubscriptionExpiryJob();
   await initializeSubscriptionPlanModule();
   await initializeRevenueReportModule();
+  await initializePaymentManagementModule();
   const server = app.listen(PORT, () => {
     console.log(`Backend server is running on port ${PORT}`);
   });

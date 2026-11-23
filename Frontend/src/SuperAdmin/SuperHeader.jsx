@@ -54,6 +54,7 @@ const getHeaderProductImage = (product) => {
 const pageTitles = {
   "/superadmin/goldshop": "Gold Shops Management",
   "/superadmin/subscription-plans": "Subscription Plan Management",
+  "/superadmin/profile": "My Profile",
   "/admin": "Dashboard",
   "/admin/products/all": "All Products",
   "/admin/products/add": "Add Product",
@@ -347,6 +348,7 @@ const SuperHeader = ({ onMenuClick }) => {
   const userName = profileName || "Admin";
 
   const normalizedRole = String(role || "").toLowerCase().replace(/[\s_-]/g, "");
+  const profilePath = normalizedRole === "superadmin" ? "/superadmin/profile" : "/admin/profile";
   const userRole = normalizedRole === "superadmin"
     ? "Super Admin"
     : role
@@ -733,7 +735,8 @@ const SuperHeader = ({ onMenuClick }) => {
                   </div>
 
                   <Link
-                    to="/admin/profile"
+                    to={profilePath}
+                    onClick={() => setShowDropdown(false)}
                     className="flex items-center gap-3 px-3 py-2.5 
                     rounded-xl hover:bg-emerald-50 hover:text-[#004D40]
                     text-sm text-slate-600 transition font-bold"
