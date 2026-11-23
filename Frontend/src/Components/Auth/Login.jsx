@@ -12,7 +12,7 @@ const getPostLoginPath = (role) => {
   const normalizedRole = String(role || "").trim().toLowerCase();
   if (normalizedRole === "superadmin") return "/superadmin";
   if (normalizedRole === "admin") return "/admin";
-  if (normalizedRole === "shopadmin") return "/";
+  if (normalizedRole === "user") return "/";
   return "/";
 };
 
