@@ -8,6 +8,7 @@ const {
 const {
   validateShop,
   validateLoginCredentials,
+  validatePaymentConfirmation,
   validateDocumentConsent,
   validateSubscription
 } = require('../src/controllers/superAdminGoldShopController');
@@ -94,4 +95,21 @@ test('creation never accepts client-supplied price or paid status', () => {
     duration: 'monthly',
     start_date: '2024-01-31'
   });
+});
+
+test('requires a transaction reference and supported method for manual payment confirmation', () => {
+  assert.deepEqual(validatePaymentConfirmation({
+    transactionId: '  UPI-REF-2048  ',
+    paymentMethod: 'upi'
+  }), {
+    confirmation: {
+      transactionId: 'UPI-REF-2048',
+      paymentMethod: 'UPI'
+    }
+  });
+  assert.equal(validatePaymentConfirmation({ transactionId: '', paymentMethod: 'upi' }).error,
+    'Enter a valid transaction/reference ID (up to 120 characters)');
+  assert.equal(validatePaymentConfirmation({ transactionId: 'REF-1', paymentMethod: 'unknown' }).error,
+    'Select a valid payment method');
+  assert.ok(validatePaymentConfirmation({ transactionId: `REF${'\n'}1`, paymentMethod: 'cash' }).error);
 });

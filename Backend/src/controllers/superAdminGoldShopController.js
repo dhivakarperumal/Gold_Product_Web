@@ -3,6 +3,7 @@ const {
   GoldShopError,
   approveGoldShop,
   addSubscription,
+  confirmGoldShopPayment,
   createGoldShop,
   getGoldShopDocument,
   getGoldShopDetails,
@@ -23,6 +24,13 @@ const {
 
 const SHOP_STATUSES = new Set(['active', 'inactive', 'pending', 'suspended']);
 const DURATIONS = new Set(['monthly', 'quarterly', 'half_yearly', 'yearly']);
+const PAYMENT_METHODS = new Map([
+  ['upi', 'UPI'],
+  ['bank_transfer', 'Bank transfer'],
+  ['cash', 'Cash'],
+  ['card', 'Card'],
+  ['other', 'Other']
+]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?[1-9]\d{9,14}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -114,6 +122,16 @@ function validateSubscription(body) {
     return { error: 'Enter a valid subscription start date' };
   }
   return { subscription: { plan_id: planId, duration, start_date: startDate } };
+}
+
+function validatePaymentConfirmation(body) {
+  const transactionId = String(body?.transactionId || '').trim();
+  const paymentMethod = PAYMENT_METHODS.get(String(body?.paymentMethod || '').trim().toLowerCase());
+  if (!transactionId || transactionId.length > 120 || /[\u0000-\u001f\u007f]/.test(transactionId)) {
+    return { error: 'Enter a valid transaction/reference ID (up to 120 characters)' };
+  }
+  if (!paymentMethod) return { error: 'Select a valid payment method' };
+  return { confirmation: { transactionId, paymentMethod } };
 }
 
 function validateShop(body, { creating = false } = {}) {
@@ -266,7 +284,7 @@ async function postGoldShop(req, res, next) {
       subscription,
       document_consent: body.documentConsent === true
     }, req.adminUser.id, documents);
-    return res.status(201).json({ message: 'Gold shop created; payment is pending gateway confirmation', shop: created });
+    return res.status(201).json({ message: 'Gold shop created; payment is pending Super Admin confirmation', shop: created });
   } catch (error) {
     await cleanupUploadedDocuments(req, error);
     return handleError(error, res, next);
@@ -375,7 +393,27 @@ async function postSubscription(req, res, next) {
   try {
     const shop = await addSubscription(Number(req.params.id), subscription, req.adminUser.id);
     if (!shop) return res.status(404).json({ message: 'Gold shop not found' });
-    return res.status(201).json({ message: 'Subscription recorded; payment is pending gateway confirmation', shop });
+    return res.status(201).json({ message: 'Subscription recorded; payment is pending Super Admin confirmation', shop });
+  } catch (error) {
+    return handleError(error, res, next);
+  }
+}
+
+async function postConfirmShopPayment(req, res, next) {
+  if (!positiveId(req.params.id) || !positiveId(req.params.paymentId)) {
+    return res.status(400).json({ message: 'Gold shop or payment ID is invalid' });
+  }
+  const { confirmation, error } = validatePaymentConfirmation(req.body || {});
+  if (error) return res.status(400).json({ message: error });
+  try {
+    const shop = await confirmGoldShopPayment(
+      Number(req.params.id),
+      Number(req.params.paymentId),
+      confirmation,
+      req.adminUser.id
+    );
+    if (!shop) return res.status(404).json({ message: 'Gold shop not found' });
+    return res.json({ message: 'Subscription payment confirmed', shop });
   } catch (error) {
     return handleError(error, res, next);
   }
@@ -403,6 +441,8 @@ module.exports = {
   patchGoldShopStatus,
   postGoldShop,
   postSubscription,
+  postConfirmShopPayment,
+  validatePaymentConfirmation,
   putGoldShop,
   validateShop,
   validateLoginCredentials,

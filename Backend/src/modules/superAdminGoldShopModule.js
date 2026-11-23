@@ -5,7 +5,11 @@ const { pool } = require('../config/db');
 const DEFAULT_PLANS = [
   { name: 'Basic', monthly: 500, features: ['Shop profile', 'Core inventory'] },
   { name: 'Standard', monthly: 700, features: ['Shop profile', 'Inventory', 'Reports'] },
-  { name: 'Premium', monthly: 999, features: ['Shop profile', 'Inventory', 'Reports', 'Priority support'] }
+  { name: 'Premium', monthly: 999, features: ['Shop profile', 'Inventory', 'Reports', 'Priority support'] },
+  { name: 'Growth', monthly: 1299, features: ['Shop profile', 'Inventory', 'Reports', 'Priority support', 'Multi-branch support'] },
+  { name: 'Gold', monthly: 1599, features: ['Shop profile', 'Inventory', 'Reports', 'Priority support', 'Multi-branch support', 'Staff management'] },
+  { name: 'Platinum', monthly: 1999, features: ['Shop profile', 'Inventory', 'Reports', 'Priority support', 'Multi-branch support', 'Staff management', 'Advanced analytics'] },
+  { name: 'Enterprise', monthly: 2999, features: ['Shop profile', 'Inventory', 'Reports', 'Priority support', 'Multi-branch support', 'Staff management', 'Advanced analytics', 'Dedicated support'] }
 ];
 
 const DURATION_MONTHS = { monthly: 1, quarterly: 3, half_yearly: 6, yearly: 12 };
@@ -15,6 +19,8 @@ const PRICE_COLUMNS = {
   half_yearly: 'half_yearly_price',
   yearly: 'yearly_price'
 };
+let expiryCheckPromise = null;
+let subscriptionExpiryTimer = null;
 
 function dateParts(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -232,38 +238,98 @@ async function logActivity(connection, shopId, actorId, action, details) {
 }
 
 async function expireSubscriptions() {
-  await pool.execute(
-    `INSERT INTO gold_shop_activity_logs (gold_shop_id, actor_id, action, details)
-     SELECT gold_shop_id, NULL, 'subscription.expired', JSON_OBJECT('subscription_id', id)
-     FROM subscriptions
-     WHERE subscription_status IN ('active', 'pending') AND end_date < CURRENT_DATE()`
-  );
-  await pool.execute(
-    `UPDATE subscriptions
-     SET subscription_status = 'expired'
-     WHERE subscription_status IN ('active', 'pending') AND end_date < CURRENT_DATE()`
-  );
-  await pool.execute(
-    `INSERT INTO gold_shop_activity_logs (gold_shop_id, actor_id, action, details)
-     SELECT s.id, NULL, 'shop.deactivated_after_expiry', JSON_OBJECT()
-     FROM gold_shops s
-     WHERE s.deleted_at IS NULL AND s.status = 'active'
-       AND NOT EXISTS (
-         SELECT 1 FROM subscriptions sub
-         WHERE sub.gold_shop_id = s.id AND sub.subscription_status = 'active'
-           AND sub.payment_status = 'paid' AND sub.end_date >= CURRENT_DATE()
-       )`
-  );
-  await pool.execute(
-    `UPDATE gold_shops s
-     SET s.status = 'inactive'
-     WHERE s.deleted_at IS NULL AND s.status = 'active'
-       AND NOT EXISTS (
-         SELECT 1 FROM subscriptions sub
-         WHERE sub.gold_shop_id = s.id AND sub.subscription_status = 'active'
-           AND sub.payment_status = 'paid' AND sub.end_date >= CURRENT_DATE()
-       )`
-  );
+  if (expiryCheckPromise) return expiryCheckPromise;
+  expiryCheckPromise = (async () => {
+    await pool.execute(
+      `INSERT INTO gold_shop_activity_logs (gold_shop_id, actor_id, action, details)
+       SELECT gold_shop_id, NULL, 'subscription.expired', JSON_OBJECT('subscription_id', id)
+       FROM subscriptions
+       WHERE subscription_status IN ('active', 'pending', 'suspended')
+         AND end_date <= CURRENT_DATE()`
+    );
+    await pool.execute(
+      `UPDATE subscriptions
+       SET subscription_status = 'expired'
+       WHERE subscription_status IN ('active', 'pending', 'suspended')
+         AND end_date <= CURRENT_DATE()`
+    );
+    await pool.execute(
+      `INSERT INTO gold_shop_activity_logs (gold_shop_id, actor_id, action, details)
+       SELECT s.id, NULL, 'shop.deactivated_after_expiry', JSON_OBJECT()
+       FROM gold_shops s
+       WHERE s.deleted_at IS NULL AND s.status = 'active'
+         AND NOT EXISTS (
+           SELECT 1 FROM subscriptions sub
+           WHERE sub.gold_shop_id = s.id AND sub.subscription_status = 'active'
+             AND sub.payment_status = 'paid'
+             AND sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()
+         )`
+    );
+    await pool.execute(
+      `UPDATE gold_shops s
+       SET s.status = 'inactive'
+       WHERE s.deleted_at IS NULL AND s.status = 'active'
+         AND NOT EXISTS (
+           SELECT 1 FROM subscriptions sub
+           WHERE sub.gold_shop_id = s.id AND sub.subscription_status = 'active'
+             AND sub.payment_status = 'paid'
+             AND sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()
+         )`
+    );
+    await pool.execute(
+      `UPDATE users u
+       SET u.status = 'inactive'
+       WHERE u.status = 'active'
+         AND EXISTS (
+           SELECT 1
+           FROM gold_shops gs
+           WHERE gs.owner_user_id = u.id AND gs.deleted_at IS NULL
+             AND gs.status = 'inactive' AND gs.approved_at IS NOT NULL
+             AND NOT EXISTS (
+               SELECT 1 FROM subscriptions sub
+               WHERE sub.gold_shop_id = gs.id AND sub.subscription_status = 'active'
+                 AND sub.payment_status = 'paid'
+                 AND sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()
+             )
+         )
+         AND NOT EXISTS (
+           SELECT 1
+           FROM gold_shops active_shop
+           JOIN subscriptions active_sub ON active_sub.gold_shop_id = active_shop.id
+           WHERE active_shop.owner_user_id = u.id AND active_shop.deleted_at IS NULL
+             AND active_shop.status = 'active' AND active_sub.subscription_status = 'active'
+             AND active_sub.payment_status = 'paid'
+             AND active_sub.start_date <= CURRENT_DATE() AND active_sub.end_date > CURRENT_DATE()
+         )`
+    );
+  })();
+  try {
+    await expiryCheckPromise;
+  } finally {
+    expiryCheckPromise = null;
+  }
+}
+
+async function startSubscriptionExpiryJob() {
+  await expireSubscriptions();
+  if (subscriptionExpiryTimer) return;
+  subscriptionExpiryTimer = setInterval(() => {
+    expireSubscriptions().catch((error) => {
+      console.error('Subscription expiry check failed:', error);
+    });
+  }, 60 * 60 * 1000);
+  subscriptionExpiryTimer.unref();
+}
+
+async function startSubscriptionExpiryJob() {
+  await expireSubscriptions();
+  if (subscriptionExpiryTimer) return;
+  subscriptionExpiryTimer = setInterval(() => {
+    expireSubscriptions().catch((error) => {
+      console.error('Subscription expiry check failed:', error);
+    });
+  }, 60 * 60 * 1000);
+  subscriptionExpiryTimer.unref();
 }
 
 function latestSubscriptionJoin() {
@@ -299,9 +365,10 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
   const [shops] = await pool.execute(
     `SELECT gs.id, gs.shop_uuid, gs.shop_code, gs.shop_name, gs.owner_name, gs.mobile,
             gs.email, gs.city, gs.state, gs.status, gs.max_branches, gs.max_staff,
-            gs.created_at, sub.id AS subscription_id, sub.duration, sub.amount,
+            gs.approved_at, gs.created_at, sub.id AS subscription_id, sub.duration, sub.amount,
             sub.start_date, sub.end_date AS subscription_expiry,
-            sub.payment_status, sub.subscription_status, sub.plan_id, sp.plan_name
+            sub.payment_status, sub.subscription_status, sub.plan_id, sp.plan_name,
+            (sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()) AS subscription_is_current
      FROM gold_shops gs
      ${latestSubscriptionJoin()}
      WHERE ${where}
@@ -362,11 +429,13 @@ async function getSubscriptionPlans() {
 async function getGoldShopDetails(id) {
   await expireSubscriptions();
   const [shops] = await pool.execute(
-    `SELECT gs.*, owner.username AS owner_username, owner.email AS owner_email,
+    `SELECT gs.*, owner.user_id AS owner_user_uuid,
+            owner.username AS owner_username, owner.email AS owner_email,
             creator.username AS created_by_name, updater.username AS updated_by_name,
             sub.id AS current_subscription_id, sub.plan_id, sp.plan_name, sub.duration,
             sub.amount AS subscription_amount, sub.start_date, sub.end_date,
-            sub.payment_status, sub.subscription_status
+            sub.payment_status, sub.subscription_status,
+            (sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()) AS subscription_is_current
      FROM gold_shops gs
      ${latestSubscriptionJoin()}
      LEFT JOIN users owner ON owner.id = gs.owner_user_id
@@ -570,24 +639,28 @@ async function updateGoldShopStatus(id, status, actorId) {
   try {
     await connection.beginTransaction();
     const [shops] = await connection.execute(
-      'SELECT id FROM gold_shops WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
+      'SELECT id, approved_at, owner_user_id FROM gold_shops WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
       [id]
     );
-    if (!shops[0]) {
+    const shop = shops[0];
+    if (!shop) {
       await connection.rollback();
       return null;
     }
     const [subscriptions] = await connection.execute(
       `SELECT id, payment_status, subscription_status,
-              end_date >= CURRENT_DATE() AS is_current
+              start_date <= CURRENT_DATE() AND end_date > CURRENT_DATE() AS is_current
        FROM subscriptions WHERE gold_shop_id = ? ORDER BY id DESC LIMIT 1 FOR UPDATE`,
       [id]
     );
     const subscription = subscriptions[0];
-    if (status === 'active' && (!subscription
-      || subscription.payment_status !== 'paid'
-      || !subscription.is_current)) {
-      throw new GoldShopError(409, 'A shop can be activated only after its subscription payment is confirmed');
+    if (status === 'active') {
+      if (!shop.approved_at || !shop.owner_user_id) {
+        throw new GoldShopError(409, 'Use Approve after payment confirmation to activate a new shop');
+      }
+      if (!subscription || subscription.payment_status !== 'paid' || !subscription.is_current) {
+        throw new GoldShopError(409, 'A shop can be activated only with a paid subscription in its current term');
+      }
     }
     await connection.execute('UPDATE gold_shops SET status = ?, updated_by = ? WHERE id = ?', [status, actorId, id]);
     if (subscription && status === 'suspended') {
@@ -599,6 +672,16 @@ async function updateGoldShopStatus(id, status, actorId) {
       await connection.execute(
         "UPDATE subscriptions SET subscription_status = 'active', updated_by = ? WHERE id = ?",
         [actorId, subscription.id]
+      );
+      await connection.execute(
+        "UPDATE users SET status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        [shop.owner_user_id]
+      );
+    }
+    if (shop.owner_user_id && ['inactive', 'suspended'].includes(status)) {
+      await connection.execute(
+        "UPDATE users SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        [shop.owner_user_id]
       );
     }
     await logActivity(connection, id, actorId, 'shop.status_changed', { status });
@@ -625,7 +708,8 @@ async function approveGoldShop(id, actorId) {
     if (!shop) return null;
 
     const [subscriptions] = await connection.execute(
-      `SELECT id, payment_status, subscription_status, end_date >= CURRENT_DATE() AS is_current
+      `SELECT id, payment_status, subscription_status,
+              start_date <= CURRENT_DATE() AND end_date > CURRENT_DATE() AS is_current
        FROM subscriptions WHERE gold_shop_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE`,
       [id]
     );
@@ -656,7 +740,7 @@ async function approveGoldShop(id, actorId) {
         const temporaryPassword = `${crypto.randomBytes(5).toString('hex').replace(/[^A-Za-z0-9]/g, 'A')}@123`;
         const passwordHash = await bcrypt.hash(temporaryPassword, 12);
         await connection.execute(
-          "UPDATE users SET role='shopadmin', status='active', phone=COALESCE(phone, ?), username=?, password_hash=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+          "UPDATE users SET role='admin', status='active', phone=COALESCE(phone, ?), username=?, password_hash=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
           [shop.mobile, shop.owner_name, passwordHash, ownerUserId]
         );
         credentials = { identifier: normalizedEmail, temporaryPassword };
@@ -666,7 +750,7 @@ async function approveGoldShop(id, actorId) {
         const [userResult] = await connection.execute(
           `INSERT INTO users
            (user_id, username, name, email, phone, password_hash, role, status)
-           VALUES (?, ?, ?, ?, ?, ?, 'shopadmin', 'active')`,
+           VALUES (?, ?, ?, ?, ?, ?, 'admin', 'active')`,
           [crypto.randomUUID(), shop.owner_name, shop.owner_name, normalizedEmail, shop.mobile, passwordHash]
         );
         ownerUserId = userResult.insertId;
@@ -674,7 +758,7 @@ async function approveGoldShop(id, actorId) {
       }
     } else {
       await connection.execute(
-        "UPDATE users SET role='shopadmin', status='active', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        "UPDATE users SET role='admin', status='active', updated_at=CURRENT_TIMESTAMP WHERE id=?",
         [ownerUserId]
       );
     }
@@ -741,14 +825,77 @@ async function addSubscription(shopId, input, actorId) {
       return null;
     }
     await insertSubscription(connection, shopId, input, actorId);
-    await connection.execute(
-      `UPDATE gold_shops SET status = 'pending', updated_by = ?
-       WHERE id = ? AND status <> 'suspended'`,
-      [actorId, shopId]
-    );
     await connection.commit();
   } catch (error) {
     await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+  return getGoldShopDetails(shopId);
+}
+
+async function confirmGoldShopPayment(shopId, paymentId, input, actorId) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [shops] = await connection.execute(
+      'SELECT id FROM gold_shops WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
+      [shopId]
+    );
+    if (!shops[0]) {
+      await connection.rollback();
+      return null;
+    }
+
+    const [subscriptions] = await connection.execute(
+      `SELECT id, payment_status, end_date > CURRENT_DATE() AS is_unexpired
+       FROM subscriptions WHERE gold_shop_id = ? ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+      [shopId]
+    );
+    const subscription = subscriptions[0];
+    if (!subscription) throw new GoldShopError(409, 'Record a subscription before confirming payment');
+    if (!subscription.is_unexpired) {
+      throw new GoldShopError(409, 'This subscription has expired; record a current subscription before confirming payment');
+    }
+
+    const [payments] = await connection.execute(
+      `SELECT id, subscription_id, payment_status, amount FROM payments
+       WHERE id = ? AND gold_shop_id = ? FOR UPDATE`,
+      [paymentId, shopId]
+    );
+    const payment = payments[0];
+    if (!payment || Number(payment.subscription_id) !== Number(subscription.id)) {
+      throw new GoldShopError(409, 'Only the latest subscription payment can be confirmed');
+    }
+    if (payment.payment_status === 'paid' || subscription.payment_status === 'paid') {
+      throw new GoldShopError(409, 'This subscription payment is already confirmed');
+    }
+
+    await connection.execute(
+      `UPDATE payments
+       SET transaction_id = ?, payment_method = ?, payment_status = 'paid',
+           payment_date = CURRENT_TIMESTAMP, updated_by = ?
+       WHERE id = ?`,
+      [input.transactionId, input.paymentMethod, actorId, payment.id]
+    );
+    await connection.execute(
+      "UPDATE subscriptions SET payment_status = 'paid', updated_by = ? WHERE id = ?",
+      [actorId, subscription.id]
+    );
+    await logActivity(connection, shopId, actorId, 'subscription.payment_confirmed', {
+      subscription_id: subscription.id,
+      payment_id: payment.id,
+      amount: payment.amount,
+      transaction_id: input.transactionId,
+      payment_method: input.paymentMethod
+    });
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    if (error.code === 'ER_DUP_ENTRY') {
+      throw new GoldShopError(409, 'This transaction/reference ID has already been recorded');
+    }
     throw error;
   } finally {
     connection.release();
@@ -771,6 +918,7 @@ module.exports = {
   GoldShopError,
   approveGoldShop,
   addSubscription,
+  confirmGoldShopPayment,
   calculateEndDate,
   createGoldShop,
   getGoldShopDocument,
@@ -782,6 +930,7 @@ module.exports = {
   listGoldShops,
   listShopPayments,
   softDeleteGoldShop,
+  startSubscriptionExpiryJob,
   updateGoldShop,
   updateGoldShopStatus
 };

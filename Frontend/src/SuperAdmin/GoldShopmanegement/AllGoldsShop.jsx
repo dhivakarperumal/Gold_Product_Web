@@ -47,6 +47,9 @@ const formatDate = (value) => {
     : date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+const hasCurrentSubscription = (shop) => shop.subscription_is_current === true
+  || Number(shop.subscription_is_current) === 1;
+
 const formatAmount = (value) =>
   Number.isFinite(Number(value)) ? `₹${Number(value).toLocaleString("en-IN")}` : "—";
 
@@ -140,7 +143,7 @@ function Modal({ title, onClose, children, wide = false }) {
   );
 }
 
-function ShopDetails({ shop, loading }) {
+function ShopDetails({ shop, loading, onConfirmPayment }) {
   if (loading) {
     return <div className="flex min-h-48 items-center justify-center text-stone-500"><LoaderCircle className="mr-2 h-5 w-5 animate-spin" />Loading shop details…</div>;
   }
@@ -227,19 +230,24 @@ function ShopDetails({ shop, loading }) {
       <section>
         <h3 className="mb-3 font-bold text-stone-800">Payment history</h3>
         <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
-          <table className="w-full min-w-[500px] text-left text-sm">
-            <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="p-3">Transaction</th><th className="p-3">Amount</th><th className="p-3">Method</th><th className="p-3">Status</th><th className="p-3">Date</th></tr></thead>
+          <table className="w-full min-w-[620px] text-left text-sm">
+            <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="p-3">Transaction</th><th className="p-3">Amount</th><th className="p-3">Method</th><th className="p-3">Status</th><th className="p-3">Date</th><th className="p-3">Action</th></tr></thead>
             <tbody className="divide-y divide-stone-100">
               {(shop.payments || []).map((payment) => (
                 <tr key={payment.id}>
-                  <td className="p-3">{payment.transaction_id || "Awaiting gateway"}</td>
+                  <td className="p-3">{payment.transaction_id || "Awaiting confirmation"}</td>
                   <td className="p-3">{formatAmount(payment.amount)}</td>
                   <td className="p-3">{payment.payment_method || "—"}</td>
                   <td className="p-3"><StatusBadge value={payment.payment_status} /></td>
                   <td className="p-3">{formatDate(payment.payment_date || payment.created_at)}</td>
+                  <td className="p-3">
+                    {Number(payment.subscription_id) === Number(shop.current_subscription_id) && payment.payment_status !== "paid"
+                      ? <button type="button" onClick={() => onConfirmPayment(payment)} className="whitespace-nowrap rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100">Confirm received</button>
+                      : "—"}
+                  </td>
                 </tr>
               ))}
-              {!shop.payments?.length && <tr><td className="p-4 text-stone-500" colSpan="5">No payments recorded.</td></tr>}
+              {!shop.payments?.length && <tr><td className="p-4 text-stone-500" colSpan="6">No payments recorded.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -279,7 +287,12 @@ export default function AllGoldsShop() {
   const [submitting, setSubmitting] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const [viewMode, setViewMode] = useState("table");
+  const [pendingApproval, setPendingApproval] = useState(null);
+  const [approvalSubmitting, setApprovalSubmitting] = useState(false);
   const [approvalCredentials, setApprovalCredentials] = useState(null);
+  const [paymentToConfirm, setPaymentToConfirm] = useState(null);
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({ transactionId: "", paymentMethod: "upi" });
   const [subscriptionForm, setSubscriptionForm] = useState(() => ({ planId: "", duration: "monthly", startDate: today() }));
 
   useEffect(() => {
@@ -423,6 +436,33 @@ export default function AllGoldsShop() {
     setModal("details");
   };
 
+  const openPaymentConfirmation = (payment) => {
+    setPaymentForm({ transactionId: "", paymentMethod: "upi" });
+    setPaymentToConfirm(payment);
+  };
+
+  const confirmSubscriptionPayment = async (event) => {
+    event.preventDefault();
+    if (!selectedShop || !paymentToConfirm || paymentSubmitting) return;
+    setPaymentSubmitting(true);
+    try {
+      const { data } = await api.post(
+        `/super-admin/gold-shops/${selectedShop.id}/payments/${paymentToConfirm.id}/confirm`,
+        paymentForm
+      );
+      if (!data?.shop) throw new TypeError("Payment confirmation response is invalid");
+      setSelectedShop(data.shop);
+      setPaymentToConfirm(null);
+      toast.success(data.message || "Subscription payment confirmed.");
+      refreshList();
+    } catch (error) {
+      console.error("Failed to confirm subscription payment:", error);
+      toast.error(error.response?.data?.message || "Could not confirm this subscription payment.");
+    } finally {
+      setPaymentSubmitting(false);
+    }
+  };
+
   const openEdit = (shop) => {
     setSelectedShop(shop);
     setModal("edit");
@@ -442,15 +482,34 @@ export default function AllGoldsShop() {
     }
   };
 
-  const approveShop = async (shop) => {
-    if (!window.confirm(`Approve ${shop.shop_name} and create its Shop Admin login?`)) return;
+  const approveShop = (shop) => {
+    if (shop.payment_status !== "paid" || shop.subscription_status === "expired" || !hasCurrentSubscription(shop)) {
+      toast.error("A paid subscription must be within its active dates before approving this shop.");
+      return;
+    }
+    setPendingApproval(shop);
+  };
+
+  const confirmApproveShop = async () => {
+    if (!pendingApproval || approvalSubmitting) return;
+    setApprovalSubmitting(true);
     try {
-      const { data } = await api.post(`/super-admin/gold-shops/${shop.id}/approve`);
-      if (data.credentials) setApprovalCredentials(data.credentials);
+      const { data } = await api.post(`/super-admin/gold-shops/${pendingApproval.id}/approve`);
+      setApprovalCredentials({
+        identifier: data.credentials?.identifier || data.shop?.owner_email || pendingApproval.email || "",
+        username: data.shop?.owner_username || "",
+        userId: data.shop?.owner_user_uuid || "",
+        name: data.shop?.owner_name || pendingApproval.owner_name || "",
+        mobile: data.shop?.mobile || pendingApproval.mobile || "",
+        temporaryPassword: data.credentials?.temporaryPassword || ""
+      });
+      setPendingApproval(null);
       toast.success(data.message || "Gold shop approved.");
       refreshList();
     } catch (error) {
       toast.error(error.response?.data?.message || "Could not approve this gold shop.");
+    } finally {
+      setApprovalSubmitting(false);
     }
   };
 
@@ -542,7 +601,14 @@ export default function AllGoldsShop() {
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
-            {shops.map((shop) => (
+            {shops.map((shop) => {
+              const canApprove = shop.payment_status === "paid"
+                && shop.subscription_status !== "expired"
+                && hasCurrentSubscription(shop);
+              const canActivate = Boolean(shop.approved_at) && canApprove;
+              const approvalUnavailableLabel = shop.payment_status !== "paid" ? "Payment pending" : "Subscription not current";
+              const action = shop.status === "active" ? "Suspend Shop" : "Activate Shop";
+              return (
               <article key={shop.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -557,18 +623,21 @@ export default function AllGoldsShop() {
                   <div><dt className="text-slate-400">City</dt><dd className="mt-1 font-semibold text-slate-700">{shop.city || "—"}</dd></div>
                   <div><dt className="text-slate-400">Plan</dt><dd className="mt-1 font-semibold text-slate-700">{shop.plan_name || "No plan"}</dd></div>
                   <div><dt className="text-slate-400">Expiry</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.subscription_expiry)}</dd></div>
+                  <div><dt className="text-slate-400">Payment</dt><dd className="mt-1"><StatusBadge value={shop.payment_status || "unpaid"} /></dd></div>
                 </dl>
                 <div className="mt-4 flex items-center justify-end gap-1 border-t border-slate-100 pt-3">
                   <button type="button" onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="View details"><Eye size={16} /></button>
                   <button type="button" onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50" title="Edit shop"><Pencil size={16} /></button>
                   <button type="button" onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50" title="Change subscription"><CreditCard size={16} /></button>
                   {shop.status !== "active" && (
-                    <button type="button" onClick={() => approveShop(shop)} className="rounded-lg px-2 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50" title="Approve and create login">Approve</button>
+                    <button type="button" disabled={!canApprove} onClick={() => approveShop(shop)} className="rounded-lg px-2 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent" title={canApprove ? "Approve and create login" : "A current paid subscription is required before approval"}>{canApprove ? "Approve" : approvalUnavailableLabel}</button>
                   )}
+                  <button type="button" title={canActivate || shop.status === "active" ? action : "Approval and a current paid subscription are required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>
                   <button type="button" onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50" title="Archive shop"><Trash2 size={16} /></button>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -580,7 +649,12 @@ export default function AllGoldsShop() {
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {shops.map((shop, index) => {
-                  const canActivate = shop.payment_status === "paid" && shop.subscription_status !== "expired";
+                  const hasPaidCurrentSubscription = shop.payment_status === "paid"
+                    && shop.subscription_status !== "expired"
+                    && hasCurrentSubscription(shop);
+                  const canApprove = hasPaidCurrentSubscription;
+                  const canActivate = Boolean(shop.approved_at) && hasPaidCurrentSubscription;
+                  const approvalUnavailableLabel = shop.payment_status !== "paid" ? "Payment pending" : "Subscription not current";
                   const action = shop.status === "active" ? "Suspend Shop" : "Activate Shop";
                   return (
                     <tr key={shop.id} className="transition hover:bg-amber-50/30">
@@ -601,11 +675,11 @@ export default function AllGoldsShop() {
                           <button type="button" title="Edit shop" aria-label={`Edit ${shop.shop_name}`} onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil size={16} /></button>
                           <button type="button" title="Change subscription" aria-label={`Change subscription for ${shop.shop_name}`} onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50"><CreditCard size={16} /></button>
                           {shop.status !== "active" && (
-                            <button type="button" title="Approve and create login" aria-label={`Approve ${shop.shop_name}`} onClick={() => approveShop(shop)} className="rounded-lg px-2 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50">
-                              Approve
+                            <button type="button" disabled={!canApprove} title={canApprove ? "Approve and create login" : "A current paid subscription is required before approval"} aria-label={canApprove ? `Approve ${shop.shop_name}` : `Approval unavailable for ${shop.shop_name}: ${approvalUnavailableLabel}`} onClick={() => approveShop(shop)} className="rounded-lg px-2 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent">
+                              {canApprove ? "Approve" : approvalUnavailableLabel}
                             </button>
                           )}
-                          <button type="button" title={canActivate || shop.status === "active" ? action : "Payment confirmation required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>
+                          <button type="button" title={canActivate || shop.status === "active" ? action : "Approval and a current paid subscription are required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>
                           <button type="button" title="Archive shop" aria-label={`Archive ${shop.shop_name}`} onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50"><Trash2 size={16} /></button>
                         </div>
                       </td>
@@ -635,22 +709,131 @@ export default function AllGoldsShop() {
       )}
       {modal === "details" && (
         <Modal title="Gold shop details" onClose={() => setModal(null)} wide>
-          <ShopDetails shop={selectedShop} loading={detailLoading} />
+          <ShopDetails shop={selectedShop} loading={detailLoading} onConfirmPayment={openPaymentConfirmation} />
+        </Modal>
+      )}
+      {paymentToConfirm && selectedShop && (
+        <Modal
+          title="Confirm subscription payment"
+          onClose={() => {
+            if (!paymentSubmitting) setPaymentToConfirm(null);
+          }}
+        >
+          <form onSubmit={confirmSubscriptionPayment} className="space-y-4 p-5">
+            <p className="text-sm text-slate-600">Confirm only after you have verified that the payment was received. This marks the current subscription as paid and records your reference.</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+              <p className="text-xs font-semibold text-slate-500">Amount received</p>
+              <p className="mt-1 font-bold text-slate-800">{formatAmount(paymentToConfirm.amount)}</p>
+            </div>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Transaction / reference ID
+              <input
+                autoFocus
+                required
+                maxLength={120}
+                value={paymentForm.transactionId}
+                onChange={(event) => setPaymentForm((current) => ({ ...current, transactionId: event.target.value }))}
+                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
+                placeholder="Enter bank, UPI, or receipt reference"
+              />
+            </label>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Payment method
+              <select
+                required
+                value={paymentForm.paymentMethod}
+                onChange={(event) => setPaymentForm((current) => ({ ...current, paymentMethod: event.target.value }))}
+                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
+              >
+                <option value="upi">UPI</option>
+                <option value="bank_transfer">Bank transfer</option>
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button type="button" disabled={paymentSubmitting} onClick={() => setPaymentToConfirm(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:opacity-50">Cancel</button>
+              <button type="submit" disabled={paymentSubmitting} className="inline-flex items-center gap-2 rounded-xl bg-[#00796B] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60">
+                {paymentSubmitting && <LoaderCircle size={16} className="animate-spin" />}
+                {paymentSubmitting ? "Confirming…" : "Confirm payment received"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {pendingApproval && (
+        <Modal
+          title="Verify shop approval"
+          onClose={() => {
+            if (!approvalSubmitting) setPendingApproval(null);
+          }}
+        >
+          <div className="space-y-4 p-5">
+            <p className="text-sm text-slate-600">Confirm the shop and owner details before approving. This activates the Shop Admin account.</p>
+            <dl className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-2">
+              <div><dt className="text-xs font-semibold text-slate-500">Shop name</dt><dd className="mt-1 font-semibold text-slate-800">{pendingApproval.shop_name || "—"}</dd></div>
+              <div><dt className="text-xs font-semibold text-slate-500">Owner name</dt><dd className="mt-1 font-semibold text-slate-800">{pendingApproval.owner_name || "—"}</dd></div>
+              <div><dt className="text-xs font-semibold text-slate-500">Email ID</dt><dd className="mt-1 break-all font-semibold text-slate-800">{pendingApproval.email || "—"}</dd></div>
+              <div><dt className="text-xs font-semibold text-slate-500">Mobile</dt><dd className="mt-1 font-semibold text-slate-800">{pendingApproval.mobile || "—"}</dd></div>
+            </dl>
+            <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">The password set during registration will remain unchanged and will not be displayed.</p>
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button type="button" disabled={approvalSubmitting} onClick={() => setPendingApproval(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:opacity-50">Cancel</button>
+              <button type="button" disabled={approvalSubmitting} onClick={confirmApproveShop} className="inline-flex items-center gap-2 rounded-xl bg-[#00796B] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60">
+                {approvalSubmitting && <LoaderCircle size={16} className="animate-spin" />}
+                {approvalSubmitting ? "Approving…" : "Verify & Approve"}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
       {approvalCredentials && (
-        <Modal title="Shop Admin login created" onClose={() => setApprovalCredentials(null)}>
+        <Modal title="Shop Admin login approved" onClose={() => setApprovalCredentials(null)}>
           <div className="space-y-4 p-5">
-            <p className="text-sm text-slate-600">Give these credentials to the gold shop owner. The temporary password should be changed after login.</p>
+            <p className="text-sm text-slate-600">
+              {approvalCredentials.temporaryPassword
+                ? "The account is active. Log in with the mobile number and temporary password below. Email or username can also be used; change the temporary password after login."
+                : "The account is active. Log in with the mobile number and the password entered during registration. Email or username can also be used; the password cannot be viewed again because only its secure hash is stored."}
+            </p>
             <div className="grid gap-3">
+              {approvalCredentials.mobile && (
+                <label className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
+                  Login ID (mobile number)
+                  <input readOnly value={approvalCredentials.mobile} className="mt-1.5 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800" />
+                </label>
+              )}
               <label className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-500">
-                Login identifier
+                Email ID (also accepted)
                 <input readOnly value={approvalCredentials.identifier} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" />
               </label>
-              <label className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-500">
-                Temporary password
-                <input readOnly value={approvalCredentials.temporaryPassword} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-sm text-slate-800" />
-              </label>
+              {approvalCredentials.username && (
+                <label className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-500">
+                  Username
+                  <input readOnly value={approvalCredentials.username} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" />
+                </label>
+              )}
+              {approvalCredentials.userId && (
+                <label className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-500">
+                  User ID
+                  <input readOnly value={approvalCredentials.userId} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-800" />
+                </label>
+              )}
+              {approvalCredentials.name && (
+                <label className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-500">
+                  Name
+                  <input readOnly value={approvalCredentials.name} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" />
+                </label>
+              )}
+              {approvalCredentials.temporaryPassword && (
+                <label className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-500">
+                  Temporary password
+                  <input readOnly value={approvalCredentials.temporaryPassword} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-sm text-slate-800" />
+                </label>
+              )}
+              {!approvalCredentials.temporaryPassword && (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Use the password created in the Login Credential tab. It is not recoverable from the database.</p>
+              )}
             </div>
             <div className="flex justify-end border-t border-slate-100 pt-4">
               <button type="button" onClick={() => setApprovalCredentials(null)} className="rounded-xl bg-[#00796B] px-4 py-2.5 text-sm font-bold text-white">Done</button>
@@ -661,7 +844,7 @@ export default function AllGoldsShop() {
       {modal === "subscription" && selectedShop && (
         <Modal title={`Change subscription · ${selectedShop.shop_name}`} onClose={() => setModal(null)}>
           <form onSubmit={submitSubscription} className="space-y-4 p-5">
-            <p className="text-sm text-stone-600">A new subscription starts as pending. The server calculates the amount and expiry; payment status is set by the gateway.</p>
+            <p className="text-sm text-stone-600">A new subscription starts as pending. The server calculates the amount and expiry. After verifying receipt, confirm payment from the shop’s payment history using its transaction/reference ID.</p>
             <label className="block text-xs font-semibold uppercase tracking-wide text-stone-600">
               Plan
               <select className="mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm normal-case" value={subscriptionForm.planId} onChange={(event) => setSubscriptionForm((current) => ({ ...current, planId: event.target.value }))} required>

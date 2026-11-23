@@ -483,7 +483,7 @@ export default function AddGoldShop({
                         <span className="relative block"><CalendarDays className="absolute right-3 top-4 h-4 w-4 text-stone-400" /><input className={inputClass} type="date" name="startDate" value={form.startDate} onChange={handleChange} /></span>
                       </label>
                       <label className={labelClass}>Shop status<select className={inputClass} name="status" value={form.status} onChange={handleChange}><option value="pending">Pending</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option></select></label>
-                      <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className="mt-1 text-sm font-semibold text-amber-800">Pending gateway confirmation</p></div>
+                      <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className="mt-1 text-sm font-semibold text-amber-800">Pending Super Admin confirmation</p></div>
                     </div>
                   )}
                 </>
