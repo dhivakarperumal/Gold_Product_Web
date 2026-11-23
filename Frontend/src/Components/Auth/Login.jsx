@@ -8,6 +8,13 @@ import { jwtDecode } from "jwt-decode";
 import { Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
 
+const getPostLoginPath = (role) => {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (normalizedRole === "superadmin") return "/superadmin";
+  if (normalizedRole === "admin") return "/admin";
+  return "/";
+};
+
 function Login() {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
@@ -28,11 +35,7 @@ function Login() {
       const res = await api.post("/auth/login", form);
       login(res.data.user, res.data.token);
       toast.success("Login successful!");
-      if (res.data.user.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
+      navigate(getPostLoginPath(res.data.user.role));
     } catch (error) {
       console.error("Login Error:", error);
       toast.error(error.response?.data?.message || "Login failed");
@@ -51,11 +54,7 @@ function Login() {
       const res = await api.post("/auth/google-login", googleUser);
       login(res.data.user, res.data.token);
       toast.success("Google Login Successful!");
-      if (res.data.user.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
+      navigate(getPostLoginPath(res.data.user.role));
     } catch (error) {
       console.error("Google Login Error:", error);
       toast.error(error.response?.data?.message || error.message || "Google Login Failed");
