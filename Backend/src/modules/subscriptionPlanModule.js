@@ -25,7 +25,28 @@ async function ensurePlanColumn(name, definition) {
   if (!rows.length) await pool.query(`ALTER TABLE subscription_plans ADD COLUMN ${definition}`);
 }
 
+async function ensurePlanAuditForeignKey(column) {
+  const [rows] = await pool.execute(
+    `SELECT 1 FROM information_schema.KEY_COLUMN_USAGE
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscription_plans'
+       AND COLUMN_NAME = ? AND REFERENCED_TABLE_NAME = 'users'
+       AND REFERENCED_COLUMN_NAME = 'id'`,
+    [column]
+  );
+  if (!rows.length) {
+    await pool.query(
+      `ALTER TABLE subscription_plans
+       ADD CONSTRAINT fk_subscription_plans_${column}
+       FOREIGN KEY (${column}) REFERENCES users(id) ON DELETE SET NULL`
+    );
+  }
+}
+
 async function initializeSubscriptionPlanModule() {
+  await ensurePlanColumn('created_at', 'created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+  await ensurePlanColumn('updated_at', 'updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+  await ensurePlanColumn('created_by', 'created_by INT UNSIGNED NULL');
+  await ensurePlanColumn('updated_by', 'updated_by INT UNSIGNED NULL');
   await ensurePlanColumn('plan_uuid', "plan_uuid CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NULL");
   await ensurePlanColumn('plan_code', "plan_code VARCHAR(50) NULL");
   await ensurePlanColumn('description', "description TEXT NULL");
@@ -38,6 +59,8 @@ async function initializeSubscriptionPlanModule() {
   await ensurePlanColumn('grace_period_days', "grace_period_days INT UNSIGNED NOT NULL DEFAULT 0");
   await ensurePlanColumn('is_featured', "is_featured TINYINT(1) NOT NULL DEFAULT 0");
   await ensurePlanColumn('display_order', "display_order INT UNSIGNED NOT NULL DEFAULT 0");
+  await ensurePlanAuditForeignKey('created_by');
+  await ensurePlanAuditForeignKey('updated_by');
 
   const [halfYearlyColumns] = await pool.execute(
     "SHOW COLUMNS FROM subscriptions LIKE 'duration'"
