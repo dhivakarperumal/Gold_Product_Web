@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -6,130 +5,24 @@ import {
   Users,
   BarChart3,
   X,
-  ChevronDown,
   ChevronLeft,
-  Home,
-  Tag,
-  PlusCircle,
-  List,
   Layers,
-  Archive,
-  Handshake,
-  Megaphone,
-  Video,
-  Star,
-  Gem,
-  FilePlus,
   Files,
-  HandCoins,
   RefreshCw,
-  Clock3,
-  Coins,
-  CheckCircle2,
   Wallet,
-  MessageCircle
+  CalendarDays
 } from "lucide-react";
 
-/* ================= NAV ITEMS ================= */
 const navItems = [
-  { path: "/superadmin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-
- 
-
-   { path: "/admin/settings/daily-gold-rate", label: "Daily Gold Rate", icon: Coins },
-  //  { path: "/admin/funds", label: "Fund Management", icon: Wallet },
- 
-
-  { path: "/admin/billings", label: "Billing", icon: Files },
-  { path: "/admin/enquiries", label: "All Enquiries", icon:  MessageCircle, activePaths: ["/admin/enquiries/new"] },
- 
-  {
-    label: "Loan Management",
-    icon: HandCoins,
-    children: [
-      {
-        path: "/admin/loans/customermanagement",
-        activePaths: ["/admin/loans/customers/:id"],
-        label: "Customer Management",
-        icon: FilePlus
-      },
-      { path: "/admin/kyc", label: "KYC Review", icon: Users },
-      {
-        path: "/admin/loans/allloans",
-        activePaths: [
-          "/admin/loans/createloan",
-          "/admin/loans/edit/:id",
-          "/admin/loans/details/:id",
-          "/admin/loans/interestmanagement"
-        ],
-        label: "All Loans",
-        icon: Files
-      },
-      { path: "/admin/loans/overdueloans", label: "Overdue Loans", icon: Clock3 },
-      
-      { path: "/admin/loans/loanreniwel", label: "Loan Renewal", icon: RefreshCw },
-      { path: "/admin/loans/goldrelease", label: "Gold Release", icon: Gem },
-      { path: "/admin/loans/completeloan", label: "Complete Loan", icon: CheckCircle2 },
-      
-      
-    ],
-  },
-
-
-  {
-    label: "Products",
-    icon: Package,
-    children: [
-      {
-        path: "/admin/products/all",
-        activePaths: ["/admin/products/:id"],
-        label: "All Products",
-        icon: List
-      },
-      {
-        path: "/admin/products/add",
-        activePaths: ["/admin/products/edit/:id"],
-        label: "Add Product",
-        icon: PlusCircle
-      },
-      {
-        path: "/admin/products/stock",
-        activePaths: ["/admin/products/stock/add"],
-        label: "Stock Details",
-        icon: Archive
-      },
-      { path: "/admin/products/category", label: "Categories", icon: Layers },
-      { path: "/admin/metals", label: "Add Metal", icon: Gem },
-    ],
-  },
-
-  
-
-  {
-    label: "Marketings Management",
-    icon: Megaphone,
-    children: [
-      { path: "/admin/banners", label: "Offers & Banners", icon: Tag },
-      { path: "/admin/videos", label: "Showcase Videos", icon: Video },
-      { path: "/admin/reviews", label: "Reviews", icon: Star },
-      
-    ],
-  },
-
-
-  {
-    label: "Dealers",
-    icon: Handshake,
-    children: [
-      { path: "/admin/dealers", label: "Dealer", icon: List },
-      { path: "/admin/dealers/purchases", label: "Purchases & Payables", icon: Files },
-      // { path: "/admin/dealers/refining", label: "Old Gold & Refining", icon: Gem },
-    ],
-  },
-
-  { path: "/admin/reports", label: "Reports", icon: BarChart3 },
-  
-  
+  { path: "/superadmin", label: "Dashboard Analytics", icon: LayoutDashboard, exact: true },
+  { path: "/admin", label: "Gold Shop Management", icon: Package, exact: true },
+  { path: "/admin/users/all", label: "Users Management", icon: Users },
+  { label: "Subscription Plan", icon: Layers, disabled: true },
+  { label: "Subscription Activation & Expiry", icon: CalendarDays, disabled: true },
+  { label: "Payment Management", icon: Wallet, disabled: true },
+  { label: "Transaction History", icon: Files, disabled: true },
+  { label: "Subscription Renewal History", icon: RefreshCw, disabled: true },
+  { label: "Revenue Reports", icon: BarChart3, disabled: true }
 ];
 
 /* ================= SIDEBAR ================= */
@@ -150,54 +43,11 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
       );
   };
 
-  const getActiveChildPath = (item) => {
-    if (!item.children) return null;
-    const matchingChildren = item.children
-      .filter(child => [child.path, ...(child.activePaths || [])].some(matchesRoute))
-      .sort((first, second) => {
-        const firstSpecificity = first.path.split("/").filter(segment => segment && !segment.startsWith(":")).length;
-        const secondSpecificity = second.path.split("/").filter(segment => segment && !segment.startsWith(":")).length;
-        return secondSpecificity - firstSpecificity || second.path.length - first.path.length;
-      });
-    return matchingChildren[0]?.path || null;
-  };
-
   const isActiveRoute = (item) => {
-    const currentPath = location.pathname;
-
-    // 1. Strict exact match for root routes to prevent Dashboard/BackHome overlap
-    if (item.path === "/" || item.path === "/admin" || item.exact) {
-      return currentPath === item.path;
-    }
-
-    // 2. Dropdown parent check: check if any child is perfectly active or a sub-path
-    if (item.children) {
-      return getActiveChildPath(item) !== null;
-    }
-
-    // 3. Normal item check: match exact or match as a parent path (with boundary)
-    if (item.path) {
-      return matchesRoute(item.path);
-    }
-
-    return false;
-  };
-
-  const [openMenu, setOpenMenu] = useState(() => {
-    const activeItem = navItems.find(item => item.children && isActiveRoute(item));
-    return activeItem ? activeItem.label : null;
-  });
-
-  useEffect(() => {
-    const activeItem = navItems.find(item => item.children && isActiveRoute(item));
-    if (activeItem) {
-      setOpenMenu(activeItem.label);
-    }
-  }, [location.pathname]);
-
-  /* Dropdown logic - only one open at a time */
-  const toggleMenu = (label) => {
-    setOpenMenu(prev => prev === label ? null : label);
+    if (!item.path) return false;
+    return item.exact
+      ? location.pathname === item.path
+      : matchesRoute(item.path);
   };
 
   return (
@@ -259,80 +109,31 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         <nav aria-label="Admin navigation" className="hide-scrollbar flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const title = item.disabled ? `${item.label} (Coming soon)` : item.label;
 
-            /* ===== DROPDOWN ITEM ===== */
-            if (item.children) {
-              const isMenuOpen = openMenu === item.label;
-              const isAnyChildActive = isActiveRoute(item);
-
+            if (item.disabled) {
               return (
-                <div key={item.label} className="space-y-1">
-                  <button
-                    onClick={() => toggleMenu(item.label)}
-                    aria-expanded={isMenuOpen}
-                    title={collapsed ? item.label : undefined}
-                    className={`
-                      group flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-200
-                      ${isAnyChildActive
-                        ? "border-white/10 bg-gradient-to-r from-[#078D7B] to-[#087263] text-white shadow-lg shadow-black/15"
-                        : isMenuOpen
-                          ? "border-white/10 bg-white/[0.08] text-white"
-                          : "border-transparent text-emerald-50/75 hover:border-white/[0.08] hover:bg-white/[0.07] hover:text-white"
-                      }
-                    `}
-                  >
-                    <Icon className={`h-5 w-5 shrink-0 transition-colors ${isAnyChildActive ? "text-[#FFE08A]" : "text-emerald-100/75 group-hover:text-white"}`} />
-
-                    {!collapsed && (
-                      <>
-                        <span className="flex-1 text-sm font-semibold tracking-wide">
-                          {item.label}
-                        </span>
-                        <ChevronDown
-                          className={`h-4 w-4 shrink-0 text-emerald-100/60 transition-transform ${isMenuOpen ? "rotate-180 text-white" : ""
-                            }`}
-                        />
-                      </>
-                    )}
-                  </button>
-
-                  {/* ===== SUB MENU ===== */}
+                <div
+                  key={item.label}
+                  aria-disabled="true"
+                  title={collapsed ? title : undefined}
+                  className="group flex items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-emerald-50/45"
+                >
+                  <Icon className="h-5 w-5 shrink-0 text-emerald-100/35" />
                   {!collapsed && (
-                    <div
-                      className={`hide-scrollbar ml-3 space-y-1 overflow-y-auto  pl-3 transition-all duration-300
-                      ${isMenuOpen ? "max-h-80 py-1 opacity-100" : "max-h-0 opacity-0"}`}
-                    >
-                      {item.children.map((sub) => {
-                        const SubIcon = sub.icon;
-                        const isActive = getActiveChildPath(item) === sub.path;
-
-                        return (
-                          <NavLink
-                            key={sub.path}
-                            to={sub.path}
-                            onClick={() => isOpen && onClose()}
-                            title={sub.label}
-                            className={`
-                              flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium tracking-wide transition-all duration-200
-                              ${isActive
-                                ? "bg-white/[0.09] text-white shadow-sm ring-1 ring-inset ring-white/[0.06]"
-                                : "text-emerald-50/65 hover:bg-white/[0.06] hover:text-white"
-                              }
-                            `}
-                          >
-                            <SubIcon className={`h-4 w-4 shrink-0 ${isActive ? "text-[#F5C45E]" : "text-emerald-100/55"}`} />
-                            <span className="flex-1">{sub.label}</span>
-                            {isActive && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#F5C45E]" />}
-                          </NavLink>
-                        );
-                      })}
-                    </div>
+                    <>
+                      <span className="min-w-0 flex-1 text-sm font-semibold leading-snug tracking-wide">
+                        {item.label}
+                      </span>
+                      <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-50/60">
+                        Soon
+                      </span>
+                    </>
                   )}
                 </div>
               );
             }
 
-            /* ===== NORMAL ITEM ===== */
             const isActive = isActiveRoute(item);
 
             return (
@@ -342,7 +143,6 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                 end={item.exact}
                 title={collapsed ? item.label : undefined}
                 onClick={() => {
-                  setOpenMenu(null);
                   if (isOpen) onClose();
                 }}
                 className={`
@@ -354,7 +154,7 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                 `}
               >
                 <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-[#FFE08A]" : "text-emerald-100/75 group-hover:text-white"}`} />
-                {!collapsed && <span className="text-sm font-semibold tracking-wide">{item.label}</span>}
+                {!collapsed && <span className="min-w-0 flex-1 text-sm font-semibold leading-snug tracking-wide">{item.label}</span>}
               </NavLink>
             );
           })}
