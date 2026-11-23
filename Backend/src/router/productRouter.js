@@ -34,7 +34,7 @@ function receiveFiles(fields) {
 router.get('/mine', requireAdmin, getMyProducts);
 router.get('/', getProducts);
 router.post('/recalculate-prices', requireAdmin, postRecalculatePrices);
-router.get('/latest-code', latestProductCode);
+router.get('/latest-code', requireAdmin, latestProductCode);
 router.get('/:id/pricing', getProductPricing);
 router.get('/:id/price-history', requireAdmin, getProductPriceHistory);
 router.get('/:id', getProduct);

@@ -191,7 +191,7 @@ async function initializeProductModule() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      product_code VARCHAR(100) NOT NULL UNIQUE,
+      product_code VARCHAR(100) NOT NULL,
       name VARCHAR(255) NOT NULL,
       category VARCHAR(150) NOT NULL,
       subcategory VARCHAR(150) NULL,
@@ -205,7 +205,8 @@ async function initializeProductModule() {
       created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_products_creator_code (created_by, product_code)
     )
   `);
 
@@ -219,6 +220,7 @@ async function initializeProductModule() {
   for (const column of ['created_by', 'updated_by']) {
     await migrateProductAuditColumn(column);
   }
+  await ensureProductCodeUniquePerCreator();
   await pool.query("UPDATE products SET offer_type = 'Percentage' WHERE (offer_type IS NULL OR offer_type = 'None') AND offer > 0");
   await pool.query(`
     CREATE TABLE IF NOT EXISTS product_price_history (
@@ -235,6 +237,41 @@ async function initializeProductModule() {
       INDEX idx_product_price_history_changed (changed_at)
     )
   `);
+}
+
+async function ensureProductCodeUniquePerCreator() {
+  const [indexRows] = await pool.execute(
+    `SELECT INDEX_NAME, COLUMN_NAME, SEQ_IN_INDEX, NON_UNIQUE
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products'
+     ORDER BY INDEX_NAME, SEQ_IN_INDEX`
+  );
+  const indexes = new Map();
+  for (const row of indexRows) {
+    if (!indexes.has(row.INDEX_NAME)) {
+      indexes.set(row.INDEX_NAME, { nonUnique: Number(row.NON_UNIQUE), columns: [] });
+    }
+    indexes.get(row.INDEX_NAME).columns.push(row.COLUMN_NAME);
+  }
+
+  for (const [name, index] of indexes) {
+    if (index.nonUnique === 0 && index.columns.length === 1 && index.columns[0] === 'product_code') {
+      const escapedName = String(name).replace(/`/g, '``');
+      await pool.query(`ALTER TABLE products DROP INDEX \`${escapedName}\``);
+    }
+  }
+
+  const hasCreatorCodeUniqueKey = Array.from(indexes.values()).some((index) =>
+    index.nonUnique === 0
+      && index.columns.length === 2
+      && index.columns[0] === 'created_by'
+      && index.columns[1] === 'product_code'
+  );
+  if (!hasCreatorCodeUniqueKey) {
+    await pool.query(
+      'ALTER TABLE products ADD UNIQUE KEY uq_products_creator_code (created_by, product_code)'
+    );
+  }
 }
 
 async function listProducts({
@@ -337,9 +374,15 @@ async function getProductById(id) {
   return rows[0] ? parseProduct(rows[0]) : null;
 }
 
-async function getLatestProductCode() {
-  const [[row]] = await pool.query('SELECT id FROM products ORDER BY id DESC LIMIT 1');
-  return `GOLD-PRD-${String((row?.id || 0) + 1).padStart(3, '0')}`;
+async function getLatestProductCode(userId) {
+  if (!userId) throw new Error('A user_id is required to generate a product code');
+  const [[row]] = await pool.execute(
+    `SELECT MAX(CAST(SUBSTRING_INDEX(product_code, '-', -1) AS UNSIGNED)) AS latest_number
+     FROM products
+     WHERE created_by = ? AND product_code REGEXP '^GOLD-PRD-[0-9]+$'`,
+    [userId]
+  );
+  return `GOLD-PRD-${String(Number(row.latest_number || 0) + 1).padStart(3, '0')}`;
 }
 
 async function createProduct(product) {

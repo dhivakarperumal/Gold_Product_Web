@@ -121,3 +121,21 @@ test('the admin product list is scoped to the authenticated user without changin
     assert.equal(publicResponse.body, result);
   });
 });
+
+test('latest product codes are requested for the authenticated user UUID', async () => {
+  let requestedUserId;
+  await withControllerMocks({
+    getLatestProductCode: async (userId) => {
+      requestedUserId = userId;
+      return 'GOLD-PRD-001';
+    }
+  }, async ({ latestProductCode }) => {
+    const res = responseRecorder();
+    await latestProductCode({
+      adminUser: { user_id: 'authenticated-user-uuid' }
+    }, res, (error) => { throw error; });
+
+    assert.equal(requestedUserId, 'authenticated-user-uuid');
+    assert.deepEqual(res.body, { latestCode: 'GOLD-PRD-001' });
+  });
+});

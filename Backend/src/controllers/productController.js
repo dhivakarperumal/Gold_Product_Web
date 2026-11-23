@@ -216,7 +216,7 @@ async function postRecalculatePrices(req, res, next) {
 
 async function latestProductCode(req, res, next) {
   try {
-    return res.json({ latestCode: await getLatestProductCode() });
+    return res.json({ latestCode: await getLatestProductCode(req.adminUser.user_id) });
   } catch (error) {
     return next(error);
   }
