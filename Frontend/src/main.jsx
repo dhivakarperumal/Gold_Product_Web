@@ -1,0 +1,174 @@
+import React from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App.jsx";
+import { createHashRouter, RouterProvider } from "react-router-dom";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import { AuthProvider } from "./PrivateRouter/AuthContext.jsx";
+import { StoreProvider } from "./PrivateRouter/StoreContext.jsx";
+import PrivateRoute from "./PrivateRouter/PrivateRouter.jsx";
+import { AdminProvider } from "./PrivateRouter/AdminContext.jsx";
+import { GoldRatesProvider } from "./PrivateRouter/GoldRatesContext.jsx";
+import { Toaster } from "react-hot-toast";
+import Loader from "./Components/CommenComponents/Loader.jsx";
+
+// Lazy Load Main Components
+const Home = React.lazy(() => import("./Components/Home/Home.jsx"));
+const StoreProductDetail = React.lazy(() => import("./Components/Products/ProductDetail.jsx"));
+const Explore = React.lazy(() => import("./Components/Products/Explore.jsx"));
+const AboutPage = React.lazy(() => import("./Components/Pages/AboutPage.jsx"));
+const ContactPage = React.lazy(() => import("./Components/Pages/ContactPage.jsx"));
+const PrivacyPage = React.lazy(() => import("./Components/Pages/InfoPage.jsx"));
+
+const Login = React.lazy(() => import("./Components/Auth/Login.jsx"));
+const Register = React.lazy(() => import("./Components/Auth/Register.jsx"));
+
+// Lazy Load Admin Components
+const AdminPanel = React.lazy(() => import("./Admin/AdminPanel.jsx"));
+const Dashboard = React.lazy(() => import("./Admin/Dashboard.jsx"));
+const Users = React.lazy(() => import("./Admin/Pages/Users.jsx"));
+const Category = React.lazy(() => import("./Admin/Categery/Category.jsx"));
+const Metals = React.lazy(() => import("./Admin/Metal Type/Metals.jsx"));
+const AddProducts = React.lazy(() => import("./Admin/Products/AddProducts.jsx"));
+const AllProducts = React.lazy(() => import("./Admin/Products/AllProducts.jsx"));
+const AddStock = React.lazy(() => import("./Admin/Products/AddStock.jsx"));
+const ProductDetail = React.lazy(() => import("./Admin/Products/ProductDetail.jsx"));
+const StockDetails = React.lazy(() => import("./Admin/Pages/StockDetails.jsx"));
+const LoanCustomerManagement = React.lazy(() => import("./Admin/Loanmanagements/LoanCustomerManagement.jsx"));
+const LoanCustomerDetails = React.lazy(() => import("./Admin/Loanmanagements/LoanCustomerDetails.jsx"));
+const CreateLoan = React.lazy(() => import("./Admin/Loanmanagements/CreateLoan.jsx"));
+const AllLoans = React.lazy(() => import("./Admin/Loanmanagements/AllLoans.jsx"));
+const LoanDetails = React.lazy(() => import("./Admin/Loanmanagements/LoanDetails.jsx"));
+const InterestManagement = React.lazy(() => import("./Admin/Loanmanagements/InterestManagement.jsx"));
+const LoanRenewal = React.lazy(() => import("./Admin/Loanmanagements/LoanRenewal.jsx"));
+const GoldRelease = React.lazy(() => import("./Admin/Loanmanagements/GoldRelease.jsx"));
+const OverdueLoans = React.lazy(() => import("./Admin/Loanmanagements/OverdueLoans.jsx"));
+const BannerManagement = React.lazy(() => import("./Admin/Marketing/BannerManagement.jsx"));
+const VideoManagement = React.lazy(() => import("./Admin/Marketing/VideoManagement.jsx"));
+const Reviews = React.lazy(() => import("./Admin/Pages/Reviews.jsx"));
+const Enquiries = React.lazy(() => import("./Admin/Pages/Enquiries.jsx"));
+const Settings = React.lazy(() => import("./Admin/Pages/Settings.jsx"));
+const FundManagement = React.lazy(() => import("./Admin/Pages/FundManagement.jsx"));
+const DailyGoldRate = React.lazy(() => import("./Admin/Pages/DailyGoldRate.jsx"));
+const ReceiptSettings = React.lazy(() => import("./Admin/Pages/ReceiptSettings.jsx"));
+const HomeSections = React.lazy(() => import("./Admin/Pages/HomeSections.jsx"));
+const Profile = React.lazy(() => import("./Admin/Pages/Profile.jsx"));
+const Dealers = React.lazy(() => import("./Admin/Dealers/Dealers.jsx"));
+const CustomerKyc = React.lazy(() => import("./Components/Account/CustomerKyc.jsx"));
+const UserProfile  = React.lazy(() => import("./Components/Account/UserProfile.jsx"));
+
+const AdminKyc = React.lazy(() => import("./Admin/Kyc/AdminKyc.jsx"));
+const BillingManagement = React.lazy(() => import("./Admin/Pages/BillingManagement.jsx"));
+const Reports = React.lazy(() => import("./Admin/Pages/Reports.jsx"));
+
+const ErrorPage = React.lazy(() => import("./Admin/Pages/ErrorPage.jsx"));
+
+if (window.location.pathname !== "/" && !window.location.hash) {
+  window.location.replace(
+    `${window.location.origin}/#${window.location.pathname}${window.location.search}`
+  );
+}
+
+const router = createHashRouter([
+  {
+    path: "/",
+    element: <App />,
+    errorElement: <ErrorPage />,
+    children: [
+      { path: "/", element: <Home /> },
+      { path: "explore", element: <Explore /> },
+      { path: "product/:id", element: <StoreProductDetail /> },
+      { path: "about", element: <AboutPage /> },
+      { path: "contactus", element: <ContactPage /> },
+      { path: "privacy-policy", element: <PrivacyPage /> },
+      {
+        path: "/account/kyc",
+        element: (
+          <PrivateRoute allowedRoles={["user"]}>
+            <CustomerKyc />
+          </PrivateRoute>
+        )
+      },
+      {
+        path: "/profile",
+        element: (
+          <PrivateRoute allowedRoles={["user", "admin", "manager", "dealer"]}>
+            <UserProfile />
+          </PrivateRoute>
+        )
+      },
+
+    ],
+  },
+  { path: "/login", element: <Login /> },
+  { path: "/register", element: <Register /> },
+  {
+    path: "/admin",
+    element: (
+      <PrivateRoute allowedRoles={["admin"]}>
+        <AdminProvider>
+          <AdminPanel />
+        </AdminProvider>
+      </PrivateRoute>
+    ),
+    errorElement: <ErrorPage />,
+    children: [
+      { index: true, element: <Dashboard /> },
+      { path: "users/all", element: <Users /> },
+      { path: "kyc", element: <AdminKyc /> },
+      { path: "billings", element: <BillingManagement /> },
+      { path: "loans/customermanagement", element: <LoanCustomerManagement /> },
+      { path: "loans/customers/:id", element: <LoanCustomerDetails /> },
+      { path: "loans/createloan", element: <CreateLoan /> },
+      { path: "loans/edit/:id", element: <CreateLoan /> },
+      { path: "loans/allloans", element: <AllLoans /> },
+      { path: "loans/details/:id", element: <LoanDetails /> },
+      { path: "loans/interestmanagement", element: <InterestManagement /> },
+      { path: "loans/overdueloans", element: <OverdueLoans /> },
+      { path: "loans/loanreniwel", element: <LoanRenewal /> },
+      { path: "loans/loanreniwel/:id", element: <LoanRenewal /> },
+      { path: "loans/goldrelease", element: <GoldRelease /> },
+      { path: "loans/goldrelease/:id", element: <GoldRelease /> },
+      { path: "loans/completeloan", element: <GoldRelease /> },
+      { path: "loans/completeloan/:id", element: <GoldRelease /> },
+      { path: "products/category", element: <Category /> },
+      { path: "products/add", element: <AddProducts /> },
+      { path: "products/all", element: <AllProducts /> },
+      { path: "products/stock", element: <StockDetails /> },
+      { path: "products/stock/add", element: <AddStock /> },
+      { path: "products/edit/:id", element: <AddProducts /> },
+      { path: "products/:id", element: <ProductDetail /> },
+      { path: "metals", element: <Metals /> },
+      { path: "banners", element: <BannerManagement /> },
+      { path: "videos", element: <VideoManagement /> },
+      { path: "reviews", element: <Reviews /> },
+      { path: "reports", element: <Reports /> },
+      { path: "dealers", element: <Dealers /> },
+      { path: "dealers/*", element: <Dealers /> },
+      { path: "settings", element: <Settings /> },
+      { path: "funds", element: <FundManagement /> },
+      { path: "settings/daily-gold-rate", element: <DailyGoldRate /> },
+      { path: "settings/receipt", element: <ReceiptSettings /> },
+      { path: "settings/home-sections", element: <HomeSections /> },
+      { path: "profile", element: <Profile /> },
+      { path: "enquiries", element: <Enquiries /> },
+      { path: "enquiries/new", element: <Enquiries /> },
+      { path: "enquiries/edit/:id", element: <Enquiries /> },
+    ],
+  },
+]);
+
+createRoot(document.getElementById("root")).render(
+  <GoogleOAuthProvider clientId="92181265196-n9a9p26qe601hg7lar8acq6s4f1cknq7.apps.googleusercontent.com">
+    <AuthProvider>
+      <StoreProvider>
+        <GoldRatesProvider>
+          <Toaster position="top-left" reverseOrder={false} />
+          <React.Suspense fallback={<Loader />}>
+            <RouterProvider router={router} />
+          </React.Suspense>
+        </GoldRatesProvider>
+      </StoreProvider>
+    </AuthProvider>
+  </GoogleOAuthProvider>
+);

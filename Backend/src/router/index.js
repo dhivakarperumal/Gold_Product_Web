@@ -1,0 +1,46 @@
+const express = require('express');
+const authRouter = require('./authRouter');
+const categoryRouter = require('./categoryRouter');
+const metalRouter = require('./metalRouter');
+const productRouter = require('./productRouter');
+const loanCustomerRouter = require('./loanCustomerRouter');
+const loanRouter = require('./loanRouter');
+const bannerRouter = require('./bannerRouter');
+const goldRateRouter = require('./goldRateRouter');
+const videoRouter = require('./videoRouter');
+const reviewRouter = require('./reviewRouter');
+const dealerRouter = require('./dealerRouter');
+const dashboardRouter = require('./dashboardRouter');
+const cartRouter = require('./cartRouter');
+const wishlistRouter = require('./wishlistRouter');
+const kycRouter = require('./kycRouter');
+const billingRouter = require('./billingRouter');
+const receiptSettingsRouter = require('./receiptSettingsRouter');
+const homeSectionRouter = require('./homeSectionRouter');
+const fundRouter = require('./fundRouter');
+const enquiryRouter = require('./enquiryRouter');
+
+const router = express.Router();
+
+router.use('/dashboard', dashboardRouter);
+router.use('/kyc', kycRouter);
+router.use('/billings', billingRouter);
+router.use('/receipt-settings', receiptSettingsRouter);
+router.use('/home-sections', homeSectionRouter);
+router.use('/funds', fundRouter);
+router.use('/enquiries', enquiryRouter);
+router.use('/auth', authRouter);
+router.use('/categories', categoryRouter);
+router.use('/metals', metalRouter);
+router.use('/products', productRouter);
+router.use('/cart', cartRouter);
+router.use('/wishlist', wishlistRouter);
+router.use('/loan-customers', loanCustomerRouter);
+router.use('/banners', bannerRouter);
+router.use('/gold-rates', goldRateRouter);
+router.use('/videos', videoRouter);
+router.use('/reviews', reviewRouter);
+router.use('/dealers', dealerRouter);
+router.use(loanRouter);
+
+module.exports = router;
