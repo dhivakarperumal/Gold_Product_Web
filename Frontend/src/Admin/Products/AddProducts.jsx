@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast, Toaster } from "react-hot-toast";
@@ -18,12 +18,6 @@ import useGoldRates from "../../PrivateRouter/useGoldRates";
 import { formatCurrency } from "../../utils/currency";
 
 const GOLD_SHOP = "Sri Gold";
-const FALLBACK_PURITY_OPTIONS = {
-  gold: ["24K / 999", "22K / 916", "20K / 833", "18K / 750", "14K / 585"],
-  silver: ["999"],
-  platinum: ["950", "900"],
-  diamond: ["D-F / VVS", "G-H / VS", "I-J / SI"]
-};
 const GOLD_PURITY_LABELS = {
   "999": "24K / 999",
   "916": "22K / 916",
@@ -32,18 +26,16 @@ const GOLD_PURITY_LABELS = {
   "585": "14K / 585"
 };
 
-function getPurityOptions(metalType, rateSet, metalList) {
+function getPurityOptions(metalType, rateSet) {
   const type = String(metalType || "").toLowerCase();
-  const activeRates = rateSet?.rates?.filter((rate) => rate.metal_type.toLowerCase() === type) || [];
-  const configuredPurities = activeRates.length
-    ? activeRates.map((rate) => rate.purity)
-    : (metalList.find((metal) => metal.name.toLowerCase() === type)?.purity || "")
-      .split(",").map((purity) => purity.trim()).filter(Boolean);
-  const purities = configuredPurities.length
-    ? configuredPurities
-    : FALLBACK_PURITY_OPTIONS[type] || [];
-  const formattedPurities = purities.map((purity) => GOLD_PURITY_LABELS[purity] || purity);
-  return [...new Set(formattedPurities.length ? formattedPurities : ["Other"])];
+  const activeRates = rateSet?.rates?.filter(
+    (rate) => String(rate.metal_type || "").toLowerCase() === type
+  ) || [];
+  const formattedPurities = activeRates
+    .map((rate) => String(rate.purity || "").trim())
+    .filter(Boolean)
+    .map((purity) => GOLD_PURITY_LABELS[purity] || purity);
+  return [...new Set(formattedPurities)];
 }
 
 const EMPTY_PRODUCT = {
@@ -53,7 +45,7 @@ const EMPTY_PRODUCT = {
   category: "",
   metal_type: "",
   product_type: "Traditional",
-  purity: "22K / 916",
+  purity: "",
   gross_weight: "",
   net_gold_weight: "",
   gold_rate_per_gram: "",
@@ -160,6 +152,7 @@ const AddProducts = () => {
   const [fetching, setFetching] = useState(isEdit);
   const [uploading, setUploading] = useState(false);
   const { current: activeRateSet, loading: ratesLoading, error: ratesError } = useGoldRates();
+  const didInitializePurity = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -221,10 +214,32 @@ const AddProducts = () => {
     return () => { active = false; };
   }, [id, isEdit]);
 
-  const configuredPurities = getPurityOptions(formData.metal_type, activeRateSet, metals);
-  const purityOptions = formData.purity && !configuredPurities.includes(formData.purity)
+  useEffect(() => {
+    if (
+      isEdit
+      || !formData.metal_type
+      || ratesLoading
+      || ratesError
+      || didInitializePurity.current
+    ) return;
+
+    const configuredPurities = getPurityOptions(formData.metal_type, activeRateSet);
+    didInitializePurity.current = true;
+    setFormData((current) => ({
+      ...current,
+      purity: configuredPurities.includes(current.purity)
+        ? current.purity
+        : configuredPurities[0] || ""
+    }));
+  }, [activeRateSet, formData.metal_type, isEdit, ratesError, ratesLoading]);
+
+  const configuredPurities = getPurityOptions(formData.metal_type, activeRateSet);
+  const purityOptions = isEdit && formData.purity && !configuredPurities.includes(formData.purity)
     ? [formData.purity, ...configuredPurities]
     : configuredPurities;
+  const puritySelectOptions = purityOptions.length
+    ? [{ value: "", label: "Select purity" }, ...purityOptions]
+    : [{ value: "", label: ratesLoading ? "Loading purity rates..." : "No active rate for this metal" }];
   const isDiamond = formData.metal_type.toLowerCase() === "diamond";
   const grossWeight = Number(formData.gross_weight) || 0;
   const stoneWeight = Number(formData.stone_weight) || 0;
@@ -303,7 +318,7 @@ const AddProducts = () => {
         };
       }
       if (name === "metal_type") {
-        const nextPurities = getPurityOptions(value, activeRateSet, metals);
+        const nextPurities = getPurityOptions(value, activeRateSet);
         return {
           ...current,
           metal_type: value,
@@ -487,7 +502,7 @@ const AddProducts = () => {
 
           <Section title={`2. ${isDiamond ? "Diamond" : "Metal"} Details`}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <SelectField label={isDiamond ? "Diamond Grade" : "Purity"} name="purity" value={formData.purity} onChange={handleChange} options={purityOptions} />
+              <SelectField label={isDiamond ? "Diamond Grade" : "Purity"} name="purity" value={formData.purity} onChange={handleChange} options={puritySelectOptions} />
               <Field label="Gross Weight (g)" name="gross_weight" type="number" min="0" step="0.001" value={formData.gross_weight} onChange={handleChange} placeholder="10" />
               <Field
                 label={isDiamond ? "Net Diamond Weight (ct)" : "Net Metal Weight (g)"}
