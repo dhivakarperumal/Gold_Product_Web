@@ -55,7 +55,7 @@ const Category = () => {
         setData: setCategories,
         loading,
         refreshing
-    } = useAdminCachedList("admin:categories", async () => {
+    } = useAdminCachedList(`admin:categories:${user?.user_id || "current"}`, async () => {
         const response = await api.get("/categories/manage");
         return response.data;
     }, []);
@@ -186,7 +186,6 @@ const Category = () => {
             categoryData.append("description", formData.description || "");
             categoryData.append("subcategory", JSON.stringify(subcategories));
             categoryData.append("images", JSON.stringify(imagesToKeep));
-            categoryData.append("user_id", user?.id || formData.user_id || "null");
 
             for (const imageData of imageUploads) {
                 let imageBlob = await (await fetch(imageData)).blob();

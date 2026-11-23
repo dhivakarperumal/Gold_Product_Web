@@ -5,7 +5,8 @@ const CATEGORY_COLUMNS = `
   c.status, c.created_at, c.updated_at
 `;
 const CATEGORY_AUDIT_COLUMNS = `
-  c.created_by, creator.username AS created_by_name,
+  COALESCE(c.created_by, legacy_owner.user_id) AS created_by,
+  CASE WHEN c.created_by IS NULL THEN legacy_owner.username ELSE creator.username END AS created_by_name,
   c.updated_by, updater.username AS updated_by_name
 `;
 
@@ -89,27 +90,44 @@ async function ensureCategoryAuditForeignKey(column, constraintName) {
   }
 }
 
-async function listCategories({ includeAudit = false } = {}) {
+async function listCategories({ includeAudit = false, userId, legacyUserId } = {}) {
+  if (includeAudit && (!userId || !legacyUserId)) {
+    throw new Error('Authenticated user IDs are required to list managed categories');
+  }
   const auditColumns = includeAudit ? `, ${CATEGORY_AUDIT_COLUMNS}` : '';
   const auditJoins = includeAudit
-    ? 'LEFT JOIN users creator ON creator.user_id = c.created_by LEFT JOIN users updater ON updater.user_id = c.updated_by'
+    ? `LEFT JOIN users creator ON creator.user_id = c.created_by
+       LEFT JOIN users updater ON updater.user_id = c.updated_by
+       LEFT JOIN users legacy_owner ON legacy_owner.id = c.user_id`
     : '';
+  const where = includeAudit
+    ? 'WHERE c.created_by = ? OR (c.created_by IS NULL AND c.user_id = ?)'
+    : '';
+  const params = includeAudit ? [userId, legacyUserId] : [];
   const [categories] = await pool.query(
     `SELECT ${CATEGORY_COLUMNS}${auditColumns}
      FROM categories c ${auditJoins}
-     ORDER BY c.created_at DESC, c.id DESC`
+     ${where}
+     ORDER BY c.created_at DESC, c.id DESC`,
+    params
   );
   return categories.map(parseCategory);
 }
 
-async function getCategoryById(catId) {
+async function getCategoryById(catId, { userId, legacyUserId } = {}) {
+  const ownerFilter = userId && legacyUserId
+    ? 'AND (c.created_by = ? OR (c.created_by IS NULL AND c.user_id = ?))'
+    : '';
+  const params = [catId];
+  if (ownerFilter) params.push(userId, legacyUserId);
   const [categories] = await pool.execute(
     `SELECT ${CATEGORY_COLUMNS}, ${CATEGORY_AUDIT_COLUMNS}
      FROM categories c
      LEFT JOIN users creator ON creator.user_id = c.created_by
      LEFT JOIN users updater ON updater.user_id = c.updated_by
-     WHERE c.catId = ?`,
-    [catId]
+     LEFT JOIN users legacy_owner ON legacy_owner.id = c.user_id
+     WHERE c.catId = ? ${ownerFilter}`,
+    params
   );
   return categories[0] ? parseCategory(categories[0]) : null;
 }
@@ -127,18 +145,42 @@ async function createCategory({ catId, name, description, subcategory, images, u
   return getCategoryById(catId);
 }
 
-async function updateCategory(catId, { name, description, subcategory, images, userId, updatedBy }) {
-  await pool.execute(
+async function updateCategory(catId, {
+  name,
+  description,
+  subcategory,
+  images,
+  userId,
+  updatedBy,
+  ownerUserId,
+  legacyUserId
+}) {
+  if (!ownerUserId || !legacyUserId) {
+    throw new Error('Authenticated user IDs are required to update a category');
+  }
+  const [result] = await pool.execute(
     `UPDATE categories
      SET name = ?, description = ?, subcategory = ?, images = ?, user_id = ?, updated_by = ?
-     WHERE catId = ?`,
-    [name, description || null, JSON.stringify(subcategory), JSON.stringify(images), userId, updatedBy, catId]
+     WHERE catId = ? AND (created_by = ? OR (created_by IS NULL AND user_id = ?))`,
+    [
+      name, description || null, JSON.stringify(subcategory), JSON.stringify(images), userId, updatedBy,
+      catId, ownerUserId, legacyUserId
+    ]
   );
-  return getCategoryById(catId);
+  if (!result.affectedRows) {
+    return getCategoryById(catId, { userId: ownerUserId, legacyUserId });
+  }
+  return getCategoryById(catId, { userId: ownerUserId, legacyUserId });
 }
 
-async function deleteCategory(catId) {
-  const [result] = await pool.execute('DELETE FROM categories WHERE catId = ?', [catId]);
+async function deleteCategory(catId, ownerUserId, legacyUserId) {
+  if (!ownerUserId || !legacyUserId) {
+    throw new Error('Authenticated user IDs are required to delete a category');
+  }
+  const [result] = await pool.execute(
+    'DELETE FROM categories WHERE catId = ? AND (created_by = ? OR (created_by IS NULL AND user_id = ?))',
+    [catId, ownerUserId, legacyUserId]
+  );
   return result.affectedRows > 0;
 }
 

@@ -108,7 +108,11 @@ async function getCategories(req, res, next) {
 
 async function getManagedCategories(req, res, next) {
   try {
-    return res.json(await listCategories({ includeAudit: true }));
+    return res.json(await listCategories({
+      includeAudit: true,
+      userId: req.adminUser.user_id,
+      legacyUserId: req.adminUser.id
+    }));
   } catch (error) {
     return next(error);
   }
@@ -122,7 +126,8 @@ async function postCategory(req, res, next) {
     if (!uploaded) return;
     const { category, error: validationError } = normalizeCategory({
       ...req.body,
-      images: uploaded.images
+      images: uploaded.images,
+      user_id: req.adminUser.id
     });
     if (validationError) {
       await uploaded.cleanup();
@@ -130,6 +135,7 @@ async function postCategory(req, res, next) {
     }
     const created = await createCategory({
       ...category,
+      userId: req.adminUser.id,
       createdBy: req.adminUser.user_id,
       updatedBy: req.adminUser.user_id
     });
@@ -153,20 +159,28 @@ async function putCategory(req, res, next) {
     const { category, error: validationError } = normalizeCategory({
       ...req.body,
       catId: req.params.catId,
-      images: uploaded.images
+      images: uploaded.images,
+      user_id: req.adminUser.id
     });
     if (validationError) {
       await uploaded.cleanup();
       return res.status(400).json({ message: validationError });
     }
-    const existing = await getCategoryById(req.params.catId);
+    const owner = {
+      userId: req.adminUser.user_id,
+      legacyUserId: req.adminUser.id
+    };
+    const existing = await getCategoryById(req.params.catId, owner);
     if (!existing) {
       await uploaded.cleanup();
       return res.status(404).json({ message: 'Category not found' });
     }
     const updated = await updateCategory(req.params.catId, {
       ...category,
-      updatedBy: req.adminUser.user_id
+      userId: req.adminUser.id,
+      updatedBy: req.adminUser.user_id,
+      ownerUserId: req.adminUser.user_id,
+      legacyUserId: req.adminUser.id
     });
     if (!updated) {
       await uploaded.cleanup();
@@ -186,9 +200,11 @@ async function putCategory(req, res, next) {
 
 async function removeCategory(req, res, next) {
   try {
-    const existing = await getCategoryById(req.params.catId);
+    const ownerUserId = req.adminUser.user_id;
+    const legacyUserId = req.adminUser.id;
+    const existing = await getCategoryById(req.params.catId, { userId: ownerUserId, legacyUserId });
     if (!existing) return res.status(404).json({ message: 'Category not found' });
-    const deleted = await deleteCategory(req.params.catId);
+    const deleted = await deleteCategory(req.params.catId, ownerUserId, legacyUserId);
     if (!deleted) return res.status(404).json({ message: 'Category not found' });
     await removeCategoryImages(Array.isArray(existing.images) ? existing.images : []);
     return res.json({ message: 'Category deleted successfully' });
