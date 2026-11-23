@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import api from "../../api";
 import { toast } from "react-hot-toast";
 import useAdminCachedList from "../useAdminCachedList";
+import { useAuth } from "../../PrivateRouter/AuthContext";
 import imageCompression from "browser-image-compression";
 import {
   FiAlertCircle,
@@ -26,11 +27,18 @@ const getMetalImageUrl = (image) => {
   return typeof image === "string" ? resolveBackendImageUrl(image) : "";
 };
 
+const formatAuditDateTime = (dateString) => (
+  dateString
+    ? new Date(dateString).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })
+    : "—"
+);
+
 const Metals = () => {
+  const { user } = useAuth();
   const { data: metals, setData: setMetals, loading, refreshing } = useAdminCachedList(
-    "admin:metals",
+    `admin:metals:${user?.user_id || "current"}`,
     async () => {
-      const response = await api.get("/metals");
+      const response = await api.get("/metals/manage");
       return response.data;
     },
     []
@@ -260,7 +268,7 @@ const Metals = () => {
       {viewMode === "table" ? (
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left">
+          <table className="w-full min-w-[960px] text-left">
             <thead className="bg-[#003B3B]">
               <tr>
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-white">S No</th>
@@ -268,17 +276,18 @@ const Metals = () => {
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-white">Purity</th>
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-white">Description</th>
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-white">Status</th>
+                <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-white">Created / Updated</th>
                 <th className="px-5 py-4 text-right text-xs font-bold uppercase tracking-wide text-white">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-5 py-12 text-center text-sm font-medium text-gray-500">Loading metals...</td>
+                  <td colSpan="7" className="px-5 py-12 text-center text-sm font-medium text-gray-500">Loading metals...</td>
                 </tr>
               ) : filteredMetals.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-5 py-12 text-center text-sm font-medium text-gray-500">
+                  <td colSpan="7" className="px-5 py-12 text-center text-sm font-medium text-gray-500">
                     {searchQuery || statusFilter !== "All" ? "No metals match the selected filters." : "No metals yet. Add one to get started."}
                   </td>
                 </tr>
@@ -303,6 +312,10 @@ const Metals = () => {
                     <span className={`rounded-full px-3 py-1 text-xs font-bold ${metal.status === "Active" ? "bg-amber-50 text-amber-800" : "bg-gray-100 text-gray-600"}`}>
                       {metal.status}
                     </span>
+                  </td>
+                  <td className="px-5 py-3 text-xs text-gray-500">
+                    <div><span className="font-bold text-slate-600">Created:</span> {metal.created_by_name || metal.created_by || "—"} · {formatAuditDateTime(metal.created_at)}</div>
+                    <div className="mt-1"><span className="font-bold text-slate-600">Updated:</span> {metal.updated_by_name || metal.updated_by || "—"} · {formatAuditDateTime(metal.updated_at)}</div>
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex justify-end gap-2">
@@ -358,6 +371,14 @@ const Metals = () => {
                 <div>
                   <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">Description</dt>
                   <dd className="mt-1 text-sm text-slate-600">{metal.description || "—"}</dd>
+                </div>
+                <div className="border-t border-gray-100 pt-3">
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">Created</dt>
+                  <dd className="mt-1 text-sm text-slate-600">{metal.created_by_name || metal.created_by || "—"} · {formatAuditDateTime(metal.created_at)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">Updated</dt>
+                  <dd className="mt-1 text-sm text-slate-600">{metal.updated_by_name || metal.updated_by || "—"} · {formatAuditDateTime(metal.updated_at)}</dd>
                 </div>
               </dl>
               <div className="mt-4 flex justify-end gap-2 border-t border-gray-100 pt-3">

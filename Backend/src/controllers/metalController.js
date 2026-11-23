@@ -43,12 +43,27 @@ async function getMetals(req, res, next) {
   }
 }
 
+async function getManagedMetals(req, res, next) {
+  try {
+    return res.json(await listMetals({
+      includeAudit: true,
+      createdBy: req.adminUser.user_id
+    }));
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function postMetal(req, res, next) {
   const { metal, error } = normalizeMetal(req.body || {});
   if (error) return res.status(400).json({ message: error });
 
   try {
-    return res.status(201).json(await createMetal(metal));
+    return res.status(201).json(await createMetal({
+      ...metal,
+      createdBy: req.adminUser.user_id,
+      updatedBy: req.adminUser.user_id
+    }));
   } catch (createError) {
     return next(createError);
   }
@@ -78,9 +93,14 @@ async function putMetal(req, res, next) {
   if (error) return res.status(400).json({ message: error });
 
   try {
-    const existingMetal = await getMetalById(id);
+    const ownerUserId = req.adminUser.user_id;
+    const existingMetal = await getMetalById(id, { createdBy: ownerUserId });
     if (!existingMetal) return res.status(404).json({ message: 'Metal not found' });
-    const updated = await updateMetal(id, metal);
+    const updated = await updateMetal(id, {
+      ...metal,
+      updatedBy: ownerUserId,
+      ownerUserId
+    });
     if (!updated) return res.status(404).json({ message: 'Metal not found' });
     if (existingMetal.image && existingMetal.image !== updated.image) {
       await removeMetalImage(existingMetal.image);
@@ -98,9 +118,10 @@ async function removeMetal(req, res, next) {
   }
 
   try {
-    const metal = await getMetalById(id);
+    const ownerUserId = req.adminUser.user_id;
+    const metal = await getMetalById(id, { createdBy: ownerUserId });
     if (!metal) return res.status(404).json({ message: 'Metal not found' });
-    const deleted = await deleteMetal(id);
+    const deleted = await deleteMetal(id, ownerUserId);
     if (!deleted) return res.status(404).json({ message: 'Metal not found' });
     await removeMetalImage(metal.image);
     return res.json({ message: 'Metal deleted successfully' });
@@ -109,4 +130,11 @@ async function removeMetal(req, res, next) {
   }
 }
 
-module.exports = { getMetals, postMetal, postMetalImage, putMetal, removeMetal };
+module.exports = {
+  getMetals,
+  getManagedMetals,
+  postMetal,
+  postMetalImage,
+  putMetal,
+  removeMetal
+};

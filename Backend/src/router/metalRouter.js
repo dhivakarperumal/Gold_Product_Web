@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   getMetals,
+  getManagedMetals,
   postMetal,
   postMetalImage,
   putMetal,
@@ -12,6 +13,7 @@ const { uploadMetalImage } = require('../middleware/metalImageUpload');
 const router = express.Router();
 
 router.get('/', getMetals);
+router.get('/manage', requireAdmin, getManagedMetals);
 router.post('/images', requireAdmin, (req, res, next) => {
   uploadMetalImage.single('image')(req, res, (error) => {
     if (!error) return next();

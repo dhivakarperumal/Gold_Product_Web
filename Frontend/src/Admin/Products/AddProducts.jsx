@@ -166,7 +166,7 @@ const AddProducts = () => {
     const load = async () => {
       try {
         const categoryRequest = api.get("/categories/manage");
-        const metalRequest = api.get("/metals");
+        const metalRequest = api.get("/metals/manage");
         const productRequest = isEdit
           ? api.get(`/products/${id}`)
           : api.get("/products/latest-code");
