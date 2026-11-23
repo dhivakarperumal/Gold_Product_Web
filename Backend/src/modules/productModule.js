@@ -239,11 +239,15 @@ async function initializeProductModule() {
 
 async function listProducts({
   page, limit, search, status, category, purity, offerStatus, stockStatus,
-  lastPriceUpdate, sortBy, sortOrder, dateRange = {}
+  lastPriceUpdate, sortBy, sortOrder, dateRange = {}, createdByUserId
 }) {
   const where = [];
   const params = [];
   addDateRangeCondition(where, params, 'created_at', dateRange);
+  if (createdByUserId) {
+    where.push('created_by = ?');
+    params.push(createdByUserId);
+  }
   if (search) {
     where.push('(name LIKE ? OR product_code LIKE ? OR category LIKE ? OR purity LIKE ?)');
     const term = `%${search}%`;
@@ -292,13 +296,25 @@ async function listProducts({
   const dateConditions = [];
   const dateValues = [];
   addDateRangeCondition(dateConditions, dateValues, 'created_at', dateRange);
+  if (createdByUserId) {
+    dateConditions.push('created_by = ?');
+    dateValues.push(createdByUserId);
+  }
   const dateWhere = dateConditions.length ? `WHERE ${dateConditions.join(' AND ')}` : '';
   const [[{ total: allTotal }]] = await pool.execute(`SELECT COUNT(*) AS total FROM products ${dateWhere}`, dateValues);
   const [[{ active }]] = await pool.execute(`SELECT COUNT(*) AS active FROM products ${dateWhere ? `${dateWhere} AND` : 'WHERE'} status = 'Active'`, dateValues);
   const [[{ lowStock }]] = await pool.execute(`SELECT COUNT(*) AS lowStock FROM products ${dateWhere ? `${dateWhere} AND` : 'WHERE'} total_stock > 0 AND total_stock < 10`, dateValues);
   const [[{ outOfStock }]] = await pool.execute(`SELECT COUNT(*) AS outOfStock FROM products ${dateWhere ? `${dateWhere} AND` : 'WHERE'} total_stock <= 0`, dateValues);
-  const [categoryRows] = await pool.query('SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category');
-  const [purityRows] = await pool.query('SELECT DISTINCT purity FROM products WHERE purity IS NOT NULL ORDER BY purity');
+  const creatorCondition = createdByUserId ? 'created_by = ? AND ' : '';
+  const creatorParams = createdByUserId ? [createdByUserId] : [];
+  const [categoryRows] = await pool.execute(
+    `SELECT DISTINCT category FROM products WHERE ${creatorCondition}category IS NOT NULL ORDER BY category`,
+    creatorParams
+  );
+  const [purityRows] = await pool.execute(
+    `SELECT DISTINCT purity FROM products WHERE ${creatorCondition}purity IS NOT NULL ORDER BY purity`,
+    creatorParams
+  );
   const offset = (page - 1) * limit;
   const [rows] = await pool.execute(
     `SELECT ${PRODUCT_COLUMNS} FROM products ${whereSql}

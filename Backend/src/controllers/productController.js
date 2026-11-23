@@ -103,7 +103,7 @@ function normalizeProduct(body) {
   return { product };
 }
 
-async function getProducts(req, res, next) {
+async function getProducts(req, res, next, createdByUserId) {
   const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
   const limit = Math.min(100, Math.max(1, Math.floor(Number(req.query.limit) || 100)));
   const dateRange = parseDateRange(req.query);
@@ -121,11 +121,16 @@ async function getProducts(req, res, next) {
       lastPriceUpdate: String(req.query.lastPriceUpdate || ''),
       sortBy: String(req.query.sortBy || ''),
       sortOrder: String(req.query.sortOrder || ''),
-      dateRange
+      dateRange,
+      createdByUserId
     }));
   } catch (error) {
     return next(error);
   }
+}
+
+async function getMyProducts(req, res, next) {
+  return getProducts(req, res, next, req.adminUser.user_id);
 }
 
 async function getProduct(req, res, next) {
@@ -330,6 +335,7 @@ module.exports = {
   getProduct,
   getProductPricing,
   getProductPriceHistory,
+  getMyProducts,
   getProducts,
   latestProductCode,
   postProduct,

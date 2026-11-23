@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAdmin } from "../../PrivateRouter/AdminContext";
+import { useAuth } from "../../PrivateRouter/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../api";
 import { toast, Toaster } from "react-hot-toast";
@@ -23,6 +24,7 @@ import {
 
 const AllProducts = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const { productsCache, setProductsCached } = useAdmin();
     const productsCacheRef = useRef(productsCache);
     productsCacheRef.current = productsCache;
@@ -48,7 +50,8 @@ const AllProducts = () => {
         stockStatus: stockFilter,
         lastPriceUpdate: lastPriceUpdateFilter,
         sortBy,
-        sortOrder
+        sortOrder,
+        userId: user?.user_id
     });
 
     const pageData = productsCache[currentCacheKey];
@@ -121,12 +124,12 @@ const AllProducts = () => {
             sortBy,
             sortOrder
         };
-        const cacheKey = JSON.stringify(params);
+        const cacheKey = JSON.stringify({ ...params, userId: user?.user_id });
         if (!productsCacheRef.current[cacheKey]) setLoading(true);
         setRefreshing(true);
 
         try {
-            const response = await api.get("/products", { params });
+            const response = await api.get("/products/mine", { params });
             const data = response.data;
             let finalData = {};
             if (Array.isArray(data)) {
@@ -152,7 +155,7 @@ const AllProducts = () => {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [currentPage, itemsPerPage, searchTerm, categoryFilter, purityFilter, stockFilter, lastPriceUpdateFilter, sortBy, sortOrder, setProductsCached]);
+    }, [currentPage, itemsPerPage, searchTerm, categoryFilter, purityFilter, stockFilter, lastPriceUpdateFilter, sortBy, sortOrder, user?.user_id, setProductsCached]);
 
     useEffect(() => {
         const timeout = setTimeout(() => {

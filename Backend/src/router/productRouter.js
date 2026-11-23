@@ -3,6 +3,7 @@ const {
   getProduct,
   getProductPricing,
   getProductPriceHistory,
+  getMyProducts,
   getProducts,
   latestProductCode,
   postProduct,
@@ -30,6 +31,7 @@ function receiveFiles(fields) {
   };
 }
 
+router.get('/mine', requireAdmin, getMyProducts);
 router.get('/', getProducts);
 router.post('/recalculate-prices', requireAdmin, postRecalculatePrices);
 router.get('/latest-code', latestProductCode);

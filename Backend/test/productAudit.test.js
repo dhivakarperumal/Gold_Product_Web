@@ -96,3 +96,28 @@ test('product updates store the authenticated user UUID as updated_by', async ()
     assert.equal(updatedProduct.updated_by, 'authenticated-user-uuid');
   });
 });
+
+test('the admin product list is scoped to the authenticated user without changing the public catalog list', async () => {
+  const filters = [];
+  const result = { products: [], pagination: {}, stats: {}, filters: {} };
+  await withControllerMocks({
+    listProducts: async (options) => {
+      filters.push(options);
+      return result;
+    }
+  }, async ({ getMyProducts, getProducts }) => {
+    const mineResponse = responseRecorder();
+    await getMyProducts({
+      query: {},
+      adminUser: { user_id: 'authenticated-user-uuid' }
+    }, mineResponse, (error) => { throw error; });
+
+    const publicResponse = responseRecorder();
+    await getProducts({ query: {} }, publicResponse, (error) => { throw error; });
+
+    assert.equal(filters[0].createdByUserId, 'authenticated-user-uuid');
+    assert.equal(filters[1].createdByUserId, undefined);
+    assert.equal(mineResponse.body, result);
+    assert.equal(publicResponse.body, result);
+  });
+});
