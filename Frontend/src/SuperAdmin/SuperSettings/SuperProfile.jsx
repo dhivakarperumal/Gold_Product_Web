@@ -5,6 +5,7 @@ import {
   Check,
   Eye,
   EyeOff,
+  Home,
   KeyRound,
   LoaderCircle,
   Phone,
@@ -16,6 +17,7 @@ import {
   UserRound
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import api from "../../api";
 
@@ -278,9 +280,14 @@ export default function SuperProfile() {
           <h1 className="mt-1 text-2xl font-black tracking-tight text-stone-900 sm:text-3xl">My Profile</h1>
           <p className="mt-1 text-sm text-stone-500">Manage your Super Admin account, security, and preferences.</p>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3.5 py-2 text-xs font-bold text-emerald-800 shadow-sm">
-          <ShieldCheck size={15} /> Super Admin account
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3.5 py-2 text-xs font-bold text-emerald-800 shadow-sm">
+            <ShieldCheck size={15} /> Super Admin account
+          </span>
+          <Link to="/superadmin" className="inline-flex items-center gap-2 rounded-xl bg-[#123b32] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0d3029]">
+            <Home size={15} /> Back to home
+          </Link>
+        </div>
       </header>
 
       <section className="relative isolate overflow-hidden rounded-[28px] bg-gradient-to-br from-[#123b32] via-[#174b3e] to-[#0d3029] p-5 text-white shadow-[0_20px_50px_-30px_rgba(18,59,50,0.8)] sm:p-8">

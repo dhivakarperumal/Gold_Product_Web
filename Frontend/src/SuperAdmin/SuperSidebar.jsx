@@ -2,19 +2,16 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
-  Users,
   BarChart3,
   X,
   ChevronLeft,
   Layers,
-  Files,
-  RefreshCw,
   Wallet,
-  CalendarDays
 } from "lucide-react";
+import { useAuth } from "../PrivateRouter/AuthContext";
 
 const navItems = [
-  { path: "/superadmin", label: "Dashboard Analytics", icon: LayoutDashboard, exact: true },
+  { path: "/superadmin", label: "Dashboard ", icon: LayoutDashboard, exact: true },
   { path: "/superadmin/goldshop", label: "Gold Shop Management", icon: Package },
   { path: "/superadmin/subscription-plans", label: "Subscription Plan", icon: Layers, exact: true },
   // { label: "Subscription Activation & Expiry", icon: CalendarDays, disabled: true },
@@ -27,6 +24,13 @@ const navItems = [
 /* ================= SIDEBAR ================= */
 const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   const location = useLocation();
+  const { user } = useAuth();
+  const displayName = user?.name?.trim() || user?.username || "Super Admin";
+  const normalizedRole = String(user?.role || "superadmin").toLowerCase().replace(/[\s_-]/g, "");
+  const roleLabel = normalizedRole === "superadmin"
+    ? "Super Admin"
+    : String(user?.role || "Admin").replace(/^\w/, (letter) => letter.toUpperCase());
+  const avatarInitial = displayName.trim().charAt(0).toUpperCase() || "S";
 
   /* ================= HELPERS & LOGIC ================= */
   const matchesRoute = (routePath) => {
@@ -158,6 +162,32 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
             );
           })}
         </nav>
+
+        <div className={`border-t border-white/10 ${collapsed ? "px-3 py-4" : "px-4 py-4"}`}>
+          <NavLink
+            to="/superadmin/profile"
+            end
+            title={collapsed ? `${displayName} - ${roleLabel}` : undefined}
+            onClick={() => {
+              if (isOpen) onClose();
+            }}
+            className={({ isActive }) => `group flex items-center rounded-2xl border px-3 py-3 transition ${collapsed ? "justify-center" : "gap-3"} ${
+              isActive
+                ? "border-white/15 bg-white/10"
+                : "border-transparent hover:border-white/10 hover:bg-white/[0.07]"
+            }`}
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-200 to-amber-500 text-base font-black text-[#123b32] shadow-md shadow-black/15">
+              {avatarInitial}
+            </span>
+            {!collapsed && (
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold text-white">{displayName}</span>
+                <span className="mt-0.5 block truncate text-[11px] font-semibold text-emerald-100/65">{roleLabel}</span>
+              </span>
+            )}
+          </NavLink>
+        </div>
 
         {/* ========== COLLAPSE BUTTON ========== */}
         <button
