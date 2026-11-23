@@ -175,13 +175,12 @@ const Category = () => {
     };
 
     const handleSaveCategory = async () => {
-        if (!formData.catId || !formData.name) return;
+        if (!formData.name.trim()) return;
 
         try {
             const imagesToKeep = formData.images.filter(image => !image.startsWith("data:image/"));
             const imageUploads = formData.images.filter(image => image.startsWith("data:image/"));
             const categoryData = new FormData();
-            categoryData.append("catId", formData.catId);
             categoryData.append("name", formData.name);
             categoryData.append("description", formData.description || "");
             categoryData.append("subcategory", JSON.stringify(subcategories));
@@ -239,17 +238,7 @@ const Category = () => {
     };
 
     const openAddModal = () => {
-        let nextId = "CAT001";
-        if (categories.length > 0) {
-            const existingIds = categories.map(c => {
-                const match = c.catId.match(/\d+/);
-                return match ? parseInt(match[0], 10) : 0;
-            });
-            const maxId = Math.max(...existingIds);
-            nextId = `CAT${String(maxId + 1).padStart(3, '0')}`;
-        }
         resetModalForm();
-        setFormData(prev => ({ ...prev, catId: nextId }));
         setIsModalOpen(true);
     };
 
@@ -556,11 +545,11 @@ const Category = () => {
                                 {/* Left Column: Inputs */}
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Category ID (Auto)</label>
+                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Category ID</label>
                                         <input
                                             type="text"
                                             name="catId"
-                                            value={formData.catId}
+                                            value={isEditing ? formData.catId : "Assigned automatically on save"}
                                             readOnly
                                             className="w-full bg-gray-50 border border-gray-200 text-gray-500 font-bold rounded-xl px-4 py-2.5 cursor-not-allowed focus:outline-none text-sm"
                                         />

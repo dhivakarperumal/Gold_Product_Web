@@ -5,8 +5,7 @@ const CATEGORY_COLUMNS = `
   c.status, c.created_at, c.updated_at
 `;
 const CATEGORY_AUDIT_COLUMNS = `
-  COALESCE(c.created_by, legacy_owner.user_id) AS created_by,
-  CASE WHEN c.created_by IS NULL THEN legacy_owner.username ELSE creator.username END AS created_by_name,
+  c.created_by, creator.username AS created_by_name,
   c.updated_by, updater.username AS updated_by_name
 `;
 
@@ -33,15 +32,16 @@ async function initializeCategoryModule() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS categories (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      catId VARCHAR(32) NOT NULL UNIQUE,
+      catId VARCHAR(32) NOT NULL,
       name VARCHAR(150) NOT NULL,
       description TEXT NULL,
       subcategory JSON NOT NULL,
       images JSON NOT NULL,
-      user_id INT UNSIGNED NULL,
+      user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       status ENUM('Active', 'Inactive') NOT NULL DEFAULT 'Active',
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_categories_user_cat_id (user_id, catId)
     )
   `);
   const [columns] = await pool.query('SHOW COLUMNS FROM categories');
@@ -63,6 +63,8 @@ async function initializeCategoryModule() {
   }
   await ensureCategoryAuditForeignKey('created_by', 'fk_categories_created_by_user_id');
   await ensureCategoryAuditForeignKey('updated_by', 'fk_categories_updated_by_user_id');
+  await migrateCategoryUserId();
+  await ensureCategoryIdIndexes();
 }
 
 async function ensureCategoryAuditForeignKey(column, constraintName) {
@@ -90,20 +92,97 @@ async function ensureCategoryAuditForeignKey(column, constraintName) {
   }
 }
 
-async function listCategories({ includeAudit = false, userId, legacyUserId } = {}) {
-  if (includeAudit && (!userId || !legacyUserId)) {
-    throw new Error('Authenticated user IDs are required to list managed categories');
+async function migrateCategoryUserId() {
+  const [userIdColumns] = await pool.execute(
+    `SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'categories' AND COLUMN_NAME = 'user_id'`
+  );
+  const userIdColumn = userIdColumns[0];
+  if (!userIdColumn) throw new Error('The categories.user_id column is missing');
+
+  const needsUuidType = userIdColumn.COLUMN_TYPE.toLowerCase() !== 'varchar(255)'
+    || userIdColumn.CHARACTER_SET_NAME !== 'ascii'
+    || userIdColumn.COLLATION_NAME !== 'ascii_bin';
+  const [foreignKeys] = await pool.execute(
+    `SELECT CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+     FROM information_schema.KEY_COLUMN_USAGE
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'categories'
+       AND COLUMN_NAME = 'user_id' AND REFERENCED_TABLE_NAME IS NOT NULL`
+  );
+  const foreignKeysToDrop = foreignKeys.filter((foreignKey) => (
+    needsUuidType
+    || foreignKey.REFERENCED_TABLE_NAME !== 'users'
+    || foreignKey.REFERENCED_COLUMN_NAME !== 'user_id'
+  ));
+  for (const foreignKey of foreignKeysToDrop) {
+    const escapedName = String(foreignKey.CONSTRAINT_NAME).replace(/`/g, '``');
+    await pool.query(`ALTER TABLE categories DROP FOREIGN KEY \`${escapedName}\``);
+  }
+  if (needsUuidType) {
+    await pool.query(
+      'ALTER TABLE categories MODIFY user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL'
+    );
+  }
+
+  await pool.query(`
+    UPDATE categories category
+    LEFT JOIN users legacy_owner ON legacy_owner.id = CAST(category.user_id AS UNSIGNED)
+    SET category.user_id = COALESCE(category.created_by, legacy_owner.user_id)
+    WHERE category.user_id REGEXP '^[0-9]+$'
+  `);
+  await pool.query(`
+    UPDATE categories
+    SET user_id = created_by
+    WHERE created_by IS NOT NULL AND (user_id IS NULL OR user_id <> created_by)
+  `);
+  await pool.query(`
+    UPDATE categories category
+    JOIN users owner ON owner.user_id = category.user_id
+    SET category.created_by = category.user_id
+    WHERE category.created_by IS NULL
+  `);
+  await ensureCategoryAuditForeignKey('user_id', 'fk_categories_user_id');
+}
+
+async function ensureCategoryIdIndexes() {
+  const [references] = await pool.execute(
+    `SELECT TABLE_NAME, CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+     WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME = 'categories'
+       AND REFERENCED_COLUMN_NAME = 'catId'`
+  );
+  if (references.length) {
+    throw new Error('Cannot make category IDs per-admin while another table references categories.catId');
+  }
+
+  const [indexes] = await pool.execute(
+    `SELECT INDEX_NAME, NON_UNIQUE, GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS column_list
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'categories'
+     GROUP BY INDEX_NAME, NON_UNIQUE`
+  );
+  if (!indexes.some((index) => Number(index.NON_UNIQUE) === 0 && index.column_list === 'user_id,catId')) {
+    await pool.query('ALTER TABLE categories ADD UNIQUE KEY uq_categories_user_cat_id (user_id, catId)');
+  }
+  for (const index of indexes) {
+    if (Number(index.NON_UNIQUE) === 0 && index.column_list === 'catId') {
+      const escapedName = String(index.INDEX_NAME).replace(/`/g, '``');
+      await pool.query(`ALTER TABLE categories DROP INDEX \`${escapedName}\``);
+    }
+  }
+}
+
+async function listCategories({ includeAudit = false, userId } = {}) {
+  if (includeAudit && !userId) {
+    throw new Error('Authenticated user ID is required to list managed categories');
   }
   const auditColumns = includeAudit ? `, ${CATEGORY_AUDIT_COLUMNS}` : '';
   const auditJoins = includeAudit
     ? `LEFT JOIN users creator ON creator.user_id = c.created_by
-       LEFT JOIN users updater ON updater.user_id = c.updated_by
-       LEFT JOIN users legacy_owner ON legacy_owner.id = c.user_id`
+       LEFT JOIN users updater ON updater.user_id = c.updated_by`
     : '';
-  const where = includeAudit
-    ? 'WHERE c.created_by = ? OR (c.created_by IS NULL AND c.user_id = ?)'
-    : '';
-  const params = includeAudit ? [userId, legacyUserId] : [];
+  const where = includeAudit ? 'WHERE c.user_id = ?' : '';
+  const params = includeAudit ? [userId] : [];
   const [categories] = await pool.query(
     `SELECT ${CATEGORY_COLUMNS}${auditColumns}
      FROM categories c ${auditJoins}
@@ -114,35 +193,76 @@ async function listCategories({ includeAudit = false, userId, legacyUserId } = {
   return categories.map(parseCategory);
 }
 
-async function getCategoryById(catId, { userId, legacyUserId } = {}) {
-  const ownerFilter = userId && legacyUserId
-    ? 'AND (c.created_by = ? OR (c.created_by IS NULL AND c.user_id = ?))'
-    : '';
-  const params = [catId];
-  if (ownerFilter) params.push(userId, legacyUserId);
-  const [categories] = await pool.execute(
+async function selectCategoryById(connection, catId, userId) {
+  const [categories] = await connection.execute(
     `SELECT ${CATEGORY_COLUMNS}, ${CATEGORY_AUDIT_COLUMNS}
      FROM categories c
      LEFT JOIN users creator ON creator.user_id = c.created_by
      LEFT JOIN users updater ON updater.user_id = c.updated_by
-     LEFT JOIN users legacy_owner ON legacy_owner.id = c.user_id
-     WHERE c.catId = ? ${ownerFilter}`,
-    params
+     WHERE c.catId = ? AND c.user_id = ?`,
+    [catId, userId]
   );
   return categories[0] ? parseCategory(categories[0]) : null;
 }
 
-async function createCategory({ catId, name, description, subcategory, images, userId, createdBy, updatedBy }) {
-  await pool.execute(
-    `INSERT INTO categories
-      (catId, name, description, subcategory, images, user_id, created_by, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      catId, name, description || null, JSON.stringify(subcategory), JSON.stringify(images),
-      userId, createdBy, updatedBy
-    ]
-  );
-  return getCategoryById(catId);
+async function getCategoryById(catId, { userId } = {}) {
+  if (!userId) throw new Error('Authenticated user ID is required to get a category');
+  return selectCategoryById(pool, catId, userId);
+}
+
+async function createCategory({
+  name,
+  description,
+  subcategory,
+  images,
+  ownerUserId
+}) {
+  if (!ownerUserId) throw new Error('Authenticated user ID is required to create a category');
+  const connection = await pool.getConnection();
+  let transactionStarted = false;
+  try {
+    await connection.beginTransaction();
+    transactionStarted = true;
+    const [users] = await connection.execute(
+      'SELECT user_id FROM users WHERE user_id = ? FOR UPDATE',
+      [ownerUserId]
+    );
+    if (!users.length) throw new Error('Authenticated category owner does not exist');
+
+    const [categories] = await connection.execute(
+      'SELECT catId FROM categories WHERE user_id = ? FOR UPDATE',
+      [ownerUserId]
+    );
+    const maxNumber = categories.reduce((max, category) => {
+      const match = /^CAT(\d+)$/i.exec(String(category.catId || ''));
+      return match ? Math.max(max, Number(match[1])) : max;
+    }, 0);
+    if (!Number.isSafeInteger(maxNumber + 1)) {
+      throw new Error('The category ID sequence has exceeded the supported range');
+    }
+    const catId = `CAT${String(maxNumber + 1).padStart(3, '0')}`;
+
+    await connection.execute(
+      `INSERT INTO categories
+        (catId, name, description, subcategory, images, user_id, created_by, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        catId, name, description || null, JSON.stringify(subcategory), JSON.stringify(images),
+        ownerUserId, ownerUserId, ownerUserId
+      ]
+    );
+    const category = await selectCategoryById(connection, catId, ownerUserId);
+    if (!category) throw new Error('The created category could not be loaded');
+
+    await connection.commit();
+    transactionStarted = false;
+    return category;
+  } catch (error) {
+    if (transactionStarted) await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function updateCategory(catId, {
@@ -150,36 +270,30 @@ async function updateCategory(catId, {
   description,
   subcategory,
   images,
-  userId,
   updatedBy,
-  ownerUserId,
-  legacyUserId
+  ownerUserId
 }) {
-  if (!ownerUserId || !legacyUserId) {
-    throw new Error('Authenticated user IDs are required to update a category');
-  }
+  if (!ownerUserId) throw new Error('Authenticated user ID is required to update a category');
   const [result] = await pool.execute(
     `UPDATE categories
-     SET name = ?, description = ?, subcategory = ?, images = ?, user_id = ?, updated_by = ?
-     WHERE catId = ? AND (created_by = ? OR (created_by IS NULL AND user_id = ?))`,
+     SET name = ?, description = ?, subcategory = ?, images = ?, updated_by = ?
+     WHERE catId = ? AND user_id = ?`,
     [
-      name, description || null, JSON.stringify(subcategory), JSON.stringify(images), userId, updatedBy,
-      catId, ownerUserId, legacyUserId
+      name, description || null, JSON.stringify(subcategory), JSON.stringify(images), updatedBy,
+      catId, ownerUserId
     ]
   );
   if (!result.affectedRows) {
-    return getCategoryById(catId, { userId: ownerUserId, legacyUserId });
+    return getCategoryById(catId, { userId: ownerUserId });
   }
-  return getCategoryById(catId, { userId: ownerUserId, legacyUserId });
+  return getCategoryById(catId, { userId: ownerUserId });
 }
 
-async function deleteCategory(catId, ownerUserId, legacyUserId) {
-  if (!ownerUserId || !legacyUserId) {
-    throw new Error('Authenticated user IDs are required to delete a category');
-  }
+async function deleteCategory(catId, ownerUserId) {
+  if (!ownerUserId) throw new Error('Authenticated user ID is required to delete a category');
   const [result] = await pool.execute(
-    'DELETE FROM categories WHERE catId = ? AND (created_by = ? OR (created_by IS NULL AND user_id = ?))',
-    [catId, ownerUserId, legacyUserId]
+    'DELETE FROM categories WHERE catId = ? AND user_id = ?',
+    [catId, ownerUserId]
   );
   return result.affectedRows > 0;
 }

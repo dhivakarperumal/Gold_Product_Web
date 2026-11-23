@@ -106,7 +106,7 @@ const Category = () => {
               const image = Array.isArray(category.images) ? category.images[0] : category.images;
 
               return (
-                <SwiperSlide key={category.catId} className="h-auto">
+                <SwiperSlide key={category.id || category.catId} className="h-auto">
                   <Link
                     to={`/explore?category=${encodeURIComponent(category.name)}`}
                     className="group flex h-full min-w-0 w-full flex-col items-center px-1 text-center transition-transform duration-300 hover:-translate-y-1"

@@ -35,7 +35,6 @@ function parseSubcategories(subcategories) {
 }
 
 function normalizeCategory(body) {
-  const catId = String(body.catId || '').trim();
   const name = String(body.name || '').trim();
   const description = String(body.description || '').trim();
   const parsedSubcategories = parseSubcategories(body.subcategory);
@@ -44,25 +43,18 @@ function normalizeCategory(body) {
   const parsedImages = parseImages(body.images);
   if (parsedImages.error) return parsedImages;
   const images = parsedImages.images;
-  const rawUserId = body.user_id;
-  const userId = rawUserId == null || rawUserId === '' || rawUserId === 'null'
-    ? null
-    : Number(rawUserId);
 
-  if (!catId || !name) {
-    return { error: 'Category ID and name are required' };
+  if (!name) {
+    return { error: 'Category name is required' };
   }
-  if (catId.length > 32 || name.length > 150) {
-    return { error: 'Category ID or name is too long' };
-  }
-  if (typeof rawUserId !== 'undefined' && userId !== null && (!Number.isSafeInteger(userId) || userId < 1)) {
-    return { error: 'User ID is invalid' };
+  if (name.length > 150) {
+    return { error: 'Category name is too long' };
   }
   if (subcategory.some((item) => typeof item !== 'string') || images.some((image) => typeof image !== 'string')) {
     return { error: 'Subcategories and images must contain strings' };
   }
 
-  return { category: { catId, name, description, subcategory, images, userId } };
+  return { category: { name, description, subcategory, images } };
 }
 
 async function resolveUploadedImages(req, res) {
@@ -110,8 +102,7 @@ async function getManagedCategories(req, res, next) {
   try {
     return res.json(await listCategories({
       includeAudit: true,
-      userId: req.adminUser.user_id,
-      legacyUserId: req.adminUser.id
+      userId: req.adminUser.user_id
     }));
   } catch (error) {
     return next(error);
@@ -126,8 +117,7 @@ async function postCategory(req, res, next) {
     if (!uploaded) return;
     const { category, error: validationError } = normalizeCategory({
       ...req.body,
-      images: uploaded.images,
-      user_id: req.adminUser.id
+      images: uploaded.images
     });
     if (validationError) {
       await uploaded.cleanup();
@@ -135,16 +125,14 @@ async function postCategory(req, res, next) {
     }
     const created = await createCategory({
       ...category,
-      userId: req.adminUser.id,
-      createdBy: req.adminUser.user_id,
-      updatedBy: req.adminUser.user_id
+      ownerUserId: req.adminUser.user_id
     });
     persisted = true;
     return res.status(201).json(created);
   } catch (error) {
     if (uploaded && !persisted) await uploaded.cleanup();
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ message: 'A category with this ID already exists' });
+      return res.status(409).json({ message: 'A category ID conflict occurred. Please retry.' });
     }
     return next(error);
   }
@@ -158,17 +146,14 @@ async function putCategory(req, res, next) {
     if (!uploaded) return;
     const { category, error: validationError } = normalizeCategory({
       ...req.body,
-      catId: req.params.catId,
-      images: uploaded.images,
-      user_id: req.adminUser.id
+      images: uploaded.images
     });
     if (validationError) {
       await uploaded.cleanup();
       return res.status(400).json({ message: validationError });
     }
     const owner = {
-      userId: req.adminUser.user_id,
-      legacyUserId: req.adminUser.id
+      userId: req.adminUser.user_id
     };
     const existing = await getCategoryById(req.params.catId, owner);
     if (!existing) {
@@ -177,10 +162,8 @@ async function putCategory(req, res, next) {
     }
     const updated = await updateCategory(req.params.catId, {
       ...category,
-      userId: req.adminUser.id,
       updatedBy: req.adminUser.user_id,
-      ownerUserId: req.adminUser.user_id,
-      legacyUserId: req.adminUser.id
+      ownerUserId: req.adminUser.user_id
     });
     if (!updated) {
       await uploaded.cleanup();
@@ -201,10 +184,9 @@ async function putCategory(req, res, next) {
 async function removeCategory(req, res, next) {
   try {
     const ownerUserId = req.adminUser.user_id;
-    const legacyUserId = req.adminUser.id;
-    const existing = await getCategoryById(req.params.catId, { userId: ownerUserId, legacyUserId });
+    const existing = await getCategoryById(req.params.catId, { userId: ownerUserId });
     if (!existing) return res.status(404).json({ message: 'Category not found' });
-    const deleted = await deleteCategory(req.params.catId, ownerUserId, legacyUserId);
+    const deleted = await deleteCategory(req.params.catId, ownerUserId);
     if (!deleted) return res.status(404).json({ message: 'Category not found' });
     await removeCategoryImages(Array.isArray(existing.images) ? existing.images : []);
     return res.json({ message: 'Category deleted successfully' });
