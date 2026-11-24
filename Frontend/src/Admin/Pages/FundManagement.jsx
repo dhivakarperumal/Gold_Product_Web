@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, LayoutGrid, List, Plus, RefreshCw, Search, Wallet, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, LayoutGrid, List, Plus, Search, Wallet, X } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../api";
 import DateRangeFilter from "../Components/DateRangeFilter";
@@ -112,14 +112,6 @@ function FundManagement() {
 
   return (
     <main className="space-y-6">
-      <header className="relative flex flex-col gap-5 overflow-hidden rounded-3xl bg-gradient-to-r from-[#003B3B] via-[#00594f] to-[#087568] px-5 py-6 text-white shadow-lg sm:flex-row sm:items-center sm:justify-between sm:px-7">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">Finance · Ledger</p>
-          <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Fund Management</h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-white/75">Review fund entries and balances recorded for your admin account.</p>
-        </div>
-      </header>
-
       {loadError && (
         <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
           {loadError}
@@ -194,16 +186,6 @@ function FundManagement() {
             <option value="ALL">All transaction types</option>
             {TRANSACTION_TYPES.map(([type, label]) => <option key={type} value={type}>{label}</option>)}
           </select>
-          <button
-            type="button"
-            onClick={() => fetchData()}
-            disabled={loading}
-            aria-label="Refresh fund entries"
-            title="Refresh"
-            className="grid h-[52px] w-[52px] place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50"
-          >
-            <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
-          </button>
           <div role="group" aria-label="Transaction view" className="flex h-[52px] items-center rounded-xl bg-slate-100 p-1">
             <button
               type="button"
