@@ -26,6 +26,8 @@ async function initializeEnquiryModule() {
       follow_up_date DATE NULL,
       follow_up_time TIME NULL,
       assigned_to VARCHAR(150) NULL,
+      created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
+      updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       source VARCHAR(80) NULL,
       priority ENUM('Low', 'Medium', 'High') NOT NULL DEFAULT 'Medium',
       whatsapp_confirmation TINYINT(1) NOT NULL DEFAULT 0,
@@ -33,52 +35,76 @@ async function initializeEnquiryModule() {
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_enquiries_status_created (status, created_at),
       INDEX idx_enquiries_phone (phone),
-      INDEX idx_enquiries_product (product_id)
+      INDEX idx_enquiries_product (product_id),
+      INDEX idx_enquiries_created_by_created (created_by, created_at)
     )
   `);
+  const [columns] = await pool.query('SHOW COLUMNS FROM enquiries');
+  const existingColumns = new Set(columns.map((column) => column.Field));
+  if (!existingColumns.has('created_by')) {
+    await pool.query('ALTER TABLE enquiries ADD COLUMN created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER assigned_to');
+  }
+  if (!existingColumns.has('updated_by')) {
+    await pool.query('ALTER TABLE enquiries ADD COLUMN updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER created_by');
+  }
+  const [indexes] = await pool.query("SHOW INDEX FROM enquiries WHERE Key_name = 'idx_enquiries_created_by_created'");
+  if (!indexes.length) {
+    await pool.query('CREATE INDEX idx_enquiries_created_by_created ON enquiries (created_by, created_at)');
+  }
 }
 
-async function listEnquiries({ search, status, product, startDate, endDate, page, limit }) {
+async function listEnquiries({ search, status, product, startDate, endDate, page, limit, ownerUserId }) {
   const conditions = [];
   const values = [];
+  if (ownerUserId) {
+    conditions.push('e.created_by = ?');
+    values.push(ownerUserId);
+  }
   if (search) {
-    conditions.push('(customer_name LIKE ? OR phone LIKE ? OR email LIKE ? OR product_name LIKE ? OR message LIKE ?)');
+    conditions.push('(e.customer_name LIKE ? OR e.phone LIKE ? OR e.email LIKE ? OR e.product_name LIKE ? OR e.message LIKE ?)');
     const term = `%${search}%`;
     values.push(term, term, term, term, term);
   }
   if (status) {
-    conditions.push('status = ?');
+    conditions.push('e.status = ?');
     values.push(status);
   }
   if (product) {
-    conditions.push('(product_category = ? OR enquiry_type = ?)');
+    conditions.push('(e.product_category = ? OR e.enquiry_type = ?)');
     values.push(product, product);
   }
   if (startDate) {
-    conditions.push('created_at >= ?');
+    conditions.push('e.created_at >= ?');
     values.push(`${startDate} 00:00:00`);
   }
   if (endDate) {
-    conditions.push('created_at < DATE_ADD(?, INTERVAL 1 DAY)');
+    conditions.push('e.created_at < DATE_ADD(?, INTERVAL 1 DAY)');
     values.push(endDate);
   }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (page - 1) * limit;
   const [rows] = await pool.execute(
-    `SELECT * FROM enquiries ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+    `SELECT e.*, creator.name AS created_by_name, updater.name AS updated_by_name
+     FROM enquiries e
+     LEFT JOIN users creator ON creator.user_id = e.created_by
+     LEFT JOIN users updater ON updater.user_id = e.updated_by
+     ${where} ORDER BY e.created_at DESC, e.id DESC LIMIT ? OFFSET ?`,
     [...values, limit, offset]
   );
   const [[countRow]] = await pool.execute(
-    `SELECT COUNT(*) AS total FROM enquiries ${where}`,
+    `SELECT COUNT(*) AS total FROM enquiries e ${where}`,
     values
   );
-  const [[statsRow]] = await pool.query(`
-    SELECT COUNT(*) AS total,
-      COALESCE(SUM(status IN ('New Enquiry', 'In Progress', 'Quotation Sent')), 0) AS pending,
-      COALESCE(SUM(status IN ('Converted', 'Quotation Sent')), 0) AS responded,
-      COALESCE(SUM(status IN ('Closed', 'Not Interested')), 0) AS closed
-    FROM enquiries
-  `);
+  const statsWhere = ownerUserId ? 'WHERE e.created_by = ?' : '';
+  const [statsRows] = await pool.execute(
+    `SELECT COUNT(*) AS total,
+      COALESCE(SUM(e.status IN ('New Enquiry', 'In Progress', 'Quotation Sent')), 0) AS pending,
+      COALESCE(SUM(e.status IN ('Converted', 'Quotation Sent')), 0) AS responded,
+      COALESCE(SUM(e.status IN ('Closed', 'Not Interested')), 0) AS closed
+     FROM enquiries e ${statsWhere}`,
+    ownerUserId ? [ownerUserId] : []
+  );
+  const statsRow = statsRows[0];
   return {
     enquiries: rows.map((row) => ({ ...row, id: Number(row.id), product_id: row.product_id == null ? null : Number(row.product_id), whatsapp_confirmation: Boolean(row.whatsapp_confirmation) })),
     pagination: { page, limit, total: Number(countRow.total), totalPages: Math.max(1, Math.ceil(Number(countRow.total) / limit)) },
@@ -86,48 +112,74 @@ async function listEnquiries({ search, status, product, startDate, endDate, page
   };
 }
 
-async function createEnquiry(enquiry) {
+async function createEnquiry(enquiry, createdByUserId) {
   const fields = [
     'customer_name', 'phone', 'alternate_phone', 'email', 'address', 'city', 'state', 'pincode',
     'enquiry_type', 'product_category', 'product_id', 'product_name', 'purity', 'quantity', 'weight',
     'approx_budget', 'preferred_design', 'message', 'status', 'follow_up_date', 'follow_up_time',
-    'assigned_to', 'source', 'priority', 'whatsapp_confirmation'
+    'assigned_to', 'source', 'priority', 'whatsapp_confirmation', 'created_by', 'updated_by'
   ];
   const [result] = await pool.execute(
     `INSERT INTO enquiries (${fields.join(', ')}) VALUES (${fields.map(() => '?').join(', ')})`,
-    fields.map((field) => enquiry[field] ?? null)
+    fields.map((field) => (
+      field === 'created_by' || field === 'updated_by'
+        ? createdByUserId ?? null
+        : enquiry[field] ?? null
+    ))
   );
-  const [rows] = await pool.execute('SELECT * FROM enquiries WHERE id = ?', [result.insertId]);
-  return { ...rows[0], id: Number(rows[0].id), whatsapp_confirmation: Boolean(rows[0].whatsapp_confirmation) };
+  return getEnquiry(result.insertId, createdByUserId);
 }
 
-async function getEnquiry(id) {
-  const [rows] = await pool.execute('SELECT * FROM enquiries WHERE id = ?', [id]);
-  return rows[0] || null;
+async function getEnquiry(id, ownerUserId) {
+  const ownerCondition = ownerUserId ? ' AND e.created_by = ?' : '';
+  const [rows] = await pool.execute(
+    `SELECT e.*, creator.name AS created_by_name, updater.name AS updated_by_name
+     FROM enquiries e
+     LEFT JOIN users creator ON creator.user_id = e.created_by
+     LEFT JOIN users updater ON updater.user_id = e.updated_by
+     WHERE e.id = ?${ownerCondition}`,
+    ownerUserId ? [id, ownerUserId] : [id]
+  );
+  if (!rows[0]) return null;
+  return {
+    ...rows[0],
+    id: Number(rows[0].id),
+    product_id: rows[0].product_id == null ? null : Number(rows[0].product_id),
+    whatsapp_confirmation: Boolean(rows[0].whatsapp_confirmation)
+  };
 }
 
-async function updateEnquiryStatus(id, status) {
-  const [result] = await pool.execute('UPDATE enquiries SET status = ? WHERE id = ?', [status, id]);
+async function updateEnquiryStatus(id, status, updatedByUserId, ownerUserId) {
+  const ownerCondition = ownerUserId ? ' AND created_by = ?' : '';
+  const [result] = await pool.execute(
+    `UPDATE enquiries SET status = ?, updated_by = ? WHERE id = ?${ownerCondition}`,
+    [status, updatedByUserId ?? null, id, ...(ownerUserId ? [ownerUserId] : [])]
+  );
   if (result.affectedRows) return true;
-  return Boolean(await getEnquiry(id));
+  return Boolean(await getEnquiry(id, ownerUserId));
 }
 
-async function updateEnquiry(id, enquiry) {
+async function updateEnquiry(id, enquiry, updatedByUserId, ownerUserId) {
   const fields = [
     'customer_name', 'phone', 'alternate_phone', 'email', 'address', 'city', 'state', 'pincode',
     'enquiry_type', 'product_category', 'product_id', 'product_name', 'purity', 'quantity', 'weight',
     'approx_budget', 'preferred_design', 'message', 'status', 'follow_up_date', 'follow_up_time',
     'assigned_to', 'source', 'priority', 'whatsapp_confirmation'
   ];
+  const ownerCondition = ownerUserId ? ' AND created_by = ?' : '';
   const [result] = await pool.execute(
-    `UPDATE enquiries SET ${fields.map((field) => `${field} = ?`).join(', ')} WHERE id = ?`,
-    [...fields.map((field) => enquiry[field] ?? null), id]
+    `UPDATE enquiries SET ${fields.map((field) => `${field} = ?`).join(', ')}, updated_by = ? WHERE id = ?${ownerCondition}`,
+    [...fields.map((field) => enquiry[field] ?? null), updatedByUserId ?? null, id, ...(ownerUserId ? [ownerUserId] : [])]
   );
-  return result.affectedRows > 0 || Boolean(await getEnquiry(id));
+  return result.affectedRows > 0 || Boolean(await getEnquiry(id, ownerUserId));
 }
 
-async function deleteEnquiry(id) {
-  const [result] = await pool.execute('DELETE FROM enquiries WHERE id = ?', [id]);
+async function deleteEnquiry(id, ownerUserId) {
+  const ownerCondition = ownerUserId ? ' AND created_by = ?' : '';
+  const [result] = await pool.execute(
+    `DELETE FROM enquiries WHERE id = ?${ownerCondition}`,
+    ownerUserId ? [id, ownerUserId] : [id]
+  );
   return result.affectedRows > 0;
 }
 
