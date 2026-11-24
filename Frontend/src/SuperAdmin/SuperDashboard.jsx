@@ -72,38 +72,107 @@ function formatPercentage(value) {
   return `${change > 0 ? "+" : ""}${change.toFixed(1)}%`;
 }
 
-function MetricCard({ label, value, icon: Icon, change, note, loading }) {
+const metricTones = {
+  forest: {
+    card: "border-[#2F6B59] border-l-emerald-400 bg-[#123B32]",
+    icon: "bg-[#08745D] text-white",
+    label: "text-emerald-50/90",
+    detail: "text-emerald-300",
+    bars: "bg-emerald-300"
+  },
+  gold: {
+    card: "border-[#8A702E] border-l-amber-400 bg-[#443719]",
+    icon: "bg-[#C58B11] text-white",
+    label: "text-amber-50/90",
+    detail: "text-amber-300",
+    bars: "bg-amber-300"
+  },
+  blue: {
+    card: "border-[#3B7897] border-l-sky-400 bg-[#17364D]",
+    icon: "bg-[#007A61] text-white",
+    label: "text-sky-50/90",
+    detail: "text-sky-300",
+    bars: "bg-sky-300"
+  },
+  rust: {
+    card: "border-[#905342] border-l-orange-300 bg-[#4A2B25]",
+    icon: "bg-[#C58B11] text-white",
+    label: "text-orange-50/90",
+    detail: "text-orange-200",
+    bars: "bg-orange-200"
+  },
+  slate: {
+    card: "border-[#526D76] border-l-cyan-300 bg-[#29363B]",
+    icon: "bg-[#008B99] text-white",
+    label: "text-cyan-50/90",
+    detail: "text-cyan-200",
+    bars: "bg-cyan-200"
+  },
+  indigo: {
+    card: "border-[#555E9C] border-l-violet-300 bg-[#292B50]",
+    icon: "bg-[#7138E8] text-white",
+    label: "text-violet-50/90",
+    detail: "text-violet-200",
+    bars: "bg-violet-300"
+  },
+  teal: {
+    card: "border-[#34766D] border-l-teal-300 bg-[#153E3A]",
+    icon: "bg-[#087D70] text-white",
+    label: "text-teal-50/90",
+    detail: "text-teal-200",
+    bars: "bg-teal-300"
+  },
+  burgundy: {
+    card: "border-[#94475B] border-l-rose-300 bg-[#4A2635]",
+    icon: "bg-[#C8103E] text-white",
+    label: "text-rose-50/90",
+    detail: "text-rose-200",
+    bars: "bg-rose-300"
+  }
+};
+
+function MetricCard({ label, value, icon: Icon, change, note, loading, tone = "forest" }) {
   const isPositive = Number(change) >= 0;
+  const colors = metricTones[tone] || metricTones.forest;
 
   return (
-    <article className="min-w-0 border border-slate-200 border-l-4 border-l-[#D4A017] bg-white p-4 shadow-sm sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-slate-500">{label}</p>
-          {loading
-            ? <div className="mt-3 h-8 w-28 animate-pulse bg-slate-100" />
-            : <p className="mt-2 text-2xl font-semibold tracking-tight text-[#1F2937]">{value}</p>}
-        </div>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#FBF5E5] text-[#A87908]">
-          <Icon size={20} strokeWidth={1.8} />
-        </span>
-      </div>
-      <div className="mt-4 flex min-h-5 items-center gap-1.5 text-xs">
+    <article className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}>
+      <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-inner ${colors.icon}`}>
+        <Icon size={25} strokeWidth={1.9} />
+      </span>
+      <div className="min-w-0 flex-1 pb-1">
+        <p className={`truncate text-sm font-semibold ${colors.label}`}>{label}</p>
         {loading
-          ? <div className="h-3 w-24 animate-pulse bg-slate-100" />
+          ? <div className="mt-2 h-8 w-28 animate-pulse rounded bg-white/15" />
+          : <p className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-[28px]">{value}</p>}
+        <div className={`mt-2 flex min-h-5 items-center gap-1.5 text-xs ${colors.detail}`}>
+        {loading
+          ? <div className="h-3 w-24 animate-pulse rounded bg-white/15" />
           : change !== undefined
             ? (
               <>
                 {isPositive
-                  ? <ArrowUpRight size={14} className="text-emerald-700" />
-                  : <ArrowDownRight size={14} className="text-rose-700" />}
-                <span className={`font-semibold ${isPositive ? "text-emerald-700" : "text-rose-700"}`}>
+                  ? <ArrowUpRight size={14} className={isPositive ? "text-emerald-300" : "text-rose-300"} />
+                  : <ArrowDownRight size={14} className="text-rose-300" />}
+                <span className={`font-semibold ${isPositive ? "text-emerald-300" : "text-rose-300"}`}>
                   {formatPercentage(change)}
                 </span>
-                <span className="text-slate-400">vs. last month</span>
+                <span className="text-white/60">vs. last month</span>
               </>
             )
-            : <span className="text-slate-500">{note}</span>}
+            : (
+              <>
+                <span className={`h-2 w-2 rounded-full ${colors.bars}`} />
+                <span className="font-semibold">{note}</span>
+              </>
+            )}
+        </div>
+      </div>
+      <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-8 items-end gap-1 opacity-90 ${colors.detail}`}>
+        <span className="h-3 w-1.5 rounded-t-sm bg-current" />
+        <span className="h-5 w-1.5 rounded-t-sm bg-current" />
+        <span className="h-4 w-1.5 rounded-t-sm bg-current" />
+        <span className="h-7 w-1.5 rounded-t-sm bg-current" />
       </div>
     </article>
   );
@@ -323,14 +392,14 @@ export default function SuperDashboard() {
   }), []);
 
   const summaryCards = [
-    { label: "Total Gold Shops", value: stats?.totalGoldShops, change: stats?.changes?.totalGoldShops, icon: Store },
-    { label: "Active Gold Shops", value: stats?.activeGoldShops, note: "Approved and active", icon: Building2 },
-    { label: "Pending Gold Shops", value: stats?.pendingGoldShops, note: "Awaiting approval", icon: Clock3 },
-    { label: "Rejected Gold Shops", value: stats?.rejectedGoldShops, note: "Registration declined", icon: XCircle },
-    { label: "Registered Users", value: stats?.totalUsers, change: stats?.changes?.totalUsers, icon: Users },
-    { label: "Active Subscriptions", value: stats?.activeSubscriptions, change: stats?.changes?.activeSubscriptions, icon: ShieldCheck },
-    { label: "Expired Subscriptions", value: stats?.expiredSubscriptions, note: "Requires renewal", icon: CalendarDays },
-    { label: "Total Revenue", value: stats?.totalRevenue, change: stats?.changes?.totalRevenue, icon: IndianRupee, currency: true }
+    { label: "Total Gold Shops", value: stats?.totalGoldShops, change: stats?.changes?.totalGoldShops, icon: Store, tone: "forest" },
+    { label: "Active Gold Shops", value: stats?.activeGoldShops, note: "Approved and active", icon: Building2, tone: "gold" },
+    { label: "Pending Gold Shops", value: stats?.pendingGoldShops, note: "Awaiting approval", icon: Clock3, tone: "blue" },
+    { label: "Rejected Gold Shops", value: stats?.rejectedGoldShops, note: "Registration declined", icon: XCircle, tone: "rust" },
+    { label: "Registered Users", value: stats?.totalUsers, change: stats?.changes?.totalUsers, icon: Users, tone: "slate" },
+    { label: "Active Subscriptions", value: stats?.activeSubscriptions, change: stats?.changes?.activeSubscriptions, icon: ShieldCheck, tone: "indigo" },
+    { label: "Expired Subscriptions", value: stats?.expiredSubscriptions, note: "Requires renewal", icon: CalendarDays, tone: "teal" },
+    { label: "Total Revenue", value: stats?.totalRevenue, change: stats?.changes?.totalRevenue, icon: IndianRupee, currency: true, tone: "burgundy" }
   ];
 
   const handleShopDecision = async (shop, decision) => {
