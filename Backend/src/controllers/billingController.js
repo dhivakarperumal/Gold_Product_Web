@@ -311,7 +311,7 @@ async function postBilling(req, res, next) {
       : null;
     const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet);
     if (error) return res.status(400).json({ message: error });
-    return res.status(201).json(await createBilling(billing));
+    return res.status(201).json(await createBilling(billing, req.adminUser.user_id));
   } catch (error) {
     return next(error);
   }
@@ -339,7 +339,7 @@ async function putBilling(req, res, next) {
     const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet);
     if (error) return res.status(400).json({ message: error });
     billing.invoice_no = existing.invoice_no;
-    const updated = await updateBilling(id, billing);
+    const updated = await updateBilling(id, billing, req.adminUser.user_id);
     if (!updated) return res.status(404).json({ message: 'Bill not found' });
     return res.json(updated);
   } catch (error) {
@@ -392,7 +392,8 @@ async function postBillingPayment(req, res, next) {
       payment_date: paymentDate,
       reference_number: referenceNumber.trim(),
       idempotency_key: idempotencyKey,
-      created_by: req.adminUser.id
+      created_by: req.adminUser.id,
+      updated_by: req.adminUser.user_id
     });
     return res.status(201).json(bill);
   } catch (error) {

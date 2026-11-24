@@ -7,6 +7,7 @@ async function initializeBillingModule() {
     CREATE TABLE IF NOT EXISTS billings (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
       invoice_no VARCHAR(50) NOT NULL UNIQUE,
+      user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       customers JSON NOT NULL,
       products JSON NOT NULL,
       exchanges JSON NOT NULL,
@@ -15,9 +16,28 @@ async function initializeBillingModule() {
       discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
       gst_amount DECIMAL(12,2) NOT NULL,
       total_amount DECIMAL(12,2) NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
+      updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+  const [userIdColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'user_id'");
+  if (userIdColumns.length === 0) {
+    await pool.query('ALTER TABLE billings ADD COLUMN user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER invoice_no');
+  }
+  const [createdByColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'created_by'");
+  if (createdByColumns.length === 0) {
+    await pool.query('ALTER TABLE billings ADD COLUMN created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER total_amount');
+  }
+  const [updatedByColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'updated_by'");
+  if (updatedByColumns.length === 0) {
+    await pool.query('ALTER TABLE billings ADD COLUMN updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER created_by');
+  }
+  const [updatedAtColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'updated_at'");
+  if (updatedAtColumns.length === 0) {
+    await pool.query('ALTER TABLE billings ADD COLUMN updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP AFTER created_at');
+  }
   const [discountColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'discount_amount'");
   if (discountColumns.length === 0) {
     await pool.query('ALTER TABLE billings ADD COLUMN discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER sub_total');
@@ -57,22 +77,34 @@ async function initializeBillingModule() {
 async function listBillings(dateRange = {}) {
   const conditions = [];
   const values = [];
-  addDateRangeCondition(conditions, values, 'created_at', dateRange);
+  addDateRangeCondition(conditions, values, 'b.created_at', dateRange);
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const [rows] = await pool.execute(`
-    SELECT id, invoice_no, customers, products, exchanges, payment_type,
-      sub_total, discount_amount, gst_amount, total_amount, paid_amount, balance_due, created_at
-    FROM billings ${where}
-    ORDER BY created_at DESC, id DESC
+    SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
+      b.sub_total, b.discount_amount, b.gst_amount, b.total_amount, b.paid_amount, b.balance_due,
+      b.created_at, b.updated_at, b.created_by,
+      COALESCE(NULLIF(creator.name, ''), creator.username, b.created_by) AS created_by_name,
+      b.updated_by, COALESCE(NULLIF(updater.name, ''), updater.username, b.updated_by) AS updated_by_name
+    FROM billings b
+    LEFT JOIN users creator ON creator.user_id = b.created_by
+    LEFT JOIN users updater ON updater.user_id = b.updated_by
+    ${where}
+    ORDER BY b.created_at DESC, b.id DESC
   `, values);
   return rows;
 }
 
 async function getBillingById(id) {
   const [rows] = await pool.execute(
-    `SELECT id, invoice_no, customers, products, exchanges, payment_type,
-      sub_total, discount_amount, gst_amount, total_amount, paid_amount, balance_due, created_at
-     FROM billings WHERE id = ?`,
+    `SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
+       b.sub_total, b.discount_amount, b.gst_amount, b.total_amount, b.paid_amount, b.balance_due,
+       b.created_at, b.updated_at, b.created_by,
+       COALESCE(NULLIF(creator.name, ''), creator.username, b.created_by) AS created_by_name,
+       b.updated_by, COALESCE(NULLIF(updater.name, ''), updater.username, b.updated_by) AS updated_by_name
+     FROM billings b
+     LEFT JOIN users creator ON creator.user_id = b.created_by
+     LEFT JOIN users updater ON updater.user_id = b.updated_by
+     WHERE b.id = ?`,
     [id]
   );
   return rows[0] || null;
@@ -92,13 +124,15 @@ async function getBillingProductsByIds(productIds, createdByUserId) {
   return rows;
 }
 
-async function createBilling(billing) {
+async function createBilling(billing, userId) {
   const [result] = await pool.execute(
     `INSERT INTO billings
-      (invoice_no, customers, products, exchanges, payment_type, sub_total, discount_amount, gst_amount, total_amount, paid_amount, balance_due)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      (invoice_no, user_id, customers, products, exchanges, payment_type, sub_total, discount_amount,
+       gst_amount, total_amount, paid_amount, balance_due, created_by, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, CURRENT_TIMESTAMP)`,
     [
       billing.invoice_no,
+      userId,
       JSON.stringify(billing.customers),
       JSON.stringify(billing.products),
       JSON.stringify(billing.exchanges),
@@ -107,18 +141,20 @@ async function createBilling(billing) {
       billing.discount_amount,
       billing.gst_amount,
       billing.total_amount,
-      billing.total_amount
+      billing.total_amount,
+      userId,
+      userId
     ]
   );
   return getBillingById(result.insertId);
 }
 
-async function updateBilling(id, billing) {
+async function updateBilling(id, billing, updatedBy) {
   await pool.execute(
     `UPDATE billings
      SET customers = ?, products = ?, exchanges = ?, payment_type = ?,
        sub_total = ?, discount_amount = ?, gst_amount = ?, total_amount = ?,
-       balance_due = GREATEST(? - paid_amount, 0)
+       balance_due = GREATEST(? - paid_amount, 0), updated_by = ?
      WHERE id = ?`,
     [
       JSON.stringify(billing.customers),
@@ -130,6 +166,7 @@ async function updateBilling(id, billing) {
       billing.gst_amount,
       billing.total_amount,
       billing.total_amount,
+      updatedBy,
       id
     ]
   );
@@ -210,8 +247,8 @@ async function recordBillingPayment(id, payment) {
     });
     const paidAmount = currentPaid + (payment.payment_kind === 'PAYMENT' ? Number(payment.amount) : -Number(payment.amount));
     await connection.execute(
-      'UPDATE billings SET paid_amount = ?, balance_due = GREATEST(total_amount - ?, 0) WHERE id = ?',
-      [paidAmount.toFixed(2), paidAmount.toFixed(2), id]
+      'UPDATE billings SET paid_amount = ?, balance_due = GREATEST(total_amount - ?, 0), updated_by = ? WHERE id = ?',
+      [paidAmount.toFixed(2), paidAmount.toFixed(2), payment.updated_by || null, id]
     );
     await connection.commit();
     return getBillingById(id);

@@ -506,7 +506,7 @@ export default function BillingManagement() {
       let totalPages = 1;
       const productsFromCatalog = [];
       do {
-        const response = await api.get("/products", {
+        const response = await api.get("/products/mine", {
           params: { page, limit: 100 }
         });
         if (!Array.isArray(response.data?.products)) {

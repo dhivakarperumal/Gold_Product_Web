@@ -105,16 +105,16 @@ const navItems = [
 
   
 
-  {
-    label: "Marketings Management",
-    icon: Megaphone,
-    children: [
-      { path: "/admin/banners", label: "Offers & Banners", icon: Tag },
-      { path: "/admin/videos", label: "Showcase Videos", icon: Video },
-      { path: "/admin/reviews", label: "Reviews", icon: Star },
+  // {
+  //   label: "Marketings Management",
+  //   icon: Megaphone,
+  //   children: [
+  //     { path: "/admin/banners", label: "Offers & Banners", icon: Tag },
+  //     { path: "/admin/videos", label: "Showcase Videos", icon: Video },
+  //     { path: "/admin/reviews", label: "Reviews", icon: Star },
       
-    ],
-  },
+  //   ],
+  // },
 
 
   {
