@@ -200,7 +200,12 @@ function normalizeLoan(body) {
 
 async function getCustomers(req, res, next) {
   try {
-    return res.json(await listLoanCustomers(String(req.query.search || '').trim().slice(0, 100)));
+    const ownerUserId = req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
+    return res.json(await listLoanCustomers(
+      String(req.query.search || '').trim().slice(0, 100),
+      {},
+      ownerUserId
+    ));
   } catch (error) {
     return next(error);
   }
@@ -209,7 +214,8 @@ async function getCustomers(req, res, next) {
 async function getCustomer(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Customer ID is invalid' });
   try {
-    const customer = await getLoanCustomerById(req.params.id);
+    const ownerUserId = req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
+    const customer = await getLoanCustomerById(req.params.id, ownerUserId);
     if (!customer) return res.status(404).json({ message: 'Customer not found' });
     return res.json(customer);
   } catch (error) {
@@ -220,7 +226,10 @@ async function getCustomer(req, res, next) {
 async function getCustomerLoans(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Customer ID is invalid' });
   try {
-    if (!await getLoanCustomerById(req.params.id)) return res.status(404).json({ message: 'Customer not found' });
+    const ownerUserId = req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
+    if (!await getLoanCustomerById(req.params.id, ownerUserId)) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
     return res.json(await listLoansForCustomer(req.params.id));
   } catch (error) {
     return next(error);
@@ -525,6 +534,12 @@ async function postLoan(req, res, next) {
     return;
   }
   try {
+    const ownerUserId = req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
+    if (!await getLoanCustomerById(loan.customer_id, ownerUserId)) {
+      const cleanupStatus = await rejectUploadedImage(req, next, 404);
+      if (cleanupStatus) return res.status(cleanupStatus).json({ message: 'Customer not found' });
+      return;
+    }
     const activeRateSet = await getCurrentGoldRates(req.adminUser.user_id);
     const activeRate = findGoldRateForPurity(activeRateSet, loan.gold_purity, loan.metal_type);
     if (!activeRate) {
@@ -596,6 +611,12 @@ async function putLoan(req, res, next) {
     ) {
       const cleanupStatus = await rejectUploadedImage(req, next, 409);
       if (cleanupStatus) return res.status(cleanupStatus).json({ message: 'Paid, released, or completed loans cannot be edited. Use the gold release workflow to complete a fully paid loan.' });
+      return;
+    }
+    const ownerUserId = req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
+    if (!await getLoanCustomerById(loan.customer_id, ownerUserId)) {
+      const cleanupStatus = await rejectUploadedImage(req, next, 404);
+      if (cleanupStatus) return res.status(cleanupStatus).json({ message: 'Customer not found' });
       return;
     }
     if (loan.loan_status === 'Completed') {

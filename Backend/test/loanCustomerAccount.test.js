@@ -1,7 +1,15 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const bcrypt = require('bcryptjs');
+const { pool } = require('../src/config/db');
 const { insertUser } = require('../src/modules/authModule');
+const {
+  createLoanCustomer,
+  deleteLoanCustomer,
+  getLoanCustomerById,
+  listLoanCustomers,
+  updateLoanCustomer
+} = require('../src/modules/loanCustomerModule');
 const {
   duplicateCustomerAccountMessage,
   normalizeCustomer,
@@ -21,6 +29,77 @@ test('describes duplicate customer account fields clearly', () => {
     duplicateCustomerAccountMessage(new Error('Duplicate account')),
     'This customer account name, email, or mobile number is already registered.'
   );
+});
+
+test('stores the creating admin UUID in both customer audit fields', async () => {
+  const originalGetConnection = pool.getConnection;
+  const originalExecute = pool.execute;
+  const adminUserId = '2c9f163f-e700-11f1-8318-51021565bd83';
+  let insertedCustomerValues;
+
+  pool.getConnection = async () => ({
+    async beginTransaction() {},
+    async commit() {},
+    async rollback() {},
+    release() {},
+    async execute(sql, values) {
+      if (sql.includes('SELECT id FROM users')) return [[], []];
+      if (sql.startsWith('INSERT INTO users')) return [{ insertId: 14 }, []];
+      if (sql.startsWith('INSERT INTO loan_customers')) {
+        insertedCustomerValues = values;
+        return [{ insertId: 25 }, []];
+      }
+      return [{ affectedRows: 1 }, []];
+    }
+  });
+  pool.execute = async () => [[{ id: 25, created_by: adminUserId, updated_by: adminUserId }], []];
+
+  try {
+    const customer = await createLoanCustomer(
+      { full_name: 'Gold Customer', mobile: '9876543210' },
+      'Gold Customer',
+      'customer-pass-123',
+      adminUserId
+    );
+    assert.equal(insertedCustomerValues[1], adminUserId);
+    assert.equal(insertedCustomerValues[2], adminUserId);
+    assert.equal(customer.created_by, adminUserId);
+    assert.equal(customer.updated_by, adminUserId);
+  } finally {
+    pool.getConnection = originalGetConnection;
+    pool.execute = originalExecute;
+  }
+});
+
+test('scopes loan customer reads and mutations to the creating admin', async () => {
+  const originalExecute = pool.execute;
+  const adminUserId = '2c9f163f-e700-11f1-8318-51021565bd83';
+  const calls = [];
+  pool.execute = async (sql, values) => {
+    calls.push({ sql, values });
+    if (sql.includes('SELECT')) return [[], []];
+    return [{ affectedRows: 1 }, []];
+  };
+
+  try {
+    await listLoanCustomers('', {}, adminUserId);
+    assert.match(calls[0].sql, /created_by = \?/);
+    assert.equal(calls[0].values[calls[0].values.length - 1], adminUserId);
+
+    await getLoanCustomerById(25, adminUserId);
+    assert.match(calls[1].sql, /WHERE id = \? AND created_by = \?/);
+    assert.deepEqual(calls[1].values, [25, adminUserId]);
+
+    await updateLoanCustomer(25, { full_name: 'Updated Customer' }, adminUserId, adminUserId);
+    assert.match(calls[2].sql, /updated_by = \?[\s\S]*WHERE id = \? AND created_by = \?/);
+    assert.deepEqual(calls[2].values, ['Updated Customer', adminUserId, 25, adminUserId]);
+
+    await deleteLoanCustomer(25, adminUserId);
+    assert.match(calls[4].sql, /DELETE FROM loan_customers WHERE id = \? AND created_by = \?/);
+    assert.deepEqual(calls[4].values, [25, adminUserId]);
+  } finally {
+    pool.execute = originalExecute;
+  }
 });
 
 test('allows customer email and guarantor address to be omitted', () => {
