@@ -296,7 +296,7 @@ async function getBillings(req, res, next) {
   const range = parseDateRange(req.query);
   if (range.error) return res.status(400).json({ message: range.error });
   try {
-    return res.json(await listBillings(range));
+    return res.json(await listBillings(req.adminUser.user_id, range));
   } catch (error) {
     return next(error);
   }
@@ -326,7 +326,7 @@ async function putBilling(req, res, next) {
   const id = validBillingId(req.params.id);
   if (!id) return res.status(400).json({ message: 'Invalid bill ID' });
   try {
-    const existing = await getBillingById(id);
+    const existing = await getBillingById(id, req.adminUser.user_id);
     if (!existing) return res.status(404).json({ message: 'Bill not found' });
     if (Number(existing.paid_amount) > 0) {
       return res.status(409).json({ message: 'A bill with recorded payments cannot be edited.' });
@@ -351,7 +351,7 @@ async function removeBilling(req, res, next) {
   const id = validBillingId(req.params.id);
   if (!id) return res.status(400).json({ message: 'Invalid bill ID' });
   try {
-    const deleted = await deleteBilling(id);
+    const deleted = await deleteBilling(id, req.adminUser.user_id);
     if (!deleted) return res.status(404).json({ message: 'Bill not found' });
     return res.status(204).end();
   } catch (error) {
@@ -394,7 +394,7 @@ async function postBillingPayment(req, res, next) {
       idempotency_key: idempotencyKey,
       created_by: req.adminUser.id,
       updated_by: req.adminUser.user_id
-    });
+    }, req.adminUser.user_id);
     return res.status(201).json(bill);
   } catch (error) {
     if (error.code === 'BILL_NOT_FOUND') return res.status(404).json({ message: error.message });

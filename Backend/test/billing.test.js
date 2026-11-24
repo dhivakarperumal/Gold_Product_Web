@@ -1,6 +1,8 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { mapSelectedProducts, normalizeBilling } = require('../src/controllers/billingController');
+const { pool } = require('../src/config/db');
+const { getBillingById, listBillings } = require('../src/modules/billingModule');
 
 const billingInput = (overrides = {}) => ({
   customers: [{
@@ -221,4 +223,37 @@ test('rejects products that are missing from or inactive in the catalog', () => 
   assert.match(mapSelectedProducts([{ product_id: 12 }], [{
     id: 12, name: 'Inactive', category: 'Ring', purity: '18K', status: 'Inactive'
   }]).error, /no longer active/i);
+});
+
+test('lists only bills owned by the authenticated user', async () => {
+  const originalExecute = pool.execute;
+  let capturedQuery;
+  pool.execute = async (query, values) => {
+    capturedQuery = { query, values };
+    return [[{ id: 1 }], []];
+  };
+  try {
+    const rows = await listBillings('shop-user-1');
+    assert.deepEqual(rows, [{ id: 1 }]);
+  } finally {
+    pool.execute = originalExecute;
+  }
+  assert.match(capturedQuery.query, /WHERE b\.user_id = \?/);
+  assert.deepEqual(capturedQuery.values, ['shop-user-1']);
+});
+
+test('only returns a bill when it belongs to the authenticated user', async () => {
+  const originalExecute = pool.execute;
+  let capturedQuery;
+  pool.execute = async (query, values) => {
+    capturedQuery = { query, values };
+    return [[], []];
+  };
+  try {
+    assert.equal(await getBillingById(42, 'shop-user-1'), null);
+  } finally {
+    pool.execute = originalExecute;
+  }
+  assert.match(capturedQuery.query, /WHERE b\.id = \? AND b\.user_id = \?/);
+  assert.deepEqual(capturedQuery.values, [42, 'shop-user-1']);
 });

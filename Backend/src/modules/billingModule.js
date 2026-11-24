@@ -74,11 +74,11 @@ async function initializeBillingModule() {
   `);
 }
 
-async function listBillings(dateRange = {}) {
-  const conditions = [];
-  const values = [];
+async function listBillings(userId, dateRange = {}) {
+  const conditions = ['b.user_id = ?'];
+  const values = [userId];
   addDateRangeCondition(conditions, values, 'b.created_at', dateRange);
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const where = `WHERE ${conditions.join(' AND ')}`;
   const [rows] = await pool.execute(`
     SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
       b.sub_total, b.discount_amount, b.gst_amount, b.total_amount, b.paid_amount, b.balance_due,
@@ -94,7 +94,7 @@ async function listBillings(dateRange = {}) {
   return rows;
 }
 
-async function getBillingById(id) {
+async function getBillingById(id, userId) {
   const [rows] = await pool.execute(
     `SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
        b.sub_total, b.discount_amount, b.gst_amount, b.total_amount, b.paid_amount, b.balance_due,
@@ -104,8 +104,8 @@ async function getBillingById(id) {
      FROM billings b
      LEFT JOIN users creator ON creator.user_id = b.created_by
      LEFT JOIN users updater ON updater.user_id = b.updated_by
-     WHERE b.id = ?`,
-    [id]
+     WHERE b.id = ? AND b.user_id = ?`,
+    [id, userId]
   );
   return rows[0] || null;
 }
@@ -146,16 +146,16 @@ async function createBilling(billing, userId) {
       userId
     ]
   );
-  return getBillingById(result.insertId);
+  return getBillingById(result.insertId, userId);
 }
 
-async function updateBilling(id, billing, updatedBy) {
+async function updateBilling(id, billing, userId) {
   await pool.execute(
     `UPDATE billings
      SET customers = ?, products = ?, exchanges = ?, payment_type = ?,
        sub_total = ?, discount_amount = ?, gst_amount = ?, total_amount = ?,
        balance_due = GREATEST(? - paid_amount, 0), updated_by = ?
-     WHERE id = ?`,
+     WHERE id = ? AND user_id = ?`,
     [
       JSON.stringify(billing.customers),
       JSON.stringify(billing.products),
@@ -166,20 +166,21 @@ async function updateBilling(id, billing, updatedBy) {
       billing.gst_amount,
       billing.total_amount,
       billing.total_amount,
-      updatedBy,
-      id
+      userId,
+      id,
+      userId
     ]
   );
-  return getBillingById(id);
+  return getBillingById(id, userId);
 }
 
-async function recordBillingPayment(id, payment) {
+async function recordBillingPayment(id, payment, userId) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
     const [bills] = await connection.execute(
-      'SELECT id, invoice_no, customers, total_amount, paid_amount FROM billings WHERE id = ? FOR UPDATE',
-      [id]
+      'SELECT id, invoice_no, customers, total_amount, paid_amount FROM billings WHERE id = ? AND user_id = ? FOR UPDATE',
+      [id, userId]
     );
     if (!bills.length) {
       const error = new Error('Bill not found');
@@ -247,11 +248,11 @@ async function recordBillingPayment(id, payment) {
     });
     const paidAmount = currentPaid + (payment.payment_kind === 'PAYMENT' ? Number(payment.amount) : -Number(payment.amount));
     await connection.execute(
-      'UPDATE billings SET paid_amount = ?, balance_due = GREATEST(total_amount - ?, 0), updated_by = ? WHERE id = ?',
-      [paidAmount.toFixed(2), paidAmount.toFixed(2), payment.updated_by || null, id]
+      'UPDATE billings SET paid_amount = ?, balance_due = GREATEST(total_amount - ?, 0), updated_by = ? WHERE id = ? AND user_id = ?',
+      [paidAmount.toFixed(2), paidAmount.toFixed(2), payment.updated_by || null, id, userId]
     );
     await connection.commit();
-    return getBillingById(id);
+    return getBillingById(id, userId);
   } catch (error) {
     await connection.rollback();
     throw error;
@@ -260,8 +261,8 @@ async function recordBillingPayment(id, payment) {
   }
 }
 
-async function deleteBilling(id) {
-  const [result] = await pool.execute('DELETE FROM billings WHERE id = ?', [id]);
+async function deleteBilling(id, userId) {
+  const [result] = await pool.execute('DELETE FROM billings WHERE id = ? AND user_id = ?', [id, userId]);
   return result.affectedRows > 0;
 }
 
