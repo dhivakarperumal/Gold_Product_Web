@@ -8,17 +8,64 @@ const formatAmount = (value) => `₹${Number(value || 0).toLocaleString("en-IN")
 const formatDate = (value) => value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const PAGE_SIZE = 10;
 
-function StatCard({ label, value, icon: Icon, theme }) {
+function StatCard({ label, value, icon: Icon, note, loading, theme }) {
   const themes = {
-    emerald: "border-l-emerald-400 bg-[#123F37]",
-    amber: "border-l-amber-400 bg-[#3D321B]",
-    sky: "border-l-sky-400 bg-[#173B56]",
-    rose: "border-l-orange-400 bg-[#4A2A24]"
+    forest: {
+      card: "border-[#2F6B59] border-l-emerald-400 bg-[#123B32]",
+      icon: "bg-[#08745D] text-white",
+      label: "text-emerald-50/90",
+      detail: "text-emerald-300",
+      bars: "bg-emerald-300"
+    },
+    gold: {
+      card: "border-[#8A702E] border-l-amber-400 bg-[#443719]",
+      icon: "bg-[#C58B11] text-white",
+      label: "text-amber-50/90",
+      detail: "text-amber-300",
+      bars: "bg-amber-300"
+    },
+    blue: {
+      card: "border-[#3B7897] border-l-sky-400 bg-[#17364D]",
+      icon: "bg-[#007A61] text-white",
+      label: "text-sky-50/90",
+      detail: "text-sky-300",
+      bars: "bg-sky-300"
+    },
+    rust: {
+      card: "border-[#905342] border-l-orange-300 bg-[#4A2B25]",
+      icon: "bg-[#C58B11] text-white",
+      label: "text-orange-50/90",
+      detail: "text-orange-200",
+      bars: "bg-orange-200"
+    }
   };
+  const colors = themes[theme] || themes.forest;
+
   return (
-    <article className={`relative flex min-h-32 items-center gap-4 overflow-hidden rounded-2xl border border-white/10 border-l-4 p-5 text-white shadow-md ${themes[theme]}`}>
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10"><Icon size={21} /></span>
-      <div><p className="text-xs font-semibold text-white/85">{label}</p><p className="mt-1 text-2xl font-black">{Number(value || 0).toLocaleString("en-IN")}</p></div>
+    <article className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}>
+      <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-inner ${colors.icon}`}><Icon size={25} strokeWidth={1.9} /></span>
+      <div className="min-w-0 flex-1 pb-1">
+        <p className={`truncate text-sm font-semibold ${colors.label}`}>{label}</p>
+        {loading
+          ? <div className="mt-2 h-8 w-28 animate-pulse rounded bg-white/15" />
+          : <p className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-[28px]">{Number(value || 0).toLocaleString("en-IN")}</p>}
+        <div className={`mt-2 flex min-h-5 items-center gap-1.5 text-xs ${colors.detail}`}>
+          {loading
+            ? <div className="h-3 w-24 animate-pulse rounded bg-white/15" />
+            : (
+              <>
+                <span className={`h-2 w-2 rounded-full ${colors.bars}`} />
+                <span className="font-semibold">{note}</span>
+              </>
+            )}
+        </div>
+      </div>
+      <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-8 items-end gap-1 opacity-90 ${colors.detail}`}>
+        <span className="h-3 w-1.5 rounded-t-sm bg-current" />
+        <span className="h-5 w-1.5 rounded-t-sm bg-current" />
+        <span className="h-4 w-1.5 rounded-t-sm bg-current" />
+        <span className="h-7 w-1.5 rounded-t-sm bg-current" />
+      </div>
     </article>
   );
 }
@@ -120,10 +167,10 @@ export default function AllSubscriptionPlan() {
   return (
     <main className="space-y-3 pb-5">
       <section className="mb-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Plans" value={summary.total_plans} icon={Layers3} theme="emerald" />
-        <StatCard label="Active Plans" value={summary.active_plans} icon={Layers3} theme="sky" />
-        <StatCard label="Inactive Plans" value={summary.inactive_plans} icon={Layers3} theme="amber" />
-        <StatCard label="Shops Using Plans" value={summary.total_shops_using} icon={Layers3} theme="rose" />
+        <StatCard label="Total Plans" value={summary.total_plans} icon={Layers3} note="All configured plans" loading={loading} theme="forest" />
+        <StatCard label="Active Plans" value={summary.active_plans} icon={Layers3} note="Available for shops" loading={loading} theme="blue" />
+        <StatCard label="Inactive Plans" value={summary.inactive_plans} icon={Layers3} note="Not currently available" loading={loading} theme="rust" />
+        <StatCard label="Shops Using Plans" value={summary.total_shops_using} icon={Layers3} note="With active subscriptions" loading={loading} theme="gold" />
       </section>
 
       <section className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
