@@ -92,9 +92,15 @@ function normalizeCustomer(body) {
   if (!KYC_STATUSES.has(customer.kyc_status)) {
     return { error: 'KYC status must be Pending, Verified, or Rejected' };
   }
-  if (![customer.mobile, customer.alternate_mobile, customer.guarantor_mobile].filter(Boolean).every((phone) => /^[+\d][\d\s()-]{5,14}$/.test(phone))) {
-    return { error: 'Enter a valid mobile number' };
-  }
+  const phoneFields = [
+    ['mobile', 'primary mobile'],
+    ['alternate_mobile', 'alternate mobile'],
+    ['guarantor_mobile', 'guarantor mobile']
+  ];
+  const invalidPhone = phoneFields.find(([field]) =>
+    customer[field] && !/^[+\d][\d\s()-]{5,14}$/.test(customer[field])
+  );
+  if (invalidPhone) return { error: `Enter a valid ${invalidPhone[1]} number` };
   if (customer.date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(customer.date_of_birth)) {
     return { error: 'Date of birth must use YYYY-MM-DD format' };
   }

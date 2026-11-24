@@ -105,7 +105,7 @@ test('scopes loan customer reads and mutations to the creating admin', async () 
 test('allows customer email and guarantor address to be omitted', () => {
   const { customer, error } = normalizeCustomer({
     full_name: 'Gold Customer',
-    mobile: '9876543210',
+    mobile: '+91 6338349343',
     gender: 'Female',
     address: 'Customer address',
     city: 'Chennai',
@@ -113,14 +113,35 @@ test('allows customer email and guarantor address to be omitted', () => {
     state: 'Tamil Nadu',
     pincode: '600001',
     guarantor_name: 'Guarantor Name',
-    guarantor_mobile: '9876543211',
+    guarantor_mobile: '+91 6338349343',
     guarantor_relationship: 'Parent',
     photo_url: '/api/loan-customers/photos/27d248e2-50a3-4f3b-aba8-6735bafb40a3.jpg'
   });
 
   assert.equal(error, undefined);
+  assert.equal(customer.mobile, '+91 6338349343');
+  assert.equal(customer.guarantor_mobile, '+91 6338349343');
   assert.equal(customer.email, null);
   assert.equal(customer.guarantor_address, null);
+});
+
+test('identifies which customer phone field is invalid', () => {
+  const { error } = normalizeCustomer({
+    full_name: 'Gold Customer',
+    mobile: '+91 6338349343',
+    gender: 'Female',
+    address: 'Customer address',
+    city: 'Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600001',
+    guarantor_name: 'Guarantor Name',
+    guarantor_mobile: 'not a number',
+    guarantor_relationship: 'Parent',
+    photo_url: '/api/loan-customers/photos/27d248e2-50a3-4f3b-aba8-6735bafb40a3.jpg'
+  });
+
+  assert.equal(error, 'Enter a valid guarantor mobile number');
 });
 
 test('requires a customer photo', () => {

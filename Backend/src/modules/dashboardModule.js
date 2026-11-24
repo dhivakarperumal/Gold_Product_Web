@@ -4,8 +4,7 @@ const { addDateRangeCondition } = require('../utils/dateRange');
 async function getDashboardData(range = 'month', dateRange = null, adminUser) {
   try {
     const userId = adminUser?.user_id;
-    const adminUserId = adminUser?.id;
-    if (!userId || adminUserId == null) {
+    if (!userId) {
       throw new Error('An authenticated admin user is required to load dashboard reports');
     }
     const scopedDateFilter = (ownerColumn, ownerId, dateColumn) => {
@@ -15,12 +14,12 @@ async function getDashboardData(range = 'month', dateRange = null, adminUser) {
       return { where: `WHERE ${conditions.join(' AND ')}`, values };
     };
     // 1. Loans metrics
-    const loanDateFilter = scopedDateFilter('l.created_by', adminUserId, 'l.loan_date');
+    const loanDateFilter = scopedDateFilter('l.created_by', userId, 'l.loan_date');
     const loanActivityDate = `CASE
       WHEN l.loan_status = 'Completed' THEN COALESCE(l.gold_released_at, l.loan_date)
       ELSE l.loan_date
     END`;
-    const loanActivityDateFilter = scopedDateFilter('l.created_by', adminUserId, loanActivityDate);
+    const loanActivityDateFilter = scopedDateFilter('l.created_by', userId, loanActivityDate);
     const [[loanCounts]] = await pool.execute(`
       SELECT COUNT(*) AS total_loans FROM loans l ${loanDateFilter.where}
     `, loanDateFilter.values);

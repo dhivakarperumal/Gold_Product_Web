@@ -34,7 +34,7 @@ async function captureDashboardQueries(range, dateRange) {
 
 test('scopes every admin report dataset to its authenticated shop and date range', async () => {
   const { data, queries } = await captureDashboardQueries('month', customDateRange);
-  const expectedLoanValues = [adminUser.id, customDateRange.startDate, customDateRange.endDate];
+  const expectedLoanValues = [adminUser.user_id, customDateRange.startDate, customDateRange.endDate];
   const expectedShopValues = [adminUser.user_id, customDateRange.startDate, customDateRange.endDate];
   const findQuery = (fragment) => queries.find(({ sql }) => sql.includes(fragment));
 
