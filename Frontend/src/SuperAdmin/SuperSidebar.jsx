@@ -21,9 +21,9 @@ const navItems = [
   { path: "/superadmin/users", label: "User Management", icon: Users, exact: true },
   { path: "/superadmin/subscription-plans", label: "Subscription Plans", icon: CreditCard, exact: true },
   { path: "/superadmin/payments", label: "Payment Management", icon: Wallet, exact: true },
-  { path: "/superadmin/revenue-reports", label: "Revenue Analytics", icon: BarChart3, exact: true },
-  { path: "/superadmin/profile", search: "?tab=notifications", label: "Notifications", icon: Bell, exact: true },
-  { path: "/superadmin/profile", search: "?tab=security", label: "Settings", icon: Settings, exact: true },
+  { path: "/superadmin/revenue-reports", label: "Revenue", icon: BarChart3, exact: true },
+  
+  
   { path: "/superadmin/profile", label: "My Profile", icon: UserRound, exact: true }
 ];
 
@@ -173,15 +173,7 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
               </span>
             )}
           </div>
-          <button
-            type="button"
-            title={collapsed ? "Log out" : undefined}
-            onClick={() => void handleLogout()}
-            className={`mt-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold text-emerald-50/80 transition hover:bg-white/[0.08] hover:text-white ${collapsed ? "justify-center" : ""}`}
-          >
-            <LogOut className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>Logout</span>}
-          </button>
+         
         </div>
 
         {/* ========== COLLAPSE BUTTON ========== */}
