@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Plus, RefreshCw, Search, Wallet, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, LayoutGrid, List, Plus, RefreshCw, Search, Wallet, X } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../api";
 import DateRangeFilter from "../Components/DateRangeFilter";
@@ -31,6 +31,7 @@ function FundManagement() {
   const [dateRange, setDateRange] = useState({ preset: "all", startDate: "", endDate: "" });
   const [filters, setFilters] = useState({ transaction_type: "ALL", search: "" });
   const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState("list");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -117,9 +118,6 @@ function FundManagement() {
           <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Fund Management</h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/75">Review fund entries and balances recorded for your admin account.</p>
         </div>
-        <button onClick={openForm} className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-white px-4 py-3 text-sm font-extrabold text-[#00594f] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-emerald-50 sm:self-center">
-          <Plus size={16} /> Add Fund Entry
-        </button>
       </header>
 
       {loadError && (
@@ -196,17 +194,49 @@ function FundManagement() {
             <option value="ALL">All transaction types</option>
             {TRANSACTION_TYPES.map(([type, label]) => <option key={type} value={type}>{label}</option>)}
           </select>
-          <button type="button" onClick={() => fetchData()} disabled={loading} className="inline-flex h-[52px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50">
-            <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Refresh
+          <button
+            type="button"
+            onClick={() => fetchData()}
+            disabled={loading}
+            aria-label="Refresh fund entries"
+            title="Refresh"
+            className="grid h-[52px] w-[52px] place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50"
+          >
+            <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
+          </button>
+          <div role="group" aria-label="Transaction view" className="flex h-[52px] items-center rounded-xl bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              aria-label="Show transactions as a list"
+              aria-pressed={viewMode === "list"}
+              className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${viewMode === "list" ? "bg-[#004D40] text-white shadow-sm" : "text-slate-500 hover:bg-white"}`}
+            >
+              <List size={19} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              aria-label="Show transactions as cards"
+              aria-pressed={viewMode === "grid"}
+              className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${viewMode === "grid" ? "bg-[#004D40] text-white shadow-sm" : "text-slate-500 hover:bg-white"}`}
+            >
+              <LayoutGrid size={18} />
+            </button>
+          </div>
+          <button type="button" onClick={openForm} className="inline-flex h-[52px] items-center gap-2 rounded-xl bg-[#004D40] px-5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(0,77,64,0.2)] transition hover:bg-[#00695C]">
+            <Plus size={18} /> Add Fund Entry
           </button>
         </div>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {viewMode === "list" ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1000px] text-left text-sm">
             <thead className="bg-[#00695C] text-xs uppercase tracking-wide text-white">
               <tr>
+                <th className="px-5 py-4">S.No.</th>
                 <th className="px-5 py-4">Date</th>
                 <th className="px-5 py-4">Type</th>
                 <th className="px-5 py-4 text-right">Amount</th>
@@ -217,8 +247,9 @@ function FundManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {transactions.map((transaction) => (
+              {transactions.map((transaction, index) => (
                 <tr key={transaction.id} className="transition-colors hover:bg-emerald-50/40">
+                  <td className="px-5 py-5 text-slate-500">{(page - 1) * 20 + index + 1}</td>
                   <td className="px-5 py-5 text-slate-600">{displayDate(transaction.transaction_date)}</td>
                   <td className="px-5 py-5 font-semibold text-slate-700">{typeLabel(transaction.transaction_type)}</td>
                   <td className={`px-5 py-5 text-right font-bold ${transaction.transaction_type === "DEBIT" ? "text-rose-700" : "text-emerald-700"}`}>
@@ -231,14 +262,42 @@ function FundManagement() {
                 </tr>
               ))}
               {!loading && transactions.length === 0 && (
-                <tr><td colSpan="7" className="px-4 py-12 text-center text-slate-500">No fund entries found for this admin.</td></tr>
+                <tr><td colSpan="8" className="px-4 py-12 text-center text-slate-500">No fund entries found for this admin.</td></tr>
               )}
               {loading && transactions.length === 0 && (
-                <tr><td colSpan="7" className="px-4 py-12 text-center text-slate-500">Loading fund entries…</td></tr>
+                <tr><td colSpan="8" className="px-4 py-12 text-center text-slate-500">Loading fund entries…</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        ) : (
+          <div className="grid gap-4 p-4 sm:grid-cols-2 2xl:grid-cols-3">
+            {loading && transactions.length === 0 ? (
+              <p className="col-span-full py-10 text-center text-sm text-slate-500">Loading fund entries…</p>
+            ) : transactions.length === 0 ? (
+              <p className="col-span-full py-10 text-center text-sm text-slate-500">No fund entries found for this admin.</p>
+            ) : transactions.map((transaction, index) => (
+              <article key={transaction.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-slate-400">S.No. {(page - 1) * 20 + index + 1}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">{displayDate(transaction.transaction_date)}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${transaction.transaction_type === "DEBIT" ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
+                    {typeLabel(transaction.transaction_type)}
+                  </span>
+                </div>
+                <p className={`mt-4 text-xl font-black ${transaction.transaction_type === "DEBIT" ? "text-rose-700" : "text-emerald-700"}`}>{money(transaction.amount)}</p>
+                <div className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-sm">
+                  <p className="text-slate-600">Payment: {transaction.payment_method || "—"}</p>
+                  <p className="text-slate-600">Admin: {transaction.admin_name || "—"}</p>
+                  <p className="text-slate-600">Description: {transaction.description || "—"}</p>
+                  <p className="font-semibold text-slate-700">Running Balance: {money(transaction.running_balance)}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
         <footer className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <span>Showing {firstEntry} to {lastEntry} of {total} entries</span>
           <div className="flex items-center justify-end gap-1.5">
