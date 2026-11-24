@@ -4,7 +4,17 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { canReadKycDocument, normalizeReviewReason, parseDocumentTypes, toCustomerApplication, validDate } = require('../src/controllers/kycController');
-const { canResubmitKycStatus, canReviewKycStatus, getAllowedDocumentTypes } = require('../src/modules/kycModule');
+const { pool } = require('../src/config/db');
+const {
+  canResubmitKycStatus,
+  canReviewKycStatus,
+  getAllowedDocumentTypes,
+  getKycApplicationById,
+  getKycDocument,
+  getKycStats,
+  listKycApplications,
+  reviewKycApplication
+} = require('../src/modules/kycModule');
 const { validateKycFileSignature } = require('../src/middleware/kycUpload');
 
 test('accepts configured supported document types and rejects malformed lists', () => {
@@ -50,6 +60,99 @@ test('enforces private-document ownership except for authorized admins', () => {
   assert.equal(canReadKycDocument(document, '17', false), true);
   assert.equal(canReadKycDocument(document, 18, false), false);
   assert.equal(canReadKycDocument(document, undefined, true), true);
+  assert.equal(canReadKycDocument({ ...document, applicant_created_by: 'admin-a' }, undefined, true, 'admin-a'), true);
+  assert.equal(canReadKycDocument({ ...document, applicant_created_by: 'admin-b' }, undefined, true, 'admin-a'), false);
+});
+
+test('scopes KYC lists and statistics to customers created by the requesting admin', async (context) => {
+  const originalExecute = pool.execute;
+  const queries = [];
+  pool.execute = async (sql, values) => {
+    queries.push({ sql, values });
+    if (sql.includes('GROUP BY a.status')) return [[{ status: 'pending', total: 1 }]];
+    if (sql.includes('COUNT(*) AS total')) return [[{ total: 1 }]];
+    return [[{ id: 1 }]];
+  };
+  context.after(() => { pool.execute = originalExecute; });
+
+  const ownerUserId = 'admin-a';
+  await listKycApplications({
+    page: 1,
+    pageSize: 20,
+    status: '',
+    search: '',
+    dateFrom: '',
+    dateTo: '',
+    ownerUserId
+  });
+  const stats = await getKycStats({ ownerUserId });
+
+  assert.equal(queries.length, 3);
+  for (const query of queries) {
+    assert.match(query.sql, /EXISTS \(SELECT 1 FROM loan_customers lc/);
+    assert.match(query.sql, /lc\.created_by = \?/);
+    assert.equal(query.values[0], ownerUserId);
+  }
+  assert.equal(stats.pending, 1);
+});
+
+test('scopes KYC detail and review queries to the requesting admin', async (context) => {
+  const originalExecute = pool.execute;
+  const originalGetConnection = pool.getConnection;
+  const queries = [];
+  pool.execute = async (sql, values) => {
+    queries.push({ sql, values });
+    return [[]];
+  };
+  const connection = {
+    async beginTransaction() {},
+    async commit() {},
+    async rollback() {},
+    release() {},
+    async execute(sql, values) {
+      queries.push({ sql, values });
+      if (sql.includes('SELECT a.id, a.status')) return [[{ id: 12, status: 'pending' }]];
+      return [{ affectedRows: 1 }];
+    }
+  };
+  pool.getConnection = async () => connection;
+  context.after(() => {
+    pool.execute = originalExecute;
+    pool.getConnection = originalGetConnection;
+  });
+
+  const ownerUserId = 'admin-a';
+  assert.equal(await getKycApplicationById(12, ownerUserId), null);
+  await reviewKycApplication({
+    applicationId: 12,
+    reviewerId: 3,
+    decision: 'verified',
+    reason: '',
+    ownerUserId
+  });
+
+  const ownerQueries = queries.filter(({ sql }) => sql.includes('EXISTS (SELECT 1 FROM loan_customers lc'));
+  assert.equal(ownerQueries.length, 3);
+  for (const query of ownerQueries) {
+    assert.match(query.sql, /lc\.created_by = \?/);
+    assert.equal(query.values.at(-1), ownerUserId);
+  }
+});
+
+test('loads the creator identity needed to authorize KYC document access', async (context) => {
+  const originalExecute = pool.execute;
+  let query = '';
+  pool.execute = async (sql) => {
+    query = sql;
+    return [[{ id: 8, applicant_created_by: 'admin-a' }]];
+  };
+  context.after(() => { pool.execute = originalExecute; });
+
+  const document = await getKycDocument(8);
+
+  assert.match(query, /LEFT JOIN loan_customers lc ON lc\.user_id = a\.user_id/);
+  assert.match(query, /lc\.created_by AS applicant_created_by/);
+  assert.equal(document.applicant_created_by, 'admin-a');
 });
 
 test('returns only customer-safe application fields', () => {

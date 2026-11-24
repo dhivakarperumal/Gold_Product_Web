@@ -22,8 +22,15 @@ const {
 const CONSENT_VERSION = process.env.KYC_PRIVACY_NOTICE_VERSION || 'manual-kyc-v1';
 const REVIEW_DECISIONS = new Set(['in_review', 'verified', 'rejected', 'resubmission_required']);
 
-function canReadKycDocument(document, userId, isAdmin) {
-  return isAdmin || Number(document.user_id) === Number(userId);
+function canReadKycDocument(document, userId, isAdmin, ownerUserId) {
+  if (isAdmin) {
+    return !ownerUserId || String(document.applicant_created_by) === String(ownerUserId);
+  }
+  return Number(document.user_id) === Number(userId);
+}
+
+function getKycOwnerUserId(req) {
+  return req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
 }
 
 function parseDocumentTypes(value, fileCount) {
@@ -174,7 +181,8 @@ async function listApplications(req, res, next) {
       status: requestedStatus && requestedStatus !== 'all' ? requestedStatus : '',
       search,
       dateFrom: dateFrom || '',
-      dateTo: dateTo || ''
+      dateTo: dateTo || '',
+      ownerUserId: getKycOwnerUserId(req)
     });
     return res.json({ ...result, page, pageSize, pages: Math.ceil(result.total / pageSize) });
   } catch (error) {
@@ -190,7 +198,11 @@ async function adminStats(req, res, next) {
   }
   try {
     return res.json({
-      stats: await getKycStats({ dateFrom: dateFrom || '', dateTo: dateTo || '' }),
+      stats: await getKycStats({
+        dateFrom: dateFrom || '',
+        dateTo: dateTo || '',
+        ownerUserId: getKycOwnerUserId(req)
+      }),
       allowedDocumentTypes: getAllowedDocumentTypes()
     });
   } catch (error) {
@@ -200,7 +212,7 @@ async function adminStats(req, res, next) {
 
 async function getApplicationDetails(req, res, next) {
   try {
-    const application = await getKycApplicationById(req.params.id);
+    const application = await getKycApplicationById(req.params.id, getKycOwnerUserId(req));
     if (!application) return res.status(404).json({ message: 'KYC application not found' });
     return res.json({ application });
   } catch (error) {
@@ -222,7 +234,8 @@ async function reviewApplication(req, res, next) {
       applicationId: req.params.id,
       reviewerId: req.adminUser.id,
       decision,
-      reason
+      reason,
+      ownerUserId: getKycOwnerUserId(req)
     });
     return res.json({ message: 'KYC review saved', application });
   } catch (error) {
@@ -235,7 +248,8 @@ async function serveDocument(req, res, next) {
     const document = await getKycDocument(req.params.documentId);
     if (!document) return res.status(404).json({ message: 'KYC document not found' });
     const isAdmin = Boolean(req.adminUser);
-    if (!canReadKycDocument(document, req.authenticatedUser?.id, isAdmin)) {
+    const ownerUserId = isAdmin ? getKycOwnerUserId(req) : undefined;
+    if (!canReadKycDocument(document, req.authenticatedUser?.id, isAdmin, ownerUserId)) {
       return res.status(404).json({ message: 'KYC document not found' });
     }
     const filePath = resolveKycStoragePath(document.storage_key);
