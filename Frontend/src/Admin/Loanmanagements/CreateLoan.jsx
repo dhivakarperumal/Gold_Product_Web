@@ -246,13 +246,9 @@ export default function CreateLoan() {
   const refreshAvailableFundBalance = useCallback(async () => {
     setFundBalanceLoading(true);
     try {
-      const { data } = await api.get("/funds/accounts");
-      if (!Array.isArray(data)) throw new Error("The server returned an invalid fund account list.");
-      const balance = data.reduce((sum, account) => {
-        const accountBalance = Number(account.current_balance);
-        if (!Number.isFinite(accountBalance)) throw new Error("A fund account has an invalid balance.");
-        return sum + accountBalance;
-      }, 0);
+      const { data } = await api.get("/funds/summary");
+      const balance = Number(data.current_balance);
+      if (!Number.isFinite(balance)) throw new Error("The server returned an invalid fund balance.");
       setAvailableFundBalance(balance);
       setFundBalanceError("");
       return balance;

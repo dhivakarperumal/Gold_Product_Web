@@ -1,31 +1,52 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { pool } = require('../src/config/db');
-const { recordBillingPayment } = require('../src/modules/billingModule');
 const {
   createFundTransaction,
-  listFundAccounts,
-  listFundTransactions,
-  updateFundAccountStatus
-} = require('../src/modules/fundModule');
+  initializeFundsModule,
+  listFundTransactions
+} = require('../src/modules/fundsModule');
 
-test('lists only fund accounts owned by the requesting admin', async (context) => {
+test('qualifies the destination id in both legacy fund migration upserts', async (context) => {
+  const originalExecute = pool.execute;
   const originalQuery = pool.query;
-  let query;
-  pool.query = async (sql, values) => {
-    query = { sql, values };
-    return [[{ id: 8, created_by: 'admin-user-uuid' }]];
+  const statements = [];
+  const transactionColumns = [
+    'created_by', 'created_by_legacy_id', 'transaction_type', 'transaction_date',
+    'amount', 'payment_method', 'category', 'description', 'party_name',
+    'related_reference', 'reference_number', 'idempotency_key', 'transfer_id',
+    'status', 'created_at', 'updated_at'
+  ].map((Field) => ({
+    Field,
+    Type: Field === 'created_by_legacy_id' ? 'bigint unsigned' : 'varchar(150)'
+  }));
+  const accountColumns = ['created_by', 'opening_balance', 'created_at', 'updated_at', 'name']
+    .map((Field) => ({ Field, Type: Field === 'opening_balance' ? 'decimal(14,2)' : 'varchar(150)' }));
+  pool.execute = async (sql, values) => {
+    if (!sql.includes('information_schema.tables')) throw new Error(`Unexpected statement: ${sql}`);
+    return [[{ table_count: ['fund_transactions', 'fund_accounts'].includes(values[0]) ? 1 : 0 }]];
   };
-  context.after(() => { pool.query = originalQuery; });
+  pool.query = async (sql) => {
+    statements.push(sql);
+    if (sql.includes('SHOW COLUMNS FROM `fund_transactions`')) return [transactionColumns];
+    if (sql.includes('SHOW COLUMNS FROM `fund_accounts`')) return [accountColumns];
+    return [[]];
+  };
+  context.after(() => {
+    pool.execute = originalExecute;
+    pool.query = originalQuery;
+  });
 
-  const accounts = await listFundAccounts('admin-user-uuid');
+  await initializeFundsModule();
 
-  assert.equal(accounts[0].created_by, 'admin-user-uuid');
-  assert.match(query.sql, /WHERE a\.created_by = \?/);
-  assert.deepEqual(query.values, ['admin-user-uuid']);
+  const migrationUpserts = statements.filter((sql) => sql.includes('INSERT INTO funds'));
+  assert.equal(migrationUpserts.length, 2);
+  for (const statement of migrationUpserts) {
+    assert.match(statement, /ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID\(funds\.id\)/);
+  }
 });
 
-test('scopes transaction rows and totals to the account owner', async (context) => {
+test('scopes fund transaction rows and totals to the requesting admin', async (context) => {
   const originalExecute = pool.execute;
   const queries = [];
   pool.execute = async (sql, values) => {
@@ -43,81 +64,94 @@ test('scopes transaction rows and totals to the account owner', async (context) 
 
   assert.equal(queries.length, 2);
   for (const query of queries) {
-    assert.match(query.sql, /a\.created_by = \?/);
+    assert.match(query.sql, /f\.created_by = \?/);
     assert.equal(query.values[0], 'admin-user-uuid');
   }
 });
 
-test('prevents an admin from posting to another admin fund account', async (context) => {
+test('records fund entries with the authenticated admin as creator and updater', async (context) => {
   const originalGetConnection = pool.getConnection;
-  const state = { rolledBack: false, released: false };
+  const originalExecute = pool.execute;
+  const state = { committed: false, inserted: null, rolledBack: false, released: false };
   const connection = {
     async beginTransaction() {},
-    async commit() {},
+    async commit() { state.committed = true; },
     async rollback() { state.rolledBack = true; },
     release() { state.released = true; },
-    async execute() {
-      return [[{ id: 8, is_active: 1, created_by: 'another-admin-uuid' }]];
-    }
-  };
-  pool.getConnection = async () => connection;
-  context.after(() => { pool.getConnection = originalGetConnection; });
-
-  await assert.rejects(createFundTransaction({
-    account_id: 8,
-    transaction_type: 'CREDIT',
-    amount: '10.00',
-    owner_user_id: 'admin-user-uuid'
-  }), { code: 'FUND_ACCOUNT_NOT_FOUND' });
-
-  assert.equal(state.rolledBack, true);
-  assert.equal(state.released, true);
-});
-
-test('prevents billing payments from using another admin fund account', async (context) => {
-  const originalGetConnection = pool.getConnection;
-  const state = { rolledBack: false, released: false };
-  const connection = {
-    async beginTransaction() {},
-    async commit() {},
-    async rollback() { state.rolledBack = true; },
-    release() { state.released = true; },
-    async execute(sql) {
-      if (sql.includes('FROM billings WHERE id = ?')) {
-        return [[{ id: 1, invoice_no: 'INV-1', customers: '[]', total_amount: '10.00', paid_amount: '0.00' }]];
+    async execute(sql, values) {
+      if (sql.includes('FROM users WHERE user_id = ?')) {
+        assert.match(sql, /role = 'admin'/);
+        return [[{ user_id: 'admin-user-uuid' }]];
       }
-      if (sql.includes('FROM fund_accounts WHERE id = ?')) {
-        return [[{ id: 8, is_active: 1, created_by: 'another-admin-uuid' }]];
+      if (sql.includes('AS balance')) return [[{ balance: '125.00' }]];
+      if (sql.startsWith('INSERT INTO funds')) {
+        state.inserted = { sql, values };
+        return [{ insertId: 7 }];
       }
       throw new Error(`Unexpected statement: ${sql}`);
     }
   };
   pool.getConnection = async () => connection;
-  context.after(() => { pool.getConnection = originalGetConnection; });
+  pool.execute = async (sql, values) => {
+    assert.match(sql, /SELECT \* FROM funds WHERE id = \? AND created_by = \?/);
+    assert.deepEqual(values, [7, 'admin-user-uuid']);
+    return [[{ id: 7, created_by: 'admin-user-uuid', updated_by: 'admin-user-uuid' }]];
+  };
+  context.after(() => {
+    pool.getConnection = originalGetConnection;
+    pool.execute = originalExecute;
+  });
 
-  await assert.rejects(recordBillingPayment(1, {
-    account_id: 8,
-    payment_kind: 'PAYMENT',
-    amount: '10.00',
-    owner_user_id: 'admin-user-uuid'
-  }), { code: 'FUND_ACCOUNT_NOT_FOUND' });
+  const entry = await createFundTransaction({
+    created_by: 'admin-user-uuid',
+    updated_by: 'admin-user-uuid',
+    admin_name: 'Admin One',
+    transaction_type: 'FUND_ADDED',
+    transaction_date: '2026-10-20 12:00:00',
+    amount: '25.00',
+    payment_method: 'Cash',
+    description: 'Opening funds',
+    idempotency_key: 'fund-entry-1'
+  });
 
-  assert.equal(state.rolledBack, true);
+  assert.equal(entry.created_by, 'admin-user-uuid');
+  assert.equal(entry.updated_by, 'admin-user-uuid');
+  assert.deepEqual(state.inserted.values.slice(0, 3), [
+    'admin-user-uuid', 'admin-user-uuid', 'FUND_ADDED'
+  ]);
+  assert.equal(state.committed, true);
+  assert.equal(state.rolledBack, false);
   assert.equal(state.released, true);
 });
 
-test('records the acting admin when changing an owned account status', async (context) => {
-  const originalExecute = pool.execute;
-  let query;
-  pool.execute = async (sql, values) => {
-    query = { sql, values };
-    return [{ affectedRows: 1 }];
-  };
-  context.after(() => { pool.execute = originalExecute; });
+test('rolls back a debit that exceeds the admin fund balance', async (context) => {
+  const originalGetConnection = pool.getConnection;
+  const state = { inserted: false, rolledBack: false, released: false };
+  pool.getConnection = async () => ({
+    async beginTransaction() {},
+    async commit() {},
+    async rollback() { state.rolledBack = true; },
+    release() { state.released = true; },
+    async execute(sql) {
+      if (sql.includes('FROM users WHERE user_id = ?')) return [[{ user_id: 'admin-user-uuid' }]];
+      if (sql.includes('AS balance')) return [[{ balance: '10.00' }]];
+      if (sql.startsWith('INSERT INTO funds')) state.inserted = true;
+      throw new Error(`Unexpected statement: ${sql}`);
+    }
+  });
+  context.after(() => { pool.getConnection = originalGetConnection; });
 
-  const updated = await updateFundAccountStatus(8, false, 'actor-user-uuid', 'owner-user-uuid');
+  await assert.rejects(createFundTransaction({
+    created_by: 'admin-user-uuid',
+    admin_name: 'Admin One',
+    transaction_type: 'DEBIT',
+    transaction_date: '2026-10-20 12:00:00',
+    amount: '11.00',
+    payment_method: 'Cash',
+    description: 'Oversized debit'
+  }), { code: 'INSUFFICIENT_FUNDS' });
 
-  assert.equal(updated, true);
-  assert.match(query.sql, /WHERE id = \? AND created_by = \?/);
-  assert.deepEqual(query.values, [false, 'actor-user-uuid', 8, 'owner-user-uuid']);
+  assert.equal(state.inserted, false);
+  assert.equal(state.rolledBack, true);
+  assert.equal(state.released, true);
 });

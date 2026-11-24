@@ -36,8 +36,6 @@ function Info({ label, value }) {
 
 export function LoanPaymentModal({ loan: loanRow, onClose, onLoanUpdated }) {
   const [data, setData] = useState(null);
-  const [fundAccounts, setFundAccounts] = useState([]);
-  const [accountId, setAccountId] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [referenceNumber, setReferenceNumber] = useState("");
@@ -48,16 +46,9 @@ export function LoanPaymentModal({ loan: loanRow, onClose, onLoanUpdated }) {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    Promise.all([
-      api.get(`/loans/${loanRow.id}/renewal`),
-      api.get("/funds/accounts")
-    ]).then(([renewalResponse, accountsResponse]) => {
-      if (!Array.isArray(accountsResponse.data)) throw new Error("The server returned an invalid fund account list.");
+    api.get(`/loans/${loanRow.id}/renewal`).then((renewalResponse) => {
       if (!active) return;
-      const activeAccounts = accountsResponse.data.filter((account) => account.is_active);
       setData(renewalResponse.data);
-      setFundAccounts(activeAccounts);
-      setAccountId(String(activeAccounts[0]?.id || ""));
       setLoadError("");
     }).catch((error) => {
       console.error("Failed to load loan payment details:", error);
@@ -82,7 +73,6 @@ export function LoanPaymentModal({ loan: loanRow, onClose, onLoanUpdated }) {
     && preview
     && loan.loan_status === "Active"
     && preview.current_principal > 0
-    && accountId
     && Number.isFinite(amount)
     && amount > 0
     && amount + 0.001 >= preview.minimum_payment
@@ -96,7 +86,6 @@ export function LoanPaymentModal({ loan: loanRow, onClose, onLoanUpdated }) {
     try {
       const { data: updatedData } = await api.post(`/loans/${loanRow.id}/renewal`, {
         payment_amount: amount,
-        account_id: accountId,
         payment_method: paymentMethod,
         reference_number: referenceNumber.trim(),
         idempotency_key: crypto.randomUUID()
@@ -155,12 +144,6 @@ export function LoanPaymentModal({ loan: loanRow, onClose, onLoanUpdated }) {
                         <input type="number" inputMode="decimal" min="0.01" max={preview.total_due} step="0.01" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} disabled={loan.loan_status !== "Active" || saving} placeholder="Enter amount received" className="w-full border-0 bg-transparent text-sm font-bold text-slate-800 outline-none" />
                       </span>
                     </label>
-                    <label className="block text-sm font-semibold text-slate-700">Deposit account
-                      <select required value={accountId} onChange={(event) => setAccountId(event.target.value)} disabled={saving || !fundAccounts.length} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-[#008577]">
-                        <option value="">Select account</option>
-                        {fundAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-                      </select>
-                    </label>
                     <label className="block text-sm font-semibold text-slate-700">Payment method
                       <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} disabled={saving} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-[#008577]">
                         {["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"].map((method) => <option key={method} value={method}>{method}</option>)}
@@ -169,7 +152,6 @@ export function LoanPaymentModal({ loan: loanRow, onClose, onLoanUpdated }) {
                     <label className="block text-sm font-semibold text-slate-700">Reference number <span className="font-normal text-slate-400">(optional)</span>
                       <input value={referenceNumber} onChange={(event) => setReferenceNumber(event.target.value)} maxLength={100} disabled={saving} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-700 outline-none focus:border-[#008577]" />
                     </label>
-                    {!fundAccounts.length && <p className="text-xs text-rose-600">No active fund accounts are available. Add or activate a fund account before recording this payment.</p>}
                     <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Minimum interest payment: <strong>{money(preview.minimum_payment)}</strong>. Any extra payment reduces the principal; remaining balance earns interest at the saved rate for the next 11 months.</div>
                     {paymentAmount && Number.isFinite(amount) && amount > 0 && <div className="space-y-1 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-xs">
                       <p className="flex justify-between gap-2 text-slate-600"><span>Interest covered</span><strong>{money(Math.min(amount, preview.accrued_interest))}</strong></p>
@@ -202,8 +184,6 @@ export default function LoanRenewal() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [viewMode, setViewMode] = useState("table");
   const [paymentAmount, setPaymentAmount] = useState("");
-  const [fundAccounts, setFundAccounts] = useState([]);
-  const [accountId, setAccountId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [loading, setLoading] = useState(true);
@@ -246,25 +226,6 @@ export default function LoanRenewal() {
   }, [id, dateRange.startDate, dateRange.endDate]);
 
   const loan = renewalData?.loan;
-  useEffect(() => {
-    if (!id) return undefined;
-    let active = true;
-    api.get("/funds/accounts")
-      .then(({ data }) => {
-        if (!Array.isArray(data)) throw new Error("The server returned an invalid fund account list.");
-        const activeAccounts = data.filter((account) => account.is_active);
-        if (active) {
-          setFundAccounts(activeAccounts);
-          setAccountId((current) => current || String(activeAccounts[0]?.id || ""));
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load fund accounts for loan renewal:", error);
-        if (active) toast.error(error.response?.data?.message || "Could not load fund accounts.");
-      });
-    return () => { active = false; };
-  }, [id]);
-
   useEffect(() => {
     if (!loan) return;
     setCustomerMessage(
@@ -337,7 +298,6 @@ export default function LoanRenewal() {
     try {
       const { data } = await api.post(`/loans/${id}/renewal`, {
         payment_amount: amount,
-        account_id: accountId,
         payment_method: paymentMethod,
         reference_number: referenceNumber.trim(),
         idempotency_key: crypto.randomUUID()
@@ -346,8 +306,7 @@ export default function LoanRenewal() {
       setPaymentAmount("");
       setReferenceNumber("");
       if (data.preview.current_principal === 0) {
-        toast.success("Loan paid in full. Complete and record the gold release."          && Boolean(accountId)
-        );
+        toast.success("Loan paid in full. Complete and record the gold release.");
         navigate(`/admin/loans/completeloan/${id}`);
       } else {
         toast.success(`Payment recorded. Loan renewed through ${dateText(data.loan.maturity_date)}.`);
@@ -675,13 +634,6 @@ export default function LoanRenewal() {
                     placeholder="Enter amount received" className="w-full border-0 bg-transparent text-sm font-bold text-slate-800 outline-none" />
                 </span>
               </label>
-              <label className="block text-sm font-semibold text-slate-700">Deposit account
-                <select value={accountId} onChange={(event) => setAccountId(event.target.value)} disabled={saving || fundAccounts.length === 0}
-                  className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-[#008577]">
-                  <option value="">Select account</option>
-                  {fundAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-                </select>
-              </label>
               <label className="block text-sm font-semibold text-slate-700">Payment method
                 <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} disabled={saving}
                   className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-[#008577]">
@@ -692,7 +644,6 @@ export default function LoanRenewal() {
                 <input value={referenceNumber} onChange={(event) => setReferenceNumber(event.target.value)} maxLength={100} disabled={saving}
                   className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-700 outline-none focus:border-[#008577]" />
               </label>
-              {fundAccounts.length === 0 && <p className="text-xs text-rose-600">No active fund accounts are available. Add or activate a fund account before recording this payment.</p>}
               <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
                 Minimum interest payment: <strong>{money(preview.minimum_payment)}</strong>. Any extra payment reduces the principal; remaining balance earns interest at the saved rate for the next 11 months.
               </div>

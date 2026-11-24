@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "../PrivateRouter/AuthContext";
 import {
   LayoutDashboard,
   Package,
@@ -34,7 +35,7 @@ import {
 const navItems = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { path: "/admin/settings/daily-gold-rate", label: "Daily Gold Rate", icon: Coins },
-  { path: "/admin/funds", label: "Fund Management", icon: Wallet, activePaths: ["/admin/funds/accounts"] },
+  { path: "/admin/funds", label: "Fund Management", icon: Wallet },
 
   { path: "/admin/billings", label: "Billing", icon: Files },
   { path: "/admin/enquiries", label: "All Enquiries", icon:  MessageCircle, activePaths: ["/admin/enquiries/new"] },
@@ -131,6 +132,10 @@ const navItems = [
 /* ================= SIDEBAR ================= */
 const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   const location = useLocation();
+  const { user } = useAuth();
+  const visibleNavItems = user?.role === "admin"
+    ? navItems
+    : navItems.filter((item) => item.path !== "/admin/funds");
 
   /* ================= HELPERS & LOGIC ================= */
   const matchesRoute = (routePath) => {
@@ -253,7 +258,7 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
 
         {/* ========== NAVIGATION ========== */}
         <nav aria-label="Admin navigation" className="hide-scrollbar flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
 
             /* ===== DROPDOWN ITEM ===== */

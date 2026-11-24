@@ -21,7 +21,6 @@ const navItems = [
   { path: "/superadmin/users", label: "User Management", icon: Users, exact: true },
   { path: "/superadmin/subscription-plans", label: "Subscription Plans", icon: CreditCard, exact: true },
   { path: "/superadmin/payments", label: "Payment Management", icon: Wallet, exact: true },
-  { path: "/superadmin/fund-accounts", label: "Fund Accounts", icon: Wallet, exact: true },
   { path: "/superadmin/revenue-reports", label: "Revenue", icon: BarChart3, exact: true },
   
   

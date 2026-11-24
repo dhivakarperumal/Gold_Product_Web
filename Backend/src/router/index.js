@@ -17,7 +17,7 @@ const kycRouter = require('./kycRouter');
 const billingRouter = require('./billingRouter');
 const receiptSettingsRouter = require('./receiptSettingsRouter');
 const homeSectionRouter = require('./homeSectionRouter');
-const fundRouter = require('./fundRouter');
+const fundsRouter = require('./fundsRouter');
 const enquiryRouter = require('./enquiryRouter');
 const superAdminGoldShopRouter = require('./superAdminGoldShopRouter');
 
@@ -28,7 +28,7 @@ router.use('/kyc', kycRouter);
 router.use('/billings', billingRouter);
 router.use('/receipt-settings', receiptSettingsRouter);
 router.use('/home-sections', homeSectionRouter);
-router.use('/funds', fundRouter);
+router.use('/funds', fundsRouter);
 router.use('/enquiries', enquiryRouter);
 router.use('/super-admin', superAdminGoldShopRouter);
 router.use('/auth', authRouter);

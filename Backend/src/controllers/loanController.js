@@ -303,8 +303,8 @@ async function postLoanRenewal(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Loan ID is invalid' });
   const amount = parseAmount(req.body?.payment_amount, 'Payment amount', { min: 0.01 });
   if (amount.error) return res.status(400).json({ message: amount.error });
-  if (!validId(req.body?.account_id) || !PAYMENT_METHODS.has(req.body?.payment_method)) {
-    return res.status(400).json({ message: 'Select a valid fund account and payment method' });
+  if (!PAYMENT_METHODS.has(req.body?.payment_method)) {
+    return res.status(400).json({ message: 'Select a valid payment method' });
   }
   const referenceNumber = req.body?.reference_number == null
     ? ''
@@ -318,24 +318,24 @@ async function postLoanRenewal(req, res, next) {
   if (idempotencyKey.length > 150) return res.status(400).json({ message: 'Payment retry key is invalid' });
   try {
     return res.json(await renewLoan(req.params.id, amount.value, req.adminUser.id, {
-      account_id: req.body.account_id,
       payment_method: req.body.payment_method,
       reference_number: referenceNumber,
       idempotency_key: idempotencyKey,
       created_by_user_id: req.adminUser.user_id,
-      owner_user_id: req.adminUser.role === 'superadmin' ? null : req.adminUser.user_id
+      admin_name: req.adminUser.name || req.adminUser.username
     }));
   } catch (error) {
     if (error.code === 'LOAN_NOT_FOUND') return res.status(404).json({ message: error.message });
+    if (error.code === 'FUND_ADMIN_NOT_FOUND') {
+      return res.status(403).json({ message: 'A valid admin account is required to record this fund movement' });
+    }
     if ([
       'LOAN_NOT_ACTIVE',
       'LOAN_READY_FOR_GOLD_RELEASE',
-      'FUND_ACCOUNT_NOT_FOUND',
       'DUPLICATE_RENEWAL'
     ].includes(error.code)) {
       return res.status(409).json({ message: error.message });
     }
-    if (error.code === 'FUND_ACCOUNT_NOT_FOUND') return res.status(400).json({ message: error.message });
     if ([
       'INVALID_RENEWAL_PAYMENT',
       'RENEWAL_PAYMENT_BELOW_INTEREST',
@@ -562,8 +562,8 @@ async function postLoan(req, res, next) {
       created_by: req.adminUser.id
     }, {
       idempotencyKey,
-      fundOwnerUserId: req.adminUser.role === 'superadmin' ? null : req.adminUser.user_id,
-      fundCreatedByUserId: req.adminUser.user_id
+      fundCreatedByUserId: req.adminUser.user_id,
+      fundAdminName: req.adminUser.name || req.adminUser.username
     });
     return res.status(201).json(createdLoan);
   } catch (createError) {
@@ -575,8 +575,8 @@ async function postLoan(req, res, next) {
     if (createError.code === 'CUSTOMER_NOT_FOUND') return res.status(404).json({ message: createError.message });
     if (createError.code === 'INTEREST_TYPE_UNAVAILABLE') return res.status(400).json({ message: createError.message });
     if (createError.code === 'INVALID_LOAN_AMOUNT') return res.status(400).json({ message: createError.message });
-    if (createError.code === 'FUND_ACCOUNT_NOT_FOUND') {
-      return res.status(409).json({ message: createError.message });
+    if (createError.code === 'FUND_ADMIN_NOT_FOUND') {
+      return res.status(403).json({ message: 'A valid admin account is required to disburse this loan' });
     }
     if (createError.code === 'INSUFFICIENT_FUNDS') {
       return res.status(409).json({
