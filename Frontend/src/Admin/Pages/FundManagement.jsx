@@ -131,7 +131,7 @@ function FundManagement() {
         {statCards.map(({ label, value, detail, icon: Icon, color }) => (
           <article
             key={label}
-            className={`relative flex min-h-48 min-w-0 items-center gap-3 overflow-hidden rounded-2xl border-y border-r border-l-4 p-4 shadow-[0_3px_12px_rgba(30,41,59,0.1)] transition-all hover:-translate-y-0.5 hover:shadow-md ${
+            className={`relative flex min-h-44 min-w-0 items-center gap-3 overflow-hidden rounded-2xl border-y border-r border-l-4 p-4 shadow-[0_3px_12px_rgba(30,41,59,0.1)] transition-all hover:-translate-y-0.5 hover:shadow-md ${
               color === "emerald" ? "border-l-emerald-500 border-y-emerald-900/20 border-r-emerald-900/20 bg-[#123f35]" :
               color === "amber" ? "border-l-amber-500 border-y-amber-900/20 border-r-amber-900/20 bg-[#40351c]" :
               color === "sky" ? "border-l-sky-500 border-y-sky-900/20 border-r-sky-900/20 bg-[#173750]" :
