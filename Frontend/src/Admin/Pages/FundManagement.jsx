@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, Plus, RefreshCw, Search, Wallet, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronRight, Plus, RefreshCw, Search, Wallet, X } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../api";
 import DateRangeFilter from "../Components/DateRangeFilter";
@@ -71,11 +71,11 @@ function FundManagement() {
 
   const pageCount = Math.max(1, Math.ceil(total / 20));
   const statCards = useMemo(() => [
-    { label: "Opening Balance", value: summary?.opening_balance, icon: Wallet, style: "bg-emerald-50 text-emerald-700" },
-    { label: "Fund Added", value: summary?.fund_added, icon: Plus, style: "bg-amber-50 text-amber-700" },
-    { label: "Total Credits", value: summary?.total_credit, icon: ArrowDownLeft, style: "bg-sky-50 text-sky-700" },
-    { label: "Total Debits", value: summary?.total_debit, icon: ArrowUpRight, style: "bg-rose-50 text-rose-700" },
-    { label: "Available Balance", value: summary?.current_balance, icon: Wallet, style: "bg-teal-50 text-teal-700" }
+    { label: "Opening Balance", value: summary?.opening_balance, detail: "Opening ledger balance", icon: Wallet, color: "emerald" },
+    { label: "Fund Added", value: summary?.fund_added, detail: "Funds added to ledger", icon: Plus, color: "amber" },
+    { label: "Total Credits", value: summary?.total_credit, detail: "Credit transactions", icon: ArrowDownLeft, color: "sky" },
+    { label: "Total Debits", value: summary?.total_debit, detail: "Debit transactions", icon: ArrowUpRight, color: "rose" },
+    { label: "Available Balance", value: summary?.current_balance, detail: "Current ledger balance", icon: Wallet, color: "teal" }
   ], [summary]);
 
   const openForm = () => {
@@ -127,13 +127,43 @@ function FundManagement() {
         </div>
       )}
 
-      <section aria-label="Fund summary" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {statCards.map(({ label, value, icon: Icon, style }) => (
-          <article key={label} className="flex min-h-28 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${style}`}><Icon size={20} /></span>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-semibold text-slate-500">{label}</p>
-              <p className="mt-1 truncate text-lg font-black tracking-tight text-slate-900">{loading && value == null ? "—" : money(value)}</p>
+      <section aria-label="Fund summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
+        {statCards.map(({ label, value, detail, icon: Icon, color }) => (
+          <article
+            key={label}
+            className={`relative flex min-h-48 min-w-0 items-center gap-3 overflow-hidden rounded-2xl border-y border-r border-l-4 p-4 shadow-[0_3px_12px_rgba(30,41,59,0.1)] transition-all hover:-translate-y-0.5 hover:shadow-md ${
+              color === "emerald" ? "border-l-emerald-500 border-y-emerald-900/20 border-r-emerald-900/20 bg-[#123f35]" :
+              color === "amber" ? "border-l-amber-500 border-y-amber-900/20 border-r-amber-900/20 bg-[#40351c]" :
+              color === "sky" ? "border-l-sky-500 border-y-sky-900/20 border-r-sky-900/20 bg-[#173750]" :
+              color === "rose" ? "border-l-rose-500 border-y-rose-900/20 border-r-rose-900/20 bg-[#4a2a22]" :
+              "border-l-teal-500 border-y-teal-900/20 border-r-teal-900/20 bg-[#123d3b]"
+            }`}
+          >
+            <span className={`z-10 grid h-12 w-12 shrink-0 place-items-center rounded-xl text-xl text-white shadow-md ${
+              color === "emerald" ? "bg-emerald-700" :
+              color === "amber" ? "bg-amber-500" :
+              color === "sky" ? "bg-cyan-700" :
+              color === "rose" ? "bg-rose-700" : "bg-teal-700"
+            }`}><Icon size={21} /></span>
+            <div className="relative z-10 min-w-0 self-center">
+              <p className="truncate text-[11px] font-semibold text-slate-200">{label}</p>
+              <p className="mt-1 truncate text-lg font-black leading-tight tracking-tight text-white">{loading && value == null ? "—" : money(value)}</p>
+              <p className="mt-2 flex items-center gap-1 text-[11px] font-extrabold text-emerald-300">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+                <span className="truncate">{detail}</span>
+              </p>
+              <p className="mt-0.5 text-[10px] font-medium text-slate-300">Based on fund ledger</p>
+            </div>
+            <span aria-hidden="true" className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full border border-black/5 bg-white/65 text-slate-700"><ChevronRight size={12} /></span>
+            <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-7 items-end gap-[3px] ${
+              color === "emerald" ? "text-emerald-300" :
+              color === "amber" ? "text-amber-300" :
+              color === "sky" ? "text-sky-300" :
+              color === "rose" ? "text-rose-300" : "text-teal-300"
+            }`}>
+              {[11, 17, 13, 23].map((height, index) => (
+                <span key={index} className="w-[4px] rounded-t-sm bg-current" style={{ height: `${height}px` }} />
+              ))}
             </div>
           </article>
         ))}
