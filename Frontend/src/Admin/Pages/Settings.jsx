@@ -10,13 +10,13 @@ const settingsLinks = [
         label: "Open fund management",
         icon: <FiDollarSign />
     },
-    {
-        title: "Home Product Sections",
-        description: "Choose which metal collections appear on the storefront home page and arrange their order.",
-        path: "/admin/settings/home-sections",
-        label: "Customize home page",
-        icon: <FiLayout />
-    },
+    // {
+    //     title: "Home Product Sections",
+    //     description: "Choose which metal collections appear on the storefront home page and arrange their order.",
+    //     path: "/admin/settings/home-sections",
+    //     label: "Customize home page",
+    //     icon: <FiLayout />
+    // },
     {
         title: "Daily Gold Rate",
         description: "Manage audited Gold, Silver, Platinum and Diamond rates used for billing and product calculations.",
@@ -30,13 +30,13 @@ const settingsLinks = [
         label: "Configure receipt",
         icon: <FiPrinter />
     },
-    {
-        title: "User Management",
-        description: "View and manage all registered customer accounts, contact details, and account status.",
-        path: "/admin/users/all",
-        label: "Manage users",
-        icon: <FiUsers />
-    }
+    // {
+    //     title: "User Management",
+    //     description: "View and manage all registered customer accounts, contact details, and account status.",
+    //     path: "/admin/users/all",
+    //     label: "Manage users",
+    //     icon: <FiUsers />
+    // }
 ];
 
 const Settings = () => {

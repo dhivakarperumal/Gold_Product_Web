@@ -39,7 +39,7 @@ function normalizeSettings(body) {
 
 async function getReceiptSettings(req, res, next) {
   try {
-    return res.json(await readReceiptSettings());
+    return res.json(await readReceiptSettings(req.adminUser?.user_id));
   } catch (error) {
     return next(error);
   }
@@ -49,7 +49,7 @@ async function putReceiptSettings(req, res, next) {
   const { settings, error } = normalizeSettings(req.body || {});
   if (error) return res.status(400).json({ message: error });
   try {
-    return res.json(await writeReceiptSettings(settings));
+    return res.json(await writeReceiptSettings(settings, req.adminUser?.user_id));
   } catch (saveError) {
     return next(saveError);
   }
