@@ -169,60 +169,63 @@ function FundManagement() {
         ))}
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/70 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <DateRangeFilter onApply={(range) => { setDateRange(range); setPage(1); }} />
-            <select
-              value={filters.transaction_type}
-              onChange={(event) => updateFilter("transaction_type", event.target.value)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-[#008577] focus:ring-2 focus:ring-emerald-100"
-              aria-label="Filter by transaction type"
-            >
-              <option value="ALL">All types</option>
-              {TRANSACTION_TYPES.map(([type, label]) => <option key={type} value={type}>{label}</option>)}
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <label className="flex min-w-48 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 transition focus-within:border-[#008577] focus-within:ring-2 focus-within:ring-emerald-100">
-              <Search size={16} className="text-slate-400" />
-              <input
-                value={filters.search}
-                onChange={(event) => updateFilter("search", event.target.value)}
-                placeholder="Search entries"
-                className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-              />
-            </label>
-            <button type="button" onClick={() => fetchData()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50">
-              <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Refresh
-            </button>
-          </div>
+      <section aria-label="Search and filter fund entries" className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 lg:flex-row lg:items-center">
+        <label className="relative min-w-[220px] flex-1 lg:max-w-[480px]">
+          <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={filters.search}
+            onChange={(event) => updateFilter("search", event.target.value)}
+            placeholder="Search fund entries"
+            aria-label="Search fund entries"
+            className="h-[52px] w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-11 pr-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-[#00695C] focus:ring-2 focus:ring-emerald-100"
+          />
+        </label>
+        <div className="flex flex-wrap items-center gap-3 lg:ml-auto lg:justify-end">
+          <DateRangeFilter
+            onApply={(range) => { setDateRange(range); setPage(1); }}
+            className="shrink-0"
+          />
+          <select
+            value={filters.transaction_type}
+            onChange={(event) => updateFilter("transaction_type", event.target.value)}
+            className="h-[52px] min-w-[160px] rounded-xl border border-slate-200 bg-slate-50/70 px-4 text-sm font-semibold text-slate-600 outline-none focus:border-[#00695C] focus:ring-2 focus:ring-emerald-100"
+            aria-label="Filter by transaction type"
+          >
+            <option value="ALL">All transaction types</option>
+            {TRANSACTION_TYPES.map(([type, label]) => <option key={type} value={type}>{label}</option>)}
+          </select>
+          <button type="button" onClick={() => fetchData()} disabled={loading} className="inline-flex h-[52px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50">
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Refresh
+          </button>
         </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-[#064A41] text-xs uppercase tracking-wide text-white">
+          <table className="w-full min-w-[1000px] text-left text-sm">
+            <thead className="bg-[#00695C] text-xs uppercase tracking-wide text-white">
               <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Amount</th>
-                <th className="px-4 py-3">Payment Method</th>
-                <th className="px-4 py-3">Admin Name</th>
-                <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3">Running Balance</th>
+                <th className="px-5 py-4">Date</th>
+                <th className="px-5 py-4">Type</th>
+                <th className="px-5 py-4 text-right">Amount</th>
+                <th className="px-5 py-4">Payment Method</th>
+                <th className="px-5 py-4">Admin Name</th>
+                <th className="px-5 py-4">Description</th>
+                <th className="px-5 py-4 text-right">Running Balance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {transactions.map((transaction) => (
                 <tr key={transaction.id} className="transition-colors hover:bg-emerald-50/40">
-                  <td className="px-4 py-3 text-slate-600">{displayDate(transaction.transaction_date)}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-700">{typeLabel(transaction.transaction_type)}</td>
-                  <td className={`px-4 py-3 font-bold ${transaction.transaction_type === "DEBIT" ? "text-rose-700" : "text-emerald-700"}`}>
+                  <td className="px-5 py-5 text-slate-600">{displayDate(transaction.transaction_date)}</td>
+                  <td className="px-5 py-5 font-semibold text-slate-700">{typeLabel(transaction.transaction_type)}</td>
+                  <td className={`px-5 py-5 text-right font-bold ${transaction.transaction_type === "DEBIT" ? "text-rose-700" : "text-emerald-700"}`}>
                     {money(transaction.amount)}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{transaction.payment_method}</td>
-                  <td className="px-4 py-3 text-slate-600">{transaction.admin_name}</td>
-                  <td className="max-w-sm px-4 py-3 text-slate-600">{transaction.description || "—"}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-700">{money(transaction.running_balance)}</td>
+                  <td className="px-5 py-5 text-slate-600">{transaction.payment_method}</td>
+                  <td className="px-5 py-5 text-slate-600">{transaction.admin_name}</td>
+                  <td className="max-w-sm px-5 py-5 text-slate-600">{transaction.description || "—"}</td>
+                  <td className="px-5 py-5 text-right font-semibold text-slate-700">{money(transaction.running_balance)}</td>
                 </tr>
               ))}
               {!loading && transactions.length === 0 && (
@@ -234,12 +237,12 @@ function FundManagement() {
             </tbody>
           </table>
         </div>
-        <footer className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
+        <footer className="flex items-center justify-between border-t border-slate-100 px-5 py-4 text-sm text-slate-500">
           <span>{total} entries</span>
           <div className="flex items-center gap-2">
-            <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg border px-3 py-1.5 font-semibold disabled:opacity-40">Previous</button>
+            <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40">Previous</button>
             <span>Page {page} of {pageCount}</span>
-            <button type="button" disabled={page >= pageCount} onClick={() => setPage((current) => current + 1)} className="rounded-lg border px-3 py-1.5 font-semibold disabled:opacity-40">Next</button>
+            <button type="button" disabled={page >= pageCount} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40">Next</button>
           </div>
         </footer>
       </section>
