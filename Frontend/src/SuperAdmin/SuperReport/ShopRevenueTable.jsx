@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { Eye, Search, Filter, Store, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { Eye, Filter, Store, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
 
 export default function ShopRevenueTable({
   shops = [],
   pagination = {},
   loading = false,
-  search = "",
-  onSearchChange,
   status = "all",
   onStatusChange,
   page = 1,
@@ -51,7 +49,7 @@ export default function ShopRevenueTable({
   return (
     <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden" id="shop-revenue-table-container">
       {/* Table Header with Search & Filter */}
-      <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-5 border-b border-slate-100 space-y-4">
         <div>
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Store className="h-5 w-5 text-[#07564B]" />
@@ -62,19 +60,7 @@ export default function ShopRevenueTable({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search Input */}
-          <div className="relative min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search shop, ID, owner..."
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-9 pr-3 py-2 text-xs font-medium text-slate-800 focus:bg-white focus:border-[#07564B] focus:outline-none focus:ring-1 focus:ring-[#07564B]"
-            />
-          </div>
-
+        <div className="flex justify-end">
           {/* Status Filter */}
           <div className="relative">
             <select
@@ -94,10 +80,10 @@ export default function ShopRevenueTable({
 
       {/* Table Data */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs border-collapse">
+        <table className="w-full border-separate border-spacing-0 text-left text-xs">
           <thead>
-            <tr className="bg-slate-50/70 text-slate-600 font-bold border-b border-slate-100 uppercase tracking-wider">
-              <th className="py-3 px-4 w-12 text-center">S.No</th>
+            <tr className="bg-gradient-to-r from-[#07564B] via-[#064A41] to-[#043D37] text-emerald-50 font-bold border-b border-white/10 uppercase tracking-wider">
+              <th className="rounded-tl-xl bg-gradient-to-r from-[#07564B] to-[#064A41] py-3 px-4 w-12 text-center">S.No</th>
               <th className="py-3 px-4">Shop Name</th>
               <th className="py-3 px-4">Shop ID</th>
               <th className="py-3 px-4">Subscription Plan</th>
@@ -106,7 +92,7 @@ export default function ShopRevenueTable({
               <th className="py-3 px-4 text-right">Pending Amount</th>
               <th className="py-3 px-4 text-center">Payment Status</th>
               <th className="py-3 px-4">Last Payment Date</th>
-              <th className="py-3 px-4 text-center">Action</th>
+              <th className="rounded-tr-xl bg-gradient-to-r from-[#064A41] to-[#043D37] py-3 px-4 text-center">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

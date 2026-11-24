@@ -1,24 +1,52 @@
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Clock, AlertCircle, CheckCircle2, CreditCard } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Clock, AlertCircle, CreditCard } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
 
-export default function RevenueSummaryCards({ data = {}, loading = false }) {
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="animate-pulse rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="h-4 w-24 bg-slate-200 rounded" />
-              <div className="h-10 w-10 rounded-xl bg-slate-200" />
-            </div>
-            <div className="mt-4 h-7 w-32 bg-slate-200 rounded" />
-            <div className="mt-2 h-3 w-20 bg-slate-100 rounded" />
-          </div>
-        ))}
-      </div>
-    );
+const metricTones = {
+  forest: {
+    card: "border-[#2F6B59] border-l-emerald-400 bg-[#123B32]",
+    icon: "bg-[#08745D] text-white",
+    label: "text-emerald-50/90",
+    detail: "text-emerald-300",
+    bars: "bg-emerald-300"
+  },
+  gold: {
+    card: "border-[#8A702E] border-l-amber-400 bg-[#443719]",
+    icon: "bg-[#C58B11] text-white",
+    label: "text-amber-50/90",
+    detail: "text-amber-300",
+    bars: "bg-amber-300"
+  },
+  blue: {
+    card: "border-[#3B7897] border-l-sky-400 bg-[#17364D]",
+    icon: "bg-[#007A61] text-white",
+    label: "text-sky-50/90",
+    detail: "text-sky-300",
+    bars: "bg-sky-300"
+  },
+  indigo: {
+    card: "border-[#555E9C] border-l-violet-300 bg-[#292B50]",
+    icon: "bg-[#7138E8] text-white",
+    label: "text-violet-50/90",
+    detail: "text-violet-200",
+    bars: "bg-violet-300"
+  },
+  teal: {
+    card: "border-[#34766D] border-l-teal-300 bg-[#153E3A]",
+    icon: "bg-[#087D70] text-white",
+    label: "text-teal-50/90",
+    detail: "text-teal-200",
+    bars: "bg-teal-300"
+  },
+  rust: {
+    card: "border-[#905342] border-l-orange-300 bg-[#4A2B25]",
+    icon: "bg-[#C58B11] text-white",
+    label: "text-orange-50/90",
+    detail: "text-orange-200",
+    bars: "bg-orange-200"
   }
+};
 
+export default function RevenueSummaryCards({ data = {}, loading = false }) {
   const cards = [
     {
       id: "total_revenue",
@@ -28,9 +56,7 @@ export default function RevenueSummaryCards({ data = {}, loading = false }) {
       badge: "All Time",
       badgeType: "emerald",
       icon: DollarSign,
-      color: "from-[#07564B] to-[#0A6F62]",
-      iconBg: "bg-emerald-50 text-[#07564B]",
-      borderColor: "border-emerald-600/30"
+      tone: "forest"
     },
     {
       id: "today_revenue",
@@ -39,8 +65,7 @@ export default function RevenueSummaryCards({ data = {}, loading = false }) {
       subtext: data.todayGrowth !== 0 ? `${data.todayGrowth > 0 ? "+" : ""}${data.todayGrowth}% vs yesterday` : "Same as yesterday",
       growth: data.todayGrowth,
       icon: Clock,
-      iconBg: "bg-teal-50 text-teal-700",
-      borderColor: "border-teal-500/20"
+      tone: "gold"
     },
     {
       id: "month_revenue",
@@ -49,8 +74,7 @@ export default function RevenueSummaryCards({ data = {}, loading = false }) {
       subtext: data.monthGrowth !== 0 ? `${data.monthGrowth > 0 ? "+" : ""}${data.monthGrowth}% vs last month` : "Calculated MTD",
       growth: data.monthGrowth,
       icon: Calendar,
-      iconBg: "bg-sky-50 text-sky-700",
-      borderColor: "border-sky-500/20"
+      tone: "blue"
     },
     {
       id: "year_revenue",
@@ -59,8 +83,7 @@ export default function RevenueSummaryCards({ data = {}, loading = false }) {
       subtext: data.yearGrowth !== 0 ? `${data.yearGrowth > 0 ? "+" : ""}${data.yearGrowth}% vs last year` : "Calculated YTD",
       growth: data.yearGrowth,
       icon: TrendingUp,
-      iconBg: "bg-indigo-50 text-indigo-700",
-      borderColor: "border-indigo-500/20"
+      tone: "indigo"
     },
     {
       id: "subscription_revenue",
@@ -68,8 +91,7 @@ export default function RevenueSummaryCards({ data = {}, loading = false }) {
       amount: data.totalSubscriptionRevenue ?? 0,
       subtext: `${data.activeSubscribers || 0} Active Gold Shops`,
       icon: CreditCard,
-      iconBg: "bg-purple-50 text-purple-700",
-      borderColor: "border-purple-500/20"
+      tone: "teal"
     },
     {
       id: "pending_payments",
@@ -79,70 +101,58 @@ export default function RevenueSummaryCards({ data = {}, loading = false }) {
       badge: data.pendingPaymentsCount > 0 ? `${data.pendingPaymentsCount} Unpaid` : "Clear",
       badgeType: data.pendingPaymentsCount > 0 ? "amber" : "emerald",
       icon: AlertCircle,
-      iconBg: data.pendingPaymentsCount > 0 ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700",
-      borderColor: data.pendingPaymentsCount > 0 ? "border-amber-500/30" : "border-emerald-500/20"
+      tone: "rust"
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((card) => {
         const Icon = card.icon;
+        const colors = metricTones[card.tone] || metricTones.forest;
         const hasGrowth = card.growth !== undefined;
         const isPositive = (card.growth || 0) >= 0;
 
         return (
           <div
             key={card.id}
-            className={`group relative overflow-hidden rounded-2xl border bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${card.borderColor}`}
+            className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}
           >
-            {/* Top Bar / Header */}
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-semibold tracking-wide text-slate-500 uppercase line-clamp-1">
-                {card.title}
-              </span>
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${card.iconBg}`}>
-                <Icon className="h-5 w-5" />
-              </div>
-            </div>
-
-            {/* Main Value */}
-            <div className="mt-3">
-              <p className="text-2xl font-black tracking-tight text-slate-900 font-sans">
-                {formatCurrency(card.amount)}
-              </p>
-            </div>
-
-            {/* Footer / Trend Info */}
-            <div className="mt-3 flex items-center justify-between gap-1 text-xs">
-              <div className="flex items-center gap-1 text-slate-500 font-medium truncate">
-                {hasGrowth && (
-                  <span
-                    className={`inline-flex items-center gap-0.5 font-bold ${
-                      isPositive ? "text-emerald-700" : "text-rose-600"
-                    }`}
-                  >
-                    {isPositive ? (
-                      <TrendingUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <TrendingDown className="h-3.5 w-3.5" />
-                    )}
+            <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-inner ${colors.icon}`}>
+              <Icon size={25} strokeWidth={1.9} />
+            </span>
+            <div className="min-w-0 flex-1 pb-1">
+              <p className={`truncate text-sm font-semibold ${colors.label}`}>{card.title}</p>
+              {loading
+                ? <div className="mt-2 h-8 w-28 animate-pulse rounded bg-white/15" />
+                : <p className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-[28px]">{formatCurrency(card.amount)}</p>}
+              <div className={`mt-2 flex min-h-5 min-w-0 items-center gap-1.5 text-xs ${colors.detail}`}>
+                {loading
+                  ? <div className="h-3 w-24 animate-pulse rounded bg-white/15" />
+                  : (
+                    <>
+                      {hasGrowth
+                        ? (
+                          <span className={isPositive ? "text-emerald-300" : "text-rose-300"}>
+                            {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                          </span>
+                        )
+                        : <span className={`h-2 w-2 shrink-0 rounded-full ${colors.bars}`} />}
+                      <span className="min-w-0 flex-1 truncate font-semibold">{card.subtext}</span>
+                    </>
+                  )}
+                {card.badge && !loading && (
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${card.badgeType === "amber" ? "border-amber-300/40 bg-amber-300/15 text-amber-100" : "border-white/15 bg-white/10 text-white/80"}`}>
+                    {card.badge}
                   </span>
                 )}
-                <span className="truncate">{card.subtext}</span>
               </div>
-
-              {card.badge && (
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                    card.badgeType === "amber"
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-emerald-100 text-emerald-800"
-                  }`}
-                >
-                  {card.badge}
-                </span>
-              )}
+            </div>
+            <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-8 items-end gap-1 opacity-90 ${colors.detail}`}>
+              <span className="h-3 w-1.5 rounded-t-sm bg-current" />
+              <span className="h-5 w-1.5 rounded-t-sm bg-current" />
+              <span className="h-4 w-1.5 rounded-t-sm bg-current" />
+              <span className="h-7 w-1.5 rounded-t-sm bg-current" />
             </div>
           </div>
         );

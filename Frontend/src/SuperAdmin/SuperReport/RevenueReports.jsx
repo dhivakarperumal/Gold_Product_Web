@@ -6,7 +6,6 @@ import {
   Printer,
   FileSpreadsheet,
   FileText,
-  Calendar,
   Filter,
   RefreshCw,
   Store,
@@ -55,9 +54,8 @@ export default function RevenueReports() {
   const [selectedStatus, setSelectedStatus] = useState("all");
 
   // Search & Pagination States
-  const [shopSearch, setShopSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [shopPage, setShopPage] = useState(1);
-  const [paymentSearch, setPaymentSearch] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("all");
   const [paymentPage, setPaymentPage] = useState(1);
 
@@ -164,7 +162,7 @@ export default function RevenueReports() {
       const params = {
         page: shopPage,
         limit: 10,
-        search: shopSearch,
+        search: searchQuery,
         status: selectedStatus !== "all" ? selectedStatus : undefined,
         planId: selectedPlan !== "all" ? selectedPlan : undefined,
         startDate,
@@ -178,7 +176,7 @@ export default function RevenueReports() {
     } finally {
       setTableLoading(false);
     }
-  }, [resolveDates, shopPage, shopSearch, selectedStatus, selectedPlan]);
+  }, [resolveDates, shopPage, searchQuery, selectedStatus, selectedPlan]);
 
   // Load Payments History
   const loadPaymentData = useCallback(async () => {
@@ -188,7 +186,7 @@ export default function RevenueReports() {
       const params = {
         page: paymentPage,
         limit: 10,
-        search: paymentSearch,
+        search: searchQuery,
         status: selectedStatus !== "all" ? selectedStatus : undefined,
         paymentMethod: paymentMethod !== "all" ? paymentMethod : undefined,
         planId: selectedPlan !== "all" ? selectedPlan : undefined,
@@ -203,7 +201,7 @@ export default function RevenueReports() {
     } finally {
       setTableLoading(false);
     }
-  }, [resolveDates, paymentPage, paymentSearch, selectedStatus, paymentMethod, selectedPlan]);
+  }, [resolveDates, paymentPage, searchQuery, selectedStatus, paymentMethod, selectedPlan]);
 
   // Trigger main dashboard load when filters change
   useEffect(() => {
@@ -221,13 +219,9 @@ export default function RevenueReports() {
   }, [loadPaymentData]);
 
   // Reset pagination on search
-  const handleShopSearchChange = (val) => {
-    setShopSearch(val);
+  const handleSearchChange = (val) => {
+    setSearchQuery(val);
     setShopPage(1);
-  };
-
-  const handlePaymentSearchChange = (val) => {
-    setPaymentSearch(val);
     setPaymentPage(1);
   };
 
@@ -425,47 +419,50 @@ export default function RevenueReports() {
 
       {/* ── SECTION 6: FILTERS & SEARCH TOOLBAR ──────────────────────────── */}
       <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Date Presets */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-bold text-slate-500 flex items-center gap-1 mr-1">
-              <Calendar className="h-3.5 w-3.5 text-[#07564B]" />
-              Period:
-            </span>
-            {[
-              { id: "all", label: "All Time" },
-              { id: "today", label: "Today" },
-              { id: "yesterday", label: "Yesterday" },
-              { id: "last7days", label: "Last 7 Days" },
-              { id: "last30days", label: "Last 30 Days" },
-              { id: "thismonth", label: "This Month" },
-              { id: "lastmonth", label: "Last Month" },
-              { id: "thisyear", label: "This Year" },
-              { id: "custom", label: "Custom Date Range" }
-            ].map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setDatePreset(p.id)}
-                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                  datePreset === p.id
-                    ? "bg-[#07564B] text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="relative w-full xl:w-72 xl:flex-none">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search shops, transactions, invoices..."
+              aria-label="Search revenue reports"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm font-medium text-slate-800 focus:border-[#07564B] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#07564B]"
+            />
           </div>
 
-          {/* Plan & Payment Status Filter Dropdowns */}
-          <div className="flex flex-wrap items-center gap-2 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-            {/* Filter by Subscription Plan */}
+          <div className="flex w-full flex-col items-end gap-2 xl:w-auto xl:flex-row xl:items-center xl:shrink-0">
+            <div className="flex w-full items-center gap-2 xl:w-auto">
+              <select
+                value={datePreset}
+                onChange={(e) => setDatePreset(e.target.value)}
+                aria-label="Filter revenue reports by period"
+                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-[#07564B] focus:outline-none focus:ring-2 focus:ring-[#07564B]/15 xl:w-[150px]"
+              >
+                {[
+                  { id: "all", label: "All Time" },
+                  { id: "today", label: "Today" },
+                  { id: "yesterday", label: "Yesterday" },
+                  { id: "last7days", label: "Last 7 Days" },
+                  { id: "last30days", label: "Last 30 Days" },
+                  { id: "thismonth", label: "This Month" },
+                  { id: "lastmonth", label: "Last Month" },
+                  { id: "thisyear", label: "This Year" },
+                  { id: "custom", label: "Custom Date Range" }
+                ].map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <select
               value={selectedPlan}
               onChange={(e) => setSelectedPlan(e.target.value)}
               aria-label="Filter revenue reports by subscription plan"
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-[#07564B] focus:outline-none"
+              className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-[#07564B] focus:outline-none focus:ring-2 focus:ring-[#07564B]/15 xl:w-[190px]"
             >
               <option value="all">All Subscription Plans</option>
               {plansList.map((plan) => (
@@ -475,12 +472,11 @@ export default function RevenueReports() {
               ))}
             </select>
 
-            {/* Filter by Payment Status */}
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               aria-label="Filter revenue reports by payment status"
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 focus:bg-white focus:border-[#07564B] focus:outline-none"
+              className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-[#07564B] focus:outline-none focus:ring-2 focus:ring-[#07564B]/15 xl:w-[190px]"
             >
               <option value="all">All Payment Statuses</option>
               <option value="paid">Paid Only</option>
@@ -598,8 +594,6 @@ export default function RevenueReports() {
           shops={shops}
           pagination={shopPagination}
           loading={tableLoading}
-          search={shopSearch}
-          onSearchChange={handleShopSearchChange}
           status={selectedStatus}
           onStatusChange={setSelectedStatus}
           page={shopPage}
@@ -622,8 +616,6 @@ export default function RevenueReports() {
           payments={payments}
           pagination={paymentPagination}
           loading={tableLoading}
-          search={paymentSearch}
-          onSearchChange={handlePaymentSearchChange}
           status={selectedStatus}
           onStatusChange={setSelectedStatus}
           method={paymentMethod}

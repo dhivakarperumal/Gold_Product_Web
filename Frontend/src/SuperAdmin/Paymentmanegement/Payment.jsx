@@ -32,6 +32,78 @@ import { toast } from "react-hot-toast";
 import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
 
+const paymentCardThemes = {
+  forest: {
+    card: "border-[#2F6B59] border-l-emerald-400 bg-[#123B32]",
+    icon: "bg-[#08745D] text-white",
+    label: "text-emerald-50/90",
+    detail: "text-emerald-300",
+    bars: "bg-emerald-300"
+  },
+  gold: {
+    card: "border-[#8A702E] border-l-amber-400 bg-[#443719]",
+    icon: "bg-[#C58B11] text-white",
+    label: "text-amber-50/90",
+    detail: "text-amber-300",
+    bars: "bg-amber-300"
+  },
+  blue: {
+    card: "border-[#3B7897] border-l-sky-400 bg-[#17364D]",
+    icon: "bg-[#007A61] text-white",
+    label: "text-sky-50/90",
+    detail: "text-sky-300",
+    bars: "bg-sky-300"
+  },
+  rust: {
+    card: "border-[#905342] border-l-orange-300 bg-[#4A2B25]",
+    icon: "bg-[#C58B11] text-white",
+    label: "text-orange-50/90",
+    detail: "text-orange-200",
+    bars: "bg-orange-200"
+  },
+  slate: {
+    card: "border-[#526D76] border-l-cyan-300 bg-[#29363B]",
+    icon: "bg-[#008B99] text-white",
+    label: "text-cyan-50/90",
+    detail: "text-cyan-200",
+    bars: "bg-cyan-200"
+  }
+};
+
+function PaymentOverviewCard({ label, value, note, icon: Icon, loading, theme }) {
+  const colors = paymentCardThemes[theme] || paymentCardThemes.forest;
+
+  return (
+    <article className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}>
+      <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-inner ${colors.icon}`}>
+        <Icon size={25} strokeWidth={1.9} />
+      </span>
+      <div className="min-w-0 flex-1 pb-1">
+        <p className={`truncate text-sm font-semibold ${colors.label}`}>{label}</p>
+        {loading
+          ? <div className="mt-2 h-8 w-28 animate-pulse rounded bg-white/15" />
+          : <p className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-[28px]">{value}</p>}
+        <div className={`mt-2 flex min-h-5 items-center gap-1.5 text-xs ${colors.detail}`}>
+          {loading
+            ? <div className="h-3 w-24 animate-pulse rounded bg-white/15" />
+            : (
+              <>
+                <span className={`h-2 w-2 rounded-full ${colors.bars}`} />
+                <span className="font-semibold">{note}</span>
+              </>
+            )}
+        </div>
+      </div>
+      <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-8 items-end gap-1 opacity-90 ${colors.detail}`}>
+        <span className="h-3 w-1.5 rounded-t-sm bg-current" />
+        <span className="h-5 w-1.5 rounded-t-sm bg-current" />
+        <span className="h-4 w-1.5 rounded-t-sm bg-current" />
+        <span className="h-7 w-1.5 rounded-t-sm bg-current" />
+      </div>
+    </article>
+  );
+}
+
 export default function PaymentManagement() {
   // Data states
   const [overview, setOverview] = useState({
@@ -359,91 +431,46 @@ export default function PaymentManagement() {
 
       {/* ── 1. PAYMENT OVERVIEW CARDS ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Total Payments */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Total Payments</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-              <CreditCard className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <p className="text-2xl font-black text-slate-900 font-sans">
-              {loadingOverview ? "—" : overview.totalPayments.toLocaleString("en-IN")}
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1 font-medium">All logged transactions</p>
-          </div>
-        </div>
-
-        {/* Total Amount Collected */}
-        <div className="rounded-2xl border border-emerald-600/30 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between text-emerald-800">
-            <span className="text-xs font-bold uppercase tracking-wider">Amount Collected</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-[#07564B]">
-              <DollarSign className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <p className="text-2xl font-black text-emerald-800 font-sans">
-              {loadingOverview ? "—" : formatCurrency(overview.totalAmountCollected)}
-            </p>
-            <p className="text-[11px] text-emerald-700 mt-1 font-medium">Net successful payments</p>
-          </div>
-        </div>
-
-        {/* Pending Payments */}
-        <div className="rounded-2xl border border-amber-500/30 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between text-amber-800">
-            <span className="text-xs font-bold uppercase tracking-wider">Pending Payments</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
-              <Clock className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <p className="text-2xl font-black text-amber-800 font-sans">
-              {loadingOverview ? "—" : overview.pendingPaymentsCount}
-            </p>
-            <p className="text-[11px] text-amber-700 mt-1 font-medium font-sans">
-              {loadingOverview ? "—" : `${formatCurrency(overview.pendingPaymentsAmount)} due`}
-            </p>
-          </div>
-        </div>
-
-        {/* Failed Payments */}
-        <div className="rounded-2xl border border-rose-500/20 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between text-rose-800">
-            <span className="text-xs font-bold uppercase tracking-wider">Failed Payments</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700">
-              <XCircle className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <p className="text-2xl font-black text-rose-800 font-sans">
-              {loadingOverview ? "—" : overview.failedPaymentsCount}
-            </p>
-            <p className="text-[11px] text-rose-600 mt-1 font-medium font-sans">
-              {loadingOverview ? "—" : `${formatCurrency(overview.failedPaymentsAmount)}`}
-            </p>
-          </div>
-        </div>
-
-        {/* Refunded Payments */}
-        <div className="rounded-2xl border border-purple-500/20 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between text-purple-800">
-            <span className="text-xs font-bold uppercase tracking-wider">Refunded Payments</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-700">
-              <RotateCcw className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <p className="text-2xl font-black text-purple-800 font-sans">
-              {loadingOverview ? "—" : overview.refundedPaymentsCount}
-            </p>
-            <p className="text-[11px] text-purple-700 mt-1 font-medium font-sans">
-              {loadingOverview ? "—" : `${formatCurrency(overview.refundedPaymentsAmount)} refunded`}
-            </p>
-          </div>
-        </div>
+        <PaymentOverviewCard
+          label="Total Payments"
+          value={overview.totalPayments.toLocaleString("en-IN")}
+          note="All logged transactions"
+          icon={CreditCard}
+          loading={loadingOverview}
+          theme="forest"
+        />
+        <PaymentOverviewCard
+          label="Amount Collected"
+          value={formatCurrency(overview.totalAmountCollected)}
+          note="Net successful payments"
+          icon={DollarSign}
+          loading={loadingOverview}
+          theme="gold"
+        />
+        <PaymentOverviewCard
+          label="Pending Payments"
+          value={overview.pendingPaymentsCount}
+          note={`${formatCurrency(overview.pendingPaymentsAmount)} due`}
+          icon={Clock}
+          loading={loadingOverview}
+          theme="blue"
+        />
+        <PaymentOverviewCard
+          label="Failed Payments"
+          value={overview.failedPaymentsCount}
+          note={formatCurrency(overview.failedPaymentsAmount)}
+          icon={XCircle}
+          loading={loadingOverview}
+          theme="rust"
+        />
+        <PaymentOverviewCard
+          label="Refunded Payments"
+          value={overview.refundedPaymentsCount}
+          note={`${formatCurrency(overview.refundedPaymentsAmount)} refunded`}
+          icon={RotateCcw}
+          loading={loadingOverview}
+          theme="slate"
+        />
       </div>
 
       {/* ── 5. SEARCH & FILTERS BAR ─────────────────────────────────────────── */}
@@ -559,7 +586,7 @@ export default function PaymentManagement() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-50/80 text-slate-600 font-bold border-b border-slate-200/80 uppercase tracking-wider">
+              <tr className="bg-gradient-to-r from-[#07564B] via-[#064A41] to-[#043D37] text-emerald-50 font-bold border-b border-white/10 uppercase tracking-wider">
                 <th className="py-3 px-4 w-12 text-center">S.No</th>
                 <th className="py-3 px-4">Transaction ID</th>
                 <th className="py-3 px-4">Shop Name</th>

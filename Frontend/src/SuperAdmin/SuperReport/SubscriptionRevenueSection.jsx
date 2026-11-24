@@ -107,16 +107,16 @@ export default function SubscriptionRevenueSection({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full border-separate border-spacing-0 text-left text-xs">
             <thead>
-              <tr className="bg-slate-50/70 text-slate-600 font-bold border-b border-slate-100 uppercase tracking-wider">
-                <th className="py-3 px-4">Plan Name</th>
+              <tr className="bg-gradient-to-r from-[#07564B] via-[#064A41] to-[#043D37] text-emerald-50 font-bold border-b border-white/10 uppercase tracking-wider">
+                <th className="rounded-tl-xl bg-gradient-to-r from-[#07564B] to-[#064A41] py-3 px-4">Plan Name</th>
                 <th className="py-3 px-4 text-right">Subscription Amount</th>
                 <th className="py-3 px-4 text-center">Number of Subscribers</th>
                 <th className="py-3 px-4 text-center">Active Subscriptions</th>
                 <th className="py-3 px-4 text-center">Expired Subscriptions</th>
                 <th className="py-3 px-4 text-right">Total Revenue</th>
-                <th className="py-3 px-4 text-right">Revenue Share</th>
+                <th className="rounded-tr-xl bg-gradient-to-r from-[#064A41] to-[#043D37] py-3 px-4 text-right">Revenue Share</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
