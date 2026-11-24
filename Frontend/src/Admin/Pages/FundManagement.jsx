@@ -3,6 +3,7 @@ import {
   ArrowDownLeft, ArrowUpRight, Banknote,
   Download, FileText, LayoutGrid, List, Plus, RefreshCw, Search, Wallet, X
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../../api";
 import DateRangeFilter from "../Components/DateRangeFilter";
@@ -225,6 +226,9 @@ function FundManagement() {
           <p className="mt-2 text-sm text-white/75 print:text-slate-600">Review cash flow, account balances, collections, and business expenses.</p>
         </div>
         <div className="flex flex-wrap items-start justify-end gap-2 print:hidden">
+          <Link to="/admin/funds/accounts" className="inline-flex items-center gap-2 rounded-xl border border-white/40 px-3 py-2 text-sm font-extrabold text-white hover:bg-white/10">
+            <Wallet size={16} /> Manage Accounts
+          </Link>
           <button onClick={() => openEntry("FUND_ADDED")} className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-[#00594f] hover:bg-emerald-50">
             <Plus size={16} /> Add Fund
           </button>
@@ -387,12 +391,13 @@ function FundManagement() {
                     ? "Loading fund accounts…"
                     : loadError
                       ? `Fund accounts could not be loaded: ${loadError}`
-                      : "No active fund accounts are available. Reload the fund data or ask an administrator to activate an account."}
+                      : "No active fund accounts are available. Create an account or activate one in account management."}
                 </p>
                 {!loading && (
-                  <button type="button" onClick={() => fetchData()} className="mt-1 font-bold underline">
-                    Retry loading accounts
-                  </button>
+                  <div className="mt-1 flex gap-3">
+                    <button type="button" onClick={() => fetchData()} className="font-bold underline">Retry loading accounts</button>
+                    <Link to="/admin/funds/accounts" className="font-bold underline">Manage accounts</Link>
+                  </div>
                 )}
               </div>
             )}

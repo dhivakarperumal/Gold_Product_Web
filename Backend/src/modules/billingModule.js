@@ -150,10 +150,11 @@ async function recordBillingPayment(id, payment) {
       throw error;
     }
     const [accounts] = await connection.execute(
-      'SELECT id, is_active FROM fund_accounts WHERE id = ? FOR UPDATE',
+      'SELECT id, is_active, created_by FROM fund_accounts WHERE id = ? FOR UPDATE',
       [payment.account_id]
     );
-    if (!accounts.length || !accounts[0].is_active) {
+    if (!accounts.length || !accounts[0].is_active
+      || (payment.owner_user_id && accounts[0].created_by !== payment.owner_user_id)) {
       const error = new Error('Select an active fund account');
       error.code = 'FUND_ACCOUNT_NOT_FOUND';
       throw error;
@@ -206,7 +207,7 @@ async function recordBillingPayment(id, payment) {
       reference_number: payment.reference_number,
       description: payment.payment_kind === 'PAYMENT' ? 'Billing collection' : 'Refund against original bill',
       idempotency_key: payment.idempotency_key,
-      created_by: payment.created_by
+      created_by: payment.created_by_user_id
     });
     const paidAmount = currentPaid + (payment.payment_kind === 'PAYMENT' ? Number(payment.amount) : -Number(payment.amount));
     await connection.execute(

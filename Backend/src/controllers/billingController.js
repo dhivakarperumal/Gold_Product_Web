@@ -392,7 +392,9 @@ async function postBillingPayment(req, res, next) {
       payment_date: paymentDate,
       reference_number: referenceNumber.trim(),
       idempotency_key: idempotencyKey,
-      created_by: req.adminUser.id
+      created_by: req.adminUser.id,
+      created_by_user_id: req.adminUser.user_id,
+      owner_user_id: req.adminUser.role === 'superadmin' ? null : req.adminUser.user_id
     });
     return res.status(201).json(bill);
   } catch (error) {

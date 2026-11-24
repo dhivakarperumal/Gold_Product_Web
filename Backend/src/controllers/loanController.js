@@ -321,7 +321,9 @@ async function postLoanRenewal(req, res, next) {
       account_id: req.body.account_id,
       payment_method: req.body.payment_method,
       reference_number: referenceNumber,
-      idempotency_key: idempotencyKey
+      idempotency_key: idempotencyKey,
+      created_by_user_id: req.adminUser.user_id,
+      owner_user_id: req.adminUser.role === 'superadmin' ? null : req.adminUser.user_id
     }));
   } catch (error) {
     if (error.code === 'LOAN_NOT_FOUND') return res.status(404).json({ message: error.message });
@@ -558,7 +560,11 @@ async function postLoan(req, res, next) {
       gold_rate_date: activeRateSet.rate_date,
       gold_image_url: req.file ? `/api/loans/gold-images/${req.file.filename}` : null,
       created_by: req.adminUser.id
-    }, { idempotencyKey });
+    }, {
+      idempotencyKey,
+      fundOwnerUserId: req.adminUser.role === 'superadmin' ? null : req.adminUser.user_id,
+      fundCreatedByUserId: req.adminUser.user_id
+    });
     return res.status(201).json(createdLoan);
   } catch (createError) {
     try {
@@ -569,6 +575,9 @@ async function postLoan(req, res, next) {
     if (createError.code === 'CUSTOMER_NOT_FOUND') return res.status(404).json({ message: createError.message });
     if (createError.code === 'INTEREST_TYPE_UNAVAILABLE') return res.status(400).json({ message: createError.message });
     if (createError.code === 'INVALID_LOAN_AMOUNT') return res.status(400).json({ message: createError.message });
+    if (createError.code === 'FUND_ACCOUNT_NOT_FOUND') {
+      return res.status(409).json({ message: createError.message });
+    }
     if (createError.code === 'INSUFFICIENT_FUNDS') {
       return res.status(409).json({
         message: createError.message,

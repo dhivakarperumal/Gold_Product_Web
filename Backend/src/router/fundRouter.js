@@ -7,6 +7,7 @@ const {
   getSummary,
   getTransactions,
   postAccount,
+  patchAccount,
   postCredit,
   postDebit,
   postFundAdded,
@@ -19,6 +20,7 @@ const router = express.Router();
 router.use(requireAdmin);
 router.get('/accounts', getAccounts);
 router.post('/accounts', postAccount);
+router.patch('/accounts/:id', patchAccount);
 router.get('/summary', getSummary);
 router.get('/transactions', getTransactions);
 router.get('/receipts/:filename', getReceipt);

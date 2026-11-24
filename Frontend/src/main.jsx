@@ -57,6 +57,7 @@ const Reviews = React.lazy(() => import("./Admin/Pages/Reviews.jsx"));
 const Enquiries = React.lazy(() => import("./Admin/Pages/Enquiries.jsx"));
 const Settings = React.lazy(() => import("./Admin/Pages/Settings.jsx"));
 const FundManagement = React.lazy(() => import("./Admin/Pages/FundManagement.jsx"));
+const FundAccountsManagement = React.lazy(() => import("./Admin/Pages/FundAccountsManagement.jsx"));
 const DailyGoldRate = React.lazy(() => import("./Admin/Pages/DailyGoldRate.jsx"));
 const ReceiptSettings = React.lazy(() => import("./Admin/Pages/ReceiptSettings.jsx"));
 const HomeSections = React.lazy(() => import("./Admin/Pages/HomeSections.jsx"));
@@ -130,6 +131,7 @@ const router = createHashRouter([
       { path: "subscription-plans", element: <AllSubscriptionPlan /> },
       { path: "payments", element: <PaymentManagement /> },
       { path: "revenue-reports", element: <RevenueReports /> },
+      { path: "fund-accounts", element: <FundAccountsManagement /> },
     ],
   },
   {
@@ -177,6 +179,7 @@ const router = createHashRouter([
       { path: "dealers/*", element: <Dealers /> },
       { path: "settings", element: <Settings /> },
       { path: "funds", element: <FundManagement /> },
+      { path: "funds/accounts", element: <FundAccountsManagement /> },
       { path: "settings/daily-gold-rate", element: <DailyGoldRate /> },
       { path: "settings/receipt", element: <ReceiptSettings /> },
       { path: "settings/home-sections", element: <HomeSections /> },

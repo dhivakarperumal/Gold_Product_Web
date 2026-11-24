@@ -4,10 +4,12 @@ const { getFundReceiptPath } = require('../middleware/fundReceiptUpload');
 const {
   createFundAccount,
   createFundTransaction,
+  canAccessFundReceipt,
   getFundSummary,
   listFundAccounts,
   listFundTransactions,
-  transferFunds
+  transferFunds,
+  updateFundAccountStatus
 } = require('../modules/fundModule');
 const { parseDateRange } = require('../utils/dateRange');
 
@@ -49,7 +51,11 @@ function validId(value) {
   return /^\d+$/.test(String(value)) && Number(value) > 0;
 }
 
-function parseTransaction(body, transactionType, adminId) {
+function fundOwnerUserId(req) {
+  return req.adminUser.role === 'superadmin' ? null : req.adminUser.user_id;
+}
+
+function parseTransaction(body, transactionType, adminUserId, ownerUserId) {
   const category = text(body.category, 80, true);
   const accountId = validId(body.account_id) ? Number(body.account_id) : null;
   const amount = validAmount(body.amount);
@@ -83,14 +89,17 @@ function parseTransaction(body, transactionType, adminId) {
       description,
       receipt_url: receiptUrl,
       idempotency_key: idempotencyKey,
-      created_by: adminId
+      created_by: adminUserId,
+      owner_user_id: ownerUserId
     }
   };
 }
 
 function transactionHandler(transactionType) {
   return async (req, res, next) => {
-    const parsed = parseTransaction(req.body || {}, transactionType, req.adminUser.id);
+    const parsed = parseTransaction(
+      req.body || {}, transactionType, req.adminUser.user_id, fundOwnerUserId(req)
+    );
     if (parsed.error) return res.status(400).json({ message: parsed.error });
     try {
       return res.status(201).json(await createFundTransaction(parsed.value));
@@ -105,7 +114,7 @@ function transactionHandler(transactionType) {
 
 async function getAccounts(req, res, next) {
   try {
-    return res.json(await listFundAccounts());
+    return res.json(await listFundAccounts(fundOwnerUserId(req)));
   } catch (error) {
     return next(error);
   }
@@ -123,10 +132,26 @@ async function postAccount(req, res, next) {
   }
   try {
     return res.status(201).json(await createFundAccount({
-      name, account_type: accountType, opening_balance: openingBalance.toFixed(2), account_number: accountNumber
+      name, account_type: accountType, opening_balance: openingBalance.toFixed(2), account_number: accountNumber,
+      created_by: req.adminUser.user_id, updated_by: req.adminUser.user_id
     }));
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: 'An account with this name already exists' });
+    return next(error);
+  }
+}
+
+async function patchAccount(req, res, next) {
+  if (!validId(req.params.id) || typeof req.body?.is_active !== 'boolean') {
+    return res.status(400).json({ message: 'Enter a valid fund account status' });
+  }
+  try {
+    const updated = await updateFundAccountStatus(
+      Number(req.params.id), req.body.is_active, req.adminUser.user_id, fundOwnerUserId(req)
+    );
+    if (!updated) return res.status(404).json({ message: 'Fund account not found' });
+    return res.json({ message: 'Fund account updated successfully' });
+  } catch (error) {
     return next(error);
   }
 }
@@ -135,7 +160,7 @@ async function getSummary(req, res, next) {
   const range = parseDateRange(req.query);
   if (range.error) return res.status(400).json({ message: range.error });
   try {
-    return res.json(await getFundSummary(range));
+    return res.json(await getFundSummary(range, fundOwnerUserId(req)));
   } catch (error) {
     return next(error);
   }
@@ -156,7 +181,7 @@ async function getTransactions(req, res, next) {
       page, page_size: pageSize, account_id: accountId || '',
       transaction_type: req.query.transaction_type || 'ALL',
       category: text(req.query.category, 80), search: text(req.query.search, 150),
-      dateRange: range
+      dateRange: range, owner_user_id: fundOwnerUserId(req)
     }));
   } catch (error) {
     return next(error);
@@ -187,7 +212,8 @@ async function postTransfer(req, res, next) {
       description,
       idempotency_key: idempotencyKey,
       transfer_id: randomUUID(),
-      created_by: req.adminUser.id
+      created_by: req.adminUser.user_id,
+      owner_user_id: fundOwnerUserId(req)
     });
     return res.status(201).json(result);
   } catch (error) {
@@ -204,16 +230,23 @@ function postReceipt(req, res) {
   return res.status(201).json({ receipt_url: `/api/funds/receipts/${req.file.filename}` });
 }
 
-function getReceipt(req, res) {
+async function getReceipt(req, res, next) {
   const filePath = getFundReceiptPath(req.params.filename);
   if (!filePath) return res.status(400).json({ message: 'Receipt reference is invalid' });
-  if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'Receipt file not found' });
-  return res.sendFile(filePath, (error) => {
-    if (error && !res.headersSent) {
-      console.error('Could not send fund receipt:', error);
-      res.status(500).json({ message: 'Could not load receipt' });
+  try {
+    if (!await canAccessFundReceipt(req.params.filename, fundOwnerUserId(req))) {
+      return res.status(404).json({ message: 'Receipt file not found' });
     }
-  });
+    if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'Receipt file not found' });
+    return res.sendFile(filePath, (error) => {
+      if (error && !res.headersSent) {
+        console.error('Could not send fund receipt:', error);
+        res.status(500).json({ message: 'Could not load receipt' });
+      }
+    });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 module.exports = {
@@ -222,6 +255,7 @@ module.exports = {
   getSummary,
   getTransactions,
   postAccount,
+  patchAccount,
   postCredit: transactionHandler('CREDIT'),
   postDebit: transactionHandler('DEBIT'),
   postFundAdded: transactionHandler('FUND_ADDED'),

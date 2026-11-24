@@ -10,8 +10,11 @@ async function initializeFundModule() {
       opening_balance DECIMAL(14,2) NOT NULL DEFAULT 0,
       account_number VARCHAR(100) NULL,
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_by VARCHAR(36) NULL,
+      updated_by VARCHAR(36) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE KEY uq_fund_account_name (name)
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_fund_account_creator_name (created_by, name)
     )
   `);
   await pool.query(`
@@ -31,7 +34,8 @@ async function initializeFundModule() {
       transfer_id CHAR(36) NULL,
       idempotency_key VARCHAR(150) NULL,
       status ENUM('POSTED', 'VOID') NOT NULL DEFAULT 'POSTED',
-      created_by BIGINT UNSIGNED NULL,
+      created_by VARCHAR(36) NULL,
+      updated_by VARCHAR(36) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       CONSTRAINT fk_fund_transactions_account FOREIGN KEY (account_id)
@@ -42,6 +46,57 @@ async function initializeFundModule() {
       INDEX idx_fund_transactions_category (category)
     )
   `);
+  const [accountColumns] = await pool.query('SHOW COLUMNS FROM fund_accounts');
+  const accountColumnNames = new Set(accountColumns.map((column) => column.Field));
+  if (!accountColumnNames.has('created_by')) {
+    await pool.query('ALTER TABLE fund_accounts ADD COLUMN created_by VARCHAR(36) NULL');
+  }
+  if (!accountColumnNames.has('updated_by')) {
+    await pool.query('ALTER TABLE fund_accounts ADD COLUMN updated_by VARCHAR(36) NULL');
+  }
+  if (!accountColumnNames.has('updated_at')) {
+    await pool.query('ALTER TABLE fund_accounts ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+  }
+
+  const [transactionColumns] = await pool.query('SHOW COLUMNS FROM fund_transactions');
+  let transactionColumnNames = new Set(transactionColumns.map((column) => column.Field));
+  const creatorColumn = transactionColumns.find((column) => column.Field === 'created_by');
+  if (creatorColumn && /bigint/i.test(creatorColumn.Type) && !transactionColumnNames.has('created_by_legacy_id')) {
+    await pool.query('ALTER TABLE fund_transactions CHANGE COLUMN created_by created_by_legacy_id BIGINT UNSIGNED NULL');
+    transactionColumnNames.delete('created_by');
+    transactionColumnNames.add('created_by_legacy_id');
+  }
+  if (!transactionColumnNames.has('created_by')) {
+    await pool.query('ALTER TABLE fund_transactions ADD COLUMN created_by VARCHAR(36) NULL');
+  }
+  if (!transactionColumnNames.has('updated_by')) {
+    await pool.query('ALTER TABLE fund_transactions ADD COLUMN updated_by VARCHAR(36) NULL');
+  }
+  if (transactionColumnNames.has('created_by_legacy_id')) {
+    await pool.query(`
+      UPDATE fund_transactions t
+      JOIN users u ON u.id = t.created_by_legacy_id
+      SET t.created_by = u.user_id
+      WHERE t.created_by IS NULL
+    `);
+  }
+  await pool.query('UPDATE fund_transactions SET updated_by = created_by WHERE updated_by IS NULL AND created_by IS NOT NULL');
+
+  const [accountIndexes] = await pool.query('SHOW INDEX FROM fund_accounts');
+  const uniqueIndexColumns = new Map();
+  for (const index of accountIndexes) {
+    if (Number(index.Non_unique) !== 0 || index.Key_name === 'PRIMARY') continue;
+    if (!uniqueIndexColumns.has(index.Key_name)) uniqueIndexColumns.set(index.Key_name, []);
+    uniqueIndexColumns.get(index.Key_name)[Number(index.Seq_in_index) - 1] = index.Column_name;
+  }
+  for (const [indexName, columns] of uniqueIndexColumns) {
+    if (columns.join(',') === 'name') {
+      await pool.query(`ALTER TABLE fund_accounts DROP INDEX \`${indexName}\``);
+    }
+  }
+  if (!uniqueIndexColumns.has('uq_fund_account_creator_name')) {
+    await pool.query('ALTER TABLE fund_accounts ADD UNIQUE KEY uq_fund_account_creator_name (created_by, name)');
+  }
   const [rows] = await pool.query('SELECT COUNT(*) AS account_count FROM fund_accounts');
   if (Number(rows[0].account_count) === 0) {
     await pool.query(`
@@ -55,9 +110,12 @@ async function initializeFundModule() {
   }
 }
 
-async function listFundAccounts(connection = pool) {
+async function listFundAccounts(ownerUserId = null, connection = pool) {
+  const ownerCondition = ownerUserId ? 'WHERE a.created_by = ?' : '';
+  const values = ownerUserId ? [ownerUserId] : [];
   const [rows] = await connection.query(`
     SELECT a.id, a.name, a.account_type, a.opening_balance, a.account_number, a.is_active,
+      a.created_by, a.updated_by, a.created_at, a.updated_at,
       COALESCE(SUM(CASE WHEN t.status = 'POSTED' AND t.transaction_type IN ('FUND_ADDED', 'CREDIT', 'TRANSFER_IN')
         THEN t.amount ELSE 0 END), 0) AS total_credit,
       COALESCE(SUM(CASE WHEN t.status = 'POSTED' AND t.transaction_type IN ('DEBIT', 'TRANSFER_OUT')
@@ -69,20 +127,38 @@ async function listFundAccounts(connection = pool) {
           THEN t.amount ELSE 0 END), 0) AS current_balance
     FROM fund_accounts a
     LEFT JOIN fund_transactions t ON t.account_id = a.id
+    ${ownerCondition}
     GROUP BY a.id
     ORDER BY a.is_active DESC, a.name
-  `);
+  `, values);
   return rows;
 }
 
 async function createFundAccount(account) {
   const [result] = await pool.execute(
-    `INSERT INTO fund_accounts (name, account_type, opening_balance, account_number)
-     VALUES (?, ?, ?, ?)`,
-    [account.name, account.account_type, account.opening_balance, account.account_number || null]
+    `INSERT INTO fund_accounts (name, account_type, opening_balance, account_number, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      account.name, account.account_type, account.opening_balance, account.account_number || null,
+      account.created_by, account.updated_by
+    ]
   );
   const [rows] = await pool.execute('SELECT * FROM fund_accounts WHERE id = ?', [result.insertId]);
   return rows[0];
+}
+
+async function updateFundAccountStatus(id, isActive, updatedBy, ownerUserId = null) {
+  const conditions = ['id = ?'];
+  const values = [isActive, updatedBy, id];
+  if (ownerUserId) {
+    conditions.push('created_by = ?');
+    values.push(ownerUserId);
+  }
+  const [result] = await pool.execute(
+    `UPDATE fund_accounts SET is_active = ?, updated_by = ? WHERE ${conditions.join(' AND ')}`,
+    values
+  );
+  return result.affectedRows > 0;
 }
 
 async function getAccountBalance(connection, accountId, forUpdate = false) {
@@ -108,13 +184,14 @@ async function insertTransaction(connection, entry) {
     `INSERT INTO fund_transactions (
       account_id, transaction_type, category, transaction_date, amount, party_name,
       related_reference, payment_method, reference_number, description, receipt_url,
-      idempotency_key, created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      idempotency_key, created_by, updated_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       entry.account_id, entry.transaction_type, entry.category, entry.transaction_date, entry.amount,
       entry.party_name || null, entry.related_reference || null, entry.payment_method,
       entry.reference_number || null, entry.description || null, entry.receipt_url || null,
-      entry.idempotency_key || null, entry.created_by || null
+      entry.idempotency_key || null, entry.created_by || null,
+      entry.updated_by || entry.created_by || null
     ]
   );
   return result.insertId;
@@ -125,10 +202,11 @@ async function createFundTransaction(entry) {
   try {
     await connection.beginTransaction();
     const [accounts] = await connection.execute(
-      'SELECT id, is_active FROM fund_accounts WHERE id = ? FOR UPDATE',
+      'SELECT id, is_active, created_by FROM fund_accounts WHERE id = ? FOR UPDATE',
       [entry.account_id]
     );
-    if (!accounts.length || !accounts[0].is_active) {
+    if (!accounts.length || !accounts[0].is_active
+      || (entry.owner_user_id && accounts[0].created_by !== entry.owner_user_id)) {
       const error = new Error('Select an active fund account');
       error.code = 'FUND_ACCOUNT_NOT_FOUND';
       throw error;
@@ -158,10 +236,11 @@ async function transferFunds(transfer) {
     await connection.beginTransaction();
     const ids = [transfer.source_account_id, transfer.destination_account_id].sort((a, b) => a - b);
     const [accounts] = await connection.query(
-      `SELECT id, is_active FROM fund_accounts WHERE id IN (?, ?) ORDER BY id FOR UPDATE`,
+      `SELECT id, is_active, created_by FROM fund_accounts WHERE id IN (?, ?) ORDER BY id FOR UPDATE`,
       ids
     );
-    if (accounts.length !== 2 || accounts.some((account) => !account.is_active)) {
+    if (accounts.length !== 2 || accounts.some((account) => !account.is_active
+      || (transfer.owner_user_id && account.created_by !== transfer.owner_user_id))) {
       const error = new Error('Select two active fund accounts');
       error.code = 'FUND_ACCOUNT_NOT_FOUND';
       throw error;
@@ -186,23 +265,25 @@ async function transferFunds(transfer) {
       `INSERT INTO fund_transactions (
         account_id, transaction_type, category, transaction_date, amount, party_name,
         related_reference, payment_method, reference_number, description, transfer_id,
-        idempotency_key, created_by
-      ) VALUES (?, 'TRANSFER_OUT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        idempotency_key, created_by, updated_by
+      ) VALUES (?, 'TRANSFER_OUT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [transfer.source_account_id, shared.category, shared.transaction_date, shared.amount,
         'Transfer to account', String(transfer.destination_account_id), shared.payment_method,
         shared.reference_number || null, shared.description || null, transferId,
-        `transfer:${transfer.idempotency_key}:out`, transfer.created_by || null]
+        `transfer:${transfer.idempotency_key}:out`, transfer.created_by || null,
+        transfer.created_by || null]
     );
     const [inResult] = await connection.execute(
       `INSERT INTO fund_transactions (
         account_id, transaction_type, category, transaction_date, amount, party_name,
         related_reference, payment_method, reference_number, description, transfer_id,
-        idempotency_key, created_by
-      ) VALUES (?, 'TRANSFER_IN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        idempotency_key, created_by, updated_by
+      ) VALUES (?, 'TRANSFER_IN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [transfer.destination_account_id, shared.category, shared.transaction_date, shared.amount,
         'Transfer from account', String(transfer.source_account_id), shared.payment_method,
         shared.reference_number || null, shared.description || null, transferId,
-        `transfer:${transfer.idempotency_key}:in`, transfer.created_by || null]
+        `transfer:${transfer.idempotency_key}:in`, transfer.created_by || null,
+        transfer.created_by || null]
     );
     await connection.commit();
     return { transfer_id: transferId, debit_transaction_id: outResult.insertId, credit_transaction_id: inResult.insertId };
@@ -224,8 +305,8 @@ async function getFundTransaction(id) {
 }
 
 async function listFundTransactions(filters) {
-  const conditions = [];
-  const values = [];
+  const conditions = filters.owner_user_id ? ['a.created_by = ?'] : [];
+  const values = filters.owner_user_id ? [filters.owner_user_id] : [];
   addDateRangeCondition(conditions, values, 't.transaction_date', filters.dateRange || { startDate: filters.from, endDate: filters.to });
   if (filters.account_id) { conditions.push('t.account_id = ?'); values.push(filters.account_id); }
   if (filters.transaction_type && filters.transaction_type !== 'ALL') {
@@ -241,7 +322,8 @@ async function listFundTransactions(filters) {
   const pageSize = Number(filters.page_size || 20);
   const offset = (page - 1) * pageSize;
   const [countRows] = await pool.execute(
-    `SELECT COUNT(*) AS total FROM fund_transactions t ${where}`, values
+    `SELECT COUNT(*) AS total FROM fund_transactions t
+     JOIN fund_accounts a ON a.id = t.account_id ${where}`, values
   );
   const [rows] = await pool.execute(
     `SELECT t.*, a.name AS account_name,
@@ -263,35 +345,37 @@ async function listFundTransactions(filters) {
   return { transactions: rows, total: Number(countRows[0].total), page, page_size: pageSize };
 }
 
-async function getFundSummary(dateRange = {}) {
-  const accounts = await listFundAccounts();
-  const conditions = [];
-  const values = [];
-  addDateRangeCondition(conditions, values, 'transaction_date', dateRange);
+async function getFundSummary(dateRange = {}, ownerUserId = null) {
+  const accounts = await listFundAccounts(ownerUserId);
+  const conditions = ownerUserId ? ['a.created_by = ?'] : [];
+  const values = ownerUserId ? [ownerUserId] : [];
+  addDateRangeCondition(conditions, values, 't.transaction_date', dateRange);
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const [rows] = await pool.execute(
     `SELECT
-      COALESCE(SUM(CASE WHEN transaction_type = 'FUND_ADDED' AND status = 'POSTED' THEN amount ELSE 0 END), 0) AS fund_added,
-      COALESCE(SUM(CASE WHEN transaction_type = 'DEBIT' AND status = 'POSTED' THEN amount ELSE 0 END), 0) AS total_debit,
-      COALESCE(SUM(CASE WHEN transaction_type = 'CREDIT' AND status = 'POSTED' THEN amount ELSE 0 END), 0) AS total_credit,
-      COALESCE(SUM(CASE WHEN category = 'Customer Gold Loan Disbursement' AND status = 'POSTED' THEN amount ELSE 0 END), 0) AS loan_disbursed,
-      COALESCE(SUM(CASE WHEN category = 'Customer Loan Repayment' AND status = 'POSTED' THEN amount ELSE 0 END), 0) AS loan_repayment_received,
-      COALESCE(SUM(CASE WHEN category = 'Gold Sales Billing Collection' AND status = 'POSTED' THEN amount ELSE 0 END), 0) AS billing_collection,
+      COALESCE(SUM(CASE WHEN t.transaction_type = 'FUND_ADDED' AND t.status = 'POSTED' THEN t.amount ELSE 0 END), 0) AS fund_added,
+      COALESCE(SUM(CASE WHEN t.transaction_type = 'DEBIT' AND t.status = 'POSTED' THEN t.amount ELSE 0 END), 0) AS total_debit,
+      COALESCE(SUM(CASE WHEN t.transaction_type = 'CREDIT' AND t.status = 'POSTED' THEN t.amount ELSE 0 END), 0) AS total_credit,
+      COALESCE(SUM(CASE WHEN t.category = 'Customer Gold Loan Disbursement' AND t.status = 'POSTED' THEN t.amount ELSE 0 END), 0) AS loan_disbursed,
+      COALESCE(SUM(CASE WHEN t.category = 'Customer Loan Repayment' AND t.status = 'POSTED' THEN t.amount ELSE 0 END), 0) AS loan_repayment_received,
+      COALESCE(SUM(CASE WHEN t.category = 'Gold Sales Billing Collection' AND t.status = 'POSTED' THEN t.amount ELSE 0 END), 0) AS billing_collection,
       COALESCE(SUM(CASE
-        WHEN status = 'POSTED' AND transaction_type IN ('FUND_ADDED', 'CREDIT', 'TRANSFER_IN') THEN amount
-        WHEN status = 'POSTED' AND transaction_type IN ('DEBIT', 'TRANSFER_OUT') THEN -amount
+        WHEN t.status = 'POSTED' AND t.transaction_type IN ('FUND_ADDED', 'CREDIT', 'TRANSFER_IN') THEN t.amount
+        WHEN t.status = 'POSTED' AND t.transaction_type IN ('DEBIT', 'TRANSFER_OUT') THEN -t.amount
         ELSE 0
       END), 0) AS net_change
-     FROM fund_transactions ${where}`,
+     FROM fund_transactions t JOIN fund_accounts a ON a.id = t.account_id ${where}`,
     values
   );
   const [priorRows] = dateRange.startDate
     ? await pool.execute(
       `SELECT COALESCE(SUM(CASE
-         WHEN transaction_type IN ('FUND_ADDED', 'CREDIT', 'TRANSFER_IN') THEN amount
-         WHEN transaction_type IN ('DEBIT', 'TRANSFER_OUT') THEN -amount ELSE 0 END), 0) AS prior_net
-       FROM fund_transactions WHERE status = 'POSTED' AND transaction_date < ?`,
-      [`${dateRange.startDate} 00:00:00`]
+         WHEN t.transaction_type IN ('FUND_ADDED', 'CREDIT', 'TRANSFER_IN') THEN t.amount
+         WHEN t.transaction_type IN ('DEBIT', 'TRANSFER_OUT') THEN -t.amount ELSE 0 END), 0) AS prior_net
+       FROM fund_transactions t JOIN fund_accounts a ON a.id = t.account_id
+       WHERE t.status = 'POSTED' AND t.transaction_date < ?
+       ${ownerUserId ? 'AND a.created_by = ?' : ''}`,
+      ownerUserId ? [`${dateRange.startDate} 00:00:00`, ownerUserId] : [`${dateRange.startDate} 00:00:00`]
     )
     : [[{ prior_net: 0 }]];
   const openingBalance = accounts.reduce((sum, account) => sum + Number(account.opening_balance), 0)
@@ -310,7 +394,20 @@ async function getFundSummary(dateRange = {}) {
   };
 }
 
+async function canAccessFundReceipt(filename, ownerUserId = null) {
+  if (!ownerUserId) return true;
+  const receiptUrl = `/api/funds/receipts/${filename}`;
+  const [rows] = await pool.execute(
+    `SELECT t.id FROM fund_transactions t
+     JOIN fund_accounts a ON a.id = t.account_id
+     WHERE t.receipt_url = ? AND a.created_by = ? LIMIT 1`,
+    [receiptUrl, ownerUserId]
+  );
+  return rows.length > 0;
+}
+
 module.exports = {
+  canAccessFundReceipt,
   createFundAccount,
   createFundTransaction,
   getFundSummary,
@@ -319,5 +416,6 @@ module.exports = {
   initializeFundModule,
   listFundAccounts,
   listFundTransactions,
-  transferFunds
+  transferFunds,
+  updateFundAccountStatus
 };

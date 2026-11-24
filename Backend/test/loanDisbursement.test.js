@@ -7,7 +7,9 @@ const {
 } = require('../src/modules/loanModule');
 
 function fakeConnection({ balances = ['40.00', '30.00'], failOnFundInsert = 0, replayLoanId = null } = {}) {
-  const state = { committed: false, rolledBack: false, released: false, fundInserts: 0, statements: [] };
+  const state = {
+    committed: false, rolledBack: false, released: false, fundInserts: 0, fundInsertParams: [], statements: []
+  };
   const loan = { id: replayLoanId || 25, loan_number: 'GL-20261020-000025', principal_amount: '50.00' };
   const connection = {
     async beginTransaction() {},
@@ -23,10 +25,10 @@ function fakeConnection({ balances = ['40.00', '30.00'], failOnFundInsert = 0, r
       state.statements.push(sql);
       if (sql.includes('FROM loan_customers WHERE id = ?')) return [[{ id: 1, full_name: 'Test Customer' }]];
       if (sql.includes('FROM interest_types WHERE type_key = ?')) return [[{ enabled: 1 }]];
-      if (sql.includes('SELECT id FROM fund_accounts ORDER BY id FOR UPDATE')) {
+      if (sql.includes('SELECT id FROM fund_accounts WHERE is_active = TRUE')) {
         return [balances.map((_, index) => ({ id: index + 1 }))];
       }
-      if (sql.includes('SELECT related_reference FROM fund_transactions')) {
+      if (sql.includes('idempotency_key LIKE')) {
         return [replayLoanId ? [{ related_reference: String(replayLoanId) }] : []];
       }
       if (sql.includes('FROM fund_accounts a')) {
@@ -37,6 +39,7 @@ function fakeConnection({ balances = ['40.00', '30.00'], failOnFundInsert = 0, r
       if (sql.startsWith('UPDATE loans SET loan_number')) return [{ affectedRows: 1 }];
       if (sql.startsWith('INSERT INTO fund_transactions')) {
         state.fundInserts += 1;
+        state.fundInsertParams.push(params);
         if (failOnFundInsert === state.fundInserts) throw new Error('Simulated fund ledger failure');
         return [{ insertId: state.fundInserts }];
       }
@@ -68,13 +71,13 @@ function createConcurrentPool(shared) {
         async execute(sql, params = []) {
           if (sql.includes('FROM loan_customers WHERE id = ?')) return [[{ id: 1, full_name: 'Test Customer' }]];
           if (sql.includes('FROM interest_types WHERE type_key = ?')) return [[{ enabled: 1 }]];
-          if (sql.includes('SELECT id FROM fund_accounts ORDER BY id FOR UPDATE')) {
+          if (sql.includes('SELECT id FROM fund_accounts WHERE is_active = TRUE')) {
             const previous = shared.accountLock;
             shared.accountLock = new Promise((resolve) => { local.unlock = resolve; });
             await previous;
             return [[{ id: 1 }]];
           }
-          if (sql.includes('SELECT related_reference FROM fund_transactions')) {
+          if (sql.includes('idempotency_key LIKE')) {
             const keyPrefix = params[0].slice(0, -1);
             const transaction = shared.fundTransactions.find((entry) => entry.idempotency_key.startsWith(keyPrefix));
             return [transaction ? [{ related_reference: transaction.related_reference }] : []];
@@ -181,9 +184,33 @@ test('returns the existing loan for a repeated idempotency key', async (context)
   assert.equal(state.fundInserts, 0);
   assert.equal(state.committed, true);
   const accountLockIndex = state.statements.findIndex((sql) => sql.includes('ORDER BY id FOR UPDATE'));
-  const idempotencyCheckIndex = state.statements.findIndex((sql) => sql.includes('SELECT related_reference FROM fund_transactions'));
+  const idempotencyCheckIndex = state.statements.findIndex((sql) => sql.includes('idempotency_key LIKE'));
   assert.ok(accountLockIndex >= 0);
   assert.ok(idempotencyCheckIndex > accountLockIndex);
+});
+
+test('limits loan disbursements to the current admin fund accounts and records the UUID', async (context) => {
+  const originalGetConnection = pool.getConnection;
+  const { connection, state } = fakeConnection();
+  pool.getConnection = async () => connection;
+  context.after(() => { pool.getConnection = originalGetConnection; });
+
+  await createLoan({
+    customer_id: '1',
+    interest_type: 'simple',
+    loan_date: '2026-10-20',
+    principal_amount: '50.0000',
+    created_by: 7
+  }, {
+    idempotencyKey: 'owned-account-request',
+    fundOwnerUserId: 'owner-user-uuid',
+    fundCreatedByUserId: 'actor-user-uuid'
+  });
+
+  const accountQuery = state.statements.find((sql) => sql.includes('SELECT id FROM fund_accounts'));
+  assert.match(accountQuery, /created_by = \?/);
+  assert.equal(state.fundInsertParams[0][12], 'actor-user-uuid');
+  assert.equal(state.fundInsertParams[0][13], 'actor-user-uuid');
 });
 
 test('serializes concurrent loans so they cannot spend the same available funds', async (context) => {

@@ -56,6 +56,7 @@ const pageTitles = {
   "/superadmin/users": "User Management",
   "/superadmin/subscription-plans": "Subscription Plan Management",
   "/superadmin/payments": "Payment Management",
+  "/superadmin/fund-accounts": "Fund Accounts",
   "/superadmin/revenue-reports": "Revenue Analytics",
   "/superadmin/profile": "My Profile",
   "/admin": "Dashboard",

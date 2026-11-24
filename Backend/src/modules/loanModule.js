@@ -634,7 +634,9 @@ async function renewLoan(id, paymentAmount, adminUserId, paymentDetails) {
     account_id: paymentDetails?.account_id ? Number(paymentDetails.account_id) : null,
     payment_method: paymentDetails?.payment_method || 'Cash',
     reference_number: paymentDetails?.reference_number || null,
-    idempotency_key: paymentDetails?.idempotency_key || crypto.randomUUID()
+    idempotency_key: paymentDetails?.idempotency_key || crypto.randomUUID(),
+    created_by_user_id: paymentDetails?.created_by_user_id || null,
+    owner_user_id: paymentDetails?.owner_user_id || null
   };
   if (renewalDetails.account_id != null && !Number.isInteger(renewalDetails.account_id)) {
     const error = new Error('Select a valid fund account');
@@ -663,14 +665,18 @@ async function renewLoan(id, paymentAmount, adminUserId, paymentDetails) {
       error.code = 'DUPLICATE_RENEWAL';
       throw error;
     }
+    const accountOwnerCondition = renewalDetails.owner_user_id ? ' AND created_by = ?' : '';
+    const accountOwnerValues = renewalDetails.owner_user_id ? [renewalDetails.owner_user_id] : [];
     const [fundAccounts] = renewalDetails.account_id
       ? await connection.execute(
-        'SELECT id, is_active FROM fund_accounts WHERE id = ? FOR UPDATE',
-        [renewalDetails.account_id]
+        `SELECT id, is_active, created_by FROM fund_accounts
+         WHERE id = ?${accountOwnerCondition} FOR UPDATE`,
+        [renewalDetails.account_id, ...accountOwnerValues]
       )
       : await connection.execute(
-        `SELECT id, is_active FROM fund_accounts WHERE is_active = TRUE
-         ORDER BY CASE WHEN account_type = 'Cash' THEN 0 ELSE 1 END, id LIMIT 1 FOR UPDATE`
+        `SELECT id, is_active, created_by FROM fund_accounts WHERE is_active = TRUE${accountOwnerCondition}
+         ORDER BY CASE WHEN account_type = 'Cash' THEN 0 ELSE 1 END, id LIMIT 1 FOR UPDATE`,
+        accountOwnerValues
       );
     if (!fundAccounts.length || !fundAccounts[0].is_active) {
       const error = new Error('No active fund account is available to record this payment');
@@ -746,7 +752,7 @@ async function renewLoan(id, paymentAmount, adminUserId, paymentDetails) {
         reference_number: renewalDetails.reference_number,
         description: 'Principal portion of loan repayment',
         idempotency_key: `${renewalDetails.idempotency_key}:principal`,
-        created_by: adminUserId
+        created_by: renewalDetails.created_by_user_id
       });
     }
     if (interestPaid > 0) {
@@ -762,7 +768,7 @@ async function renewLoan(id, paymentAmount, adminUserId, paymentDetails) {
         reference_number: renewalDetails.reference_number,
         description: 'Interest portion of loan repayment',
         idempotency_key: `${renewalDetails.idempotency_key}:interest`,
-        created_by: adminUserId
+        created_by: renewalDetails.created_by_user_id
       });
     }
     await connection.execute(
@@ -899,7 +905,11 @@ function allocateLoanDisbursement(amount, accounts) {
   return allocations;
 }
 
-async function createLoan(loan, { idempotencyKey = crypto.randomUUID() } = {}) {
+async function createLoan(loan, {
+  idempotencyKey = crypto.randomUUID(),
+  fundOwnerUserId = null,
+  fundCreatedByUserId = null
+} = {}) {
   const connection = await pool.getConnection();
   let loanId;
   try {
@@ -922,14 +932,26 @@ async function createLoan(loan, { idempotencyKey = crypto.randomUUID() } = {}) {
       error.code = 'INTEREST_TYPE_UNAVAILABLE';
       throw error;
     }
+    const fundAccountOwnerCondition = fundOwnerUserId ? ' AND created_by = ?' : '';
     const [fundAccounts] = await connection.execute(
-      'SELECT id FROM fund_accounts ORDER BY id FOR UPDATE'
+      `SELECT id FROM fund_accounts WHERE is_active = TRUE${fundAccountOwnerCondition}
+       ORDER BY id FOR UPDATE`,
+      fundOwnerUserId ? [fundOwnerUserId] : []
     );
+    if (!fundAccounts.length) {
+      const error = new Error('No active fund account is available for this admin');
+      error.code = 'FUND_ACCOUNT_NOT_FOUND';
+      throw error;
+    }
+    const disbursementOwnerCondition = fundOwnerUserId ? ' AND a.created_by = ?' : '';
     const [existingDisbursements] = await connection.execute(
-      `SELECT related_reference FROM fund_transactions
-       WHERE idempotency_key LIKE ? AND status = 'POSTED'
-       ORDER BY id LIMIT 1`,
-      [`loan-disbursement:${idempotencyKey}:%`]
+      `SELECT t.related_reference FROM fund_transactions t
+       JOIN fund_accounts a ON a.id = t.account_id
+       WHERE t.idempotency_key LIKE ? AND t.status = 'POSTED'${disbursementOwnerCondition}
+       ORDER BY t.id LIMIT 1`,
+      fundOwnerUserId
+        ? [`loan-disbursement:${idempotencyKey}:%`, fundOwnerUserId]
+        : [`loan-disbursement:${idempotencyKey}:%`]
     );
     if (existingDisbursements.length) {
       const existingLoan = await getLoanByIdFrom(connection, existingDisbursements[0].related_reference);
@@ -977,7 +999,7 @@ async function createLoan(loan, { idempotencyKey = crypto.randomUUID() } = {}) {
         reference_number: loanNumber,
         description: 'Loan amount disbursed to customer',
         idempotency_key: `loan-disbursement:${idempotencyKey}:${index}`,
-        created_by: loan.created_by
+        created_by: fundCreatedByUserId
       });
     }
     const createdLoan = await getLoanByIdFrom(connection, loanId);
