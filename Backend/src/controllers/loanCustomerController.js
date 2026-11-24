@@ -111,6 +111,14 @@ function normalizeCustomerUsername(value) {
   return { username };
 }
 
+function duplicateCustomerAccountMessage(error) {
+  const detail = String(error.message || '').toLowerCase();
+  if (detail.includes('phone')) return 'This mobile number is already registered. Use a different mobile number.';
+  if (detail.includes('email')) return 'This email address is already registered. Use a different email address.';
+  if (detail.includes('username')) return 'This customer name is already registered. Use a different full name.';
+  return 'This customer account name, email, or mobile number is already registered.';
+}
+
 function validId(value) {
   return /^\d+$/.test(value) && BigInt(value) > 0n;
 }
@@ -150,7 +158,7 @@ async function postCustomer(req, res, next) {
     return res.status(201).json(await createLoanCustomer(customer, username, password));
   } catch (createError) {
     if (createError.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ message: 'Username, email, or phone number is already registered' });
+      return res.status(409).json({ message: duplicateCustomerAccountMessage(createError) });
     }
     return next(createError);
   }
@@ -339,6 +347,7 @@ module.exports = {
   getCustomerDocuments,
   getCustomerPhoto,
   getCustomers,
+  duplicateCustomerAccountMessage,
   normalizeCustomer,
   normalizeCustomerUsername,
   postCustomer,

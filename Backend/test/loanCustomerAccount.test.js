@@ -2,7 +2,26 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const bcrypt = require('bcryptjs');
 const { insertUser } = require('../src/modules/authModule');
-const { normalizeCustomer, normalizeCustomerUsername } = require('../src/controllers/loanCustomerController');
+const {
+  duplicateCustomerAccountMessage,
+  normalizeCustomer,
+  normalizeCustomerUsername
+} = require('../src/controllers/loanCustomerController');
+
+test('describes duplicate customer account fields clearly', () => {
+  assert.equal(
+    duplicateCustomerAccountMessage(new Error("Duplicate entry '9876543210' for key 'users.phone'")),
+    'This mobile number is already registered. Use a different mobile number.'
+  );
+  assert.equal(
+    duplicateCustomerAccountMessage(new Error("Duplicate entry 'customer@example.com' for key 'users.email'")),
+    'This email address is already registered. Use a different email address.'
+  );
+  assert.equal(
+    duplicateCustomerAccountMessage(new Error('Duplicate account')),
+    'This customer account name, email, or mobile number is already registered.'
+  );
+});
 
 test('allows customer email and guarantor address to be omitted', () => {
   const { customer, error } = normalizeCustomer({
