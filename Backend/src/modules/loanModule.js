@@ -203,20 +203,22 @@ async function initializeLoanModule() {
   }
 }
 
-async function listGoldReleaseEligible() {
-  const [rows] = await pool.query(`
+async function listGoldReleaseEligible(ownerUserId) {
+  const ownerCondition = ownerUserId ? ' AND c.created_by = ?' : '';
+  const values = ownerUserId ? [ownerUserId] : [];
+  const [rows] = await pool.execute(`
     SELECT l.*, c.customer_code, c.full_name AS customer_name, c.mobile AS customer_mobile,
       c.address AS customer_address, c.city AS customer_city, c.district AS customer_district,
       c.state AS customer_state, c.pincode AS customer_pincode
     FROM loans l JOIN loan_customers c ON c.id = l.customer_id
-    WHERE l.outstanding_principal = 0 AND l.release_status <> 'Released'
+    WHERE l.outstanding_principal = 0 AND l.release_status <> 'Released'${ownerCondition}
     ORDER BY l.updated_at DESC, l.id DESC
-  `);
+  `, values);
   return rows;
 }
 
-async function getGoldReleaseDetails(id) {
-  const loan = await getLoanById(id);
+async function getGoldReleaseDetails(id, ownerUserId) {
+  const loan = await getLoanById(id, ownerUserId);
   if (!loan) return null;
   const [releases] = await pool.execute(
     `SELECT id, released_at, released_to, confirmed_customer_signature, signed_document_url, notes, released_by
@@ -226,13 +228,16 @@ async function getGoldReleaseDetails(id) {
   return { loan, release: releases[0] || null };
 }
 
-async function releaseGold(id, releasedTo, notes, signedDocumentUrl, releasedBy) {
+async function releaseGold(id, releasedTo, notes, signedDocumentUrl, releasedBy, ownerUserId) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    const ownerCondition = ownerUserId ? ' AND c.created_by = ?' : '';
     const [loans] = await connection.execute(
-      'SELECT * FROM loans WHERE id = ? FOR UPDATE',
-      [id]
+      `SELECT l.* FROM loans l
+       JOIN loan_customers c ON c.id = l.customer_id
+       WHERE l.id = ?${ownerCondition} FOR UPDATE`,
+      ownerUserId ? [id, ownerUserId] : [id]
     );
     if (!loans.length) {
       const error = new Error('Loan not found');
@@ -275,7 +280,7 @@ async function releaseGold(id, releasedTo, notes, signedDocumentUrl, releasedBy)
         gold_released_at = ?, gold_released_to = ? WHERE id = ?`,
       [timeRow.released_at, recipient, id]
     );
-    const details = await getGoldReleaseDetailsFrom(connection, id);
+    const details = await getGoldReleaseDetailsFrom(connection, id, ownerUserId);
     await connection.commit();
     return details;
   } catch (error) {
@@ -286,8 +291,8 @@ async function releaseGold(id, releasedTo, notes, signedDocumentUrl, releasedBy)
   }
 }
 
-async function getGoldReleaseDetailsFrom(connection, id) {
-  const loan = await getLoanByIdFrom(connection, id);
+async function getGoldReleaseDetailsFrom(connection, id, ownerUserId) {
+  const loan = await getLoanByIdFrom(connection, id, ownerUserId);
   if (!loan) return null;
   const [releases] = await connection.execute(
     `SELECT id, released_at, released_to, confirmed_customer_signature, signed_document_url, notes, released_by
@@ -312,10 +317,14 @@ async function setInterestTypeEnabled(typeKey, enabled) {
   return result.affectedRows > 0;
 }
 
-async function listLoans(dateRange = {}) {
+async function listLoans(dateRange = {}, ownerUserId) {
   const conditions = [];
   const values = [];
   addDateRangeCondition(conditions, values, 'l.loan_date', dateRange);
+  if (ownerUserId) {
+    conditions.push('c.created_by = ?');
+    values.push(ownerUserId);
+  }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const [rows] = await pool.execute(`
     SELECT l.*, c.customer_code, c.full_name AS customer_name, c.mobile AS customer_mobile,
@@ -330,6 +339,22 @@ async function listLoans(dateRange = {}) {
     ORDER BY l.created_at DESC, l.id DESC
   `, values);
   return rows;
+}
+
+async function canAccessLoanGoldImage(reference, ownerUserId) {
+  const conditions = ['l.gold_image_url = ?'];
+  const values = [reference];
+  if (ownerUserId) {
+    conditions.push('c.created_by = ?');
+    values.push(ownerUserId);
+  }
+  const [rows] = await pool.execute(
+    `SELECT l.id FROM loans l
+     JOIN loan_customers c ON c.id = l.customer_id
+     WHERE ${conditions.join(' AND ')} LIMIT 1`,
+    values
+  );
+  return rows.length > 0;
 }
 
 function asDateString(value) {
@@ -482,13 +507,13 @@ function allocateRenewalPayment(preview, paymentAmount) {
   };
 }
 
-async function getLoanRenewal(id) {
+async function getLoanRenewal(id, ownerUserId) {
   const connection = await pool.getConnection();
   try {
     const [[dateRow]] = await connection.query(
       "SELECT DATE_FORMAT(CURRENT_DATE(), '%Y-%m-%d') AS renewal_date"
     );
-    const loan = await getLoanById(id);
+    const loan = await getLoanById(id, ownerUserId);
     if (!loan) return null;
     const [history] = await connection.execute(
       `SELECT id, renewal_date, period_start_date, previous_maturity_date, new_maturity_date,
@@ -518,13 +543,16 @@ async function getLoanReviewActionsFrom(connection, id) {
   return rows;
 }
 
-async function recordLoanReviewAction(id, action, details, adminUserId) {
+async function recordLoanReviewAction(id, action, details, adminUserId, ownerUserId) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    const ownerCondition = ownerUserId ? ' AND c.created_by = ?' : '';
     const [loans] = await connection.execute(
-      'SELECT * FROM loans WHERE id = ? FOR UPDATE',
-      [id]
+      `SELECT l.* FROM loans l
+       JOIN loan_customers c ON c.id = l.customer_id
+       WHERE l.id = ?${ownerCondition} FOR UPDATE`,
+      ownerUserId ? [id, ownerUserId] : [id]
     );
     if (!loans.length) {
       const error = new Error('Loan not found');
@@ -615,7 +643,7 @@ async function recordLoanReviewAction(id, action, details, adminUserId) {
         adminUserId || null
       ]
     );
-    const updatedLoan = await getLoanByIdFrom(connection, id);
+    const updatedLoan = await getLoanByIdFrom(connection, id, ownerUserId);
     const reviewActions = await getLoanReviewActionsFrom(connection, id);
     await connection.commit();
     return { loan: updatedLoan, reviewActions };
@@ -627,7 +655,7 @@ async function recordLoanReviewAction(id, action, details, adminUserId) {
   }
 }
 
-async function renewLoan(id, paymentAmount, adminUserId, paymentDetails) {
+async function renewLoan(id, paymentAmount, adminUserId, paymentDetails, ownerUserId) {
   const renewalDetails = {
     payment_method: paymentDetails?.payment_method || 'Cash',
     reference_number: paymentDetails?.reference_number || null,
@@ -638,9 +666,12 @@ async function renewLoan(id, paymentAmount, adminUserId, paymentDetails) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    const ownerCondition = ownerUserId ? ' AND c.created_by = ?' : '';
     const [loans] = await connection.execute(
-      'SELECT * FROM loans WHERE id = ? FOR UPDATE',
-      [id]
+      `SELECT l.* FROM loans l
+       JOIN loan_customers c ON c.id = l.customer_id
+       WHERE l.id = ?${ownerCondition} FOR UPDATE`,
+      ownerUserId ? [id, ownerUserId] : [id]
     );
     if (!loans.length) {
       const error = new Error('Loan not found');
@@ -750,7 +781,7 @@ async function renewLoan(id, paymentAmount, adminUserId, paymentDetails) {
       ]
     );
     const [[renewal]] = await connection.query('SELECT LAST_INSERT_ID() AS id');
-    const updatedLoan = await getLoanByIdFrom(connection, id);
+    const updatedLoan = await getLoanByIdFrom(connection, id, ownerUserId);
     const [history] = await connection.execute(
       `SELECT id, renewal_date, period_start_date, previous_maturity_date, new_maturity_date,
         payment_amount, interest_paid, late_payment_fee, principal_paid, principal_before, principal_after,
@@ -781,22 +812,28 @@ async function renewLoan(id, paymentAmount, adminUserId, paymentDetails) {
   }
 }
 
-async function getLoanRenewalHistory(id) {
+async function getLoanRenewalHistory(id, ownerUserId) {
+  const ownerCondition = ownerUserId ? ' AND c.created_by = ?' : '';
   const [rows] = await pool.execute(
-    `SELECT id, renewal_date, period_start_date, previous_maturity_date, new_maturity_date,
-      payment_amount, interest_paid, late_payment_fee, principal_paid, principal_before, principal_after,
-      accrued_interest, created_at
-     FROM loan_renewals WHERE loan_id = ? ORDER BY renewal_date DESC, id DESC`,
-    [id]
+    `SELECT r.id, r.renewal_date, r.period_start_date, r.previous_maturity_date, r.new_maturity_date,
+      r.payment_amount, r.interest_paid, r.late_payment_fee, r.principal_paid, r.principal_before, r.principal_after,
+      r.accrued_interest, r.created_at
+     FROM loan_renewals r
+     JOIN loans l ON l.id = r.loan_id
+     JOIN loan_customers c ON c.id = l.customer_id
+     WHERE r.loan_id = ?${ownerCondition}
+     ORDER BY r.renewal_date DESC, r.id DESC`,
+    ownerUserId ? [id, ownerUserId] : [id]
   );
   return rows;
 }
 
-async function getLoanById(id) {
-  return getLoanByIdFrom(pool, id);
+async function getLoanById(id, ownerUserId) {
+  return getLoanByIdFrom(pool, id, ownerUserId);
 }
 
-async function getLoanByIdFrom(connection, id) {
+async function getLoanByIdFrom(connection, id, ownerUserId) {
+  const ownerCondition = ownerUserId ? ' AND c.created_by = ?' : '';
   const [rows] = await connection.execute(
     `SELECT l.*, c.customer_code, c.full_name AS customer_name, c.mobile AS customer_mobile,
       c.address AS customer_address, c.city AS customer_city, c.district AS customer_district,
@@ -806,20 +843,23 @@ async function getLoanByIdFrom(connection, id) {
       c.guarantor_name, c.guarantor_mobile, c.guarantor_email,
       c.guarantor_relationship, c.guarantor_address, c.kyc_status AS customer_kyc_status
      FROM loans l JOIN loan_customers c ON c.id = l.customer_id
-     WHERE l.id = ?`,
-    [id]
+     WHERE l.id = ?${ownerCondition}`,
+    ownerUserId ? [id, ownerUserId] : [id]
   );
   return rows[0] || null;
 }
 
-async function listLoansForCustomer(customerId) {
+async function listLoansForCustomer(customerId, ownerUserId) {
+  const ownerCondition = ownerUserId ? ' AND c.created_by = ?' : '';
   const [rows] = await pool.execute(
-    `SELECT id, loan_number, customer_id, gold_pledge_number, jewellery_type, metal_type,
-      gold_purity, net_gold_weight, principal_amount, outstanding_principal,
-      interest_type, interest_rate, loan_date, maturity_date, loan_status,
-      release_status, processing_fee, other_charges, created_at
-     FROM loans WHERE customer_id = ? ORDER BY created_at DESC, id DESC`,
-    [customerId]
+    `SELECT l.id, l.loan_number, l.customer_id, l.gold_pledge_number, l.jewellery_type, l.metal_type,
+      l.gold_purity, l.net_gold_weight, l.principal_amount, l.outstanding_principal,
+      l.interest_type, l.interest_rate, l.loan_date, l.maturity_date, l.loan_status,
+      l.release_status, l.processing_fee, l.other_charges, l.created_at
+     FROM loans l JOIN loan_customers c ON c.id = l.customer_id
+     WHERE l.customer_id = ?${ownerCondition}
+     ORDER BY l.created_at DESC, l.id DESC`,
+    ownerUserId ? [customerId, ownerUserId] : [customerId]
   );
   return rows;
 }
@@ -943,8 +983,8 @@ async function createLoan(loan, {
   }
 }
 
-async function updateLoan(id, loan) {
-  const existingLoan = await getLoanById(id);
+async function updateLoan(id, loan, ownerUserId) {
+  const existingLoan = await getLoanById(id, ownerUserId);
   if (!existingLoan) return null;
   const originalPrincipal = Number(existingLoan.principal_amount);
   const revisedPrincipal = Number(loan.principal_amount);
@@ -954,15 +994,32 @@ async function updateLoan(id, loan) {
     outstanding_principal: Math.max(0, currentBalance + revisedPrincipal - originalPrincipal).toFixed(2)
   };
   const fields = Object.keys(revisedLoan);
-  await pool.execute(
-    `UPDATE loans SET ${fields.map((field) => `\`${field}\` = ?`).join(', ')} WHERE id = ?`,
-    [...fields.map((field) => revisedLoan[field]), id]
-  );
-  return getLoanById(id);
+  if (ownerUserId) {
+    await pool.execute(
+      `UPDATE loans l
+       JOIN loan_customers c ON c.id = l.customer_id
+       SET ${fields.map((field) => `l.\`${field}\` = ?`).join(', ')}
+       WHERE l.id = ? AND c.created_by = ?`,
+      [...fields.map((field) => revisedLoan[field]), id, ownerUserId]
+    );
+  } else {
+    await pool.execute(
+      `UPDATE loans SET ${fields.map((field) => `\`${field}\` = ?`).join(', ')} WHERE id = ?`,
+      [...fields.map((field) => revisedLoan[field]), id]
+    );
+  }
+  return getLoanById(id, ownerUserId);
 }
 
-async function deleteLoan(id) {
-  const [result] = await pool.execute('DELETE FROM loans WHERE id = ?', [id]);
+async function deleteLoan(id, ownerUserId) {
+  const [result] = ownerUserId
+    ? await pool.execute(
+      `DELETE l FROM loans l
+       JOIN loan_customers c ON c.id = l.customer_id
+       WHERE l.id = ? AND c.created_by = ?`,
+      [id, ownerUserId]
+    )
+    : await pool.execute('DELETE FROM loans WHERE id = ?', [id]);
   return result.affectedRows > 0;
 }
 
@@ -975,6 +1032,7 @@ module.exports = {
   createLoan,
   allocateRenewalPayment,
   calculateRenewalInterest,
+  canAccessLoanGoldImage,
   deleteLoan,
   getGoldReleaseDetails,
   getLoanById,

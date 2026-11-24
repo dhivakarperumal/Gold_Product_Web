@@ -2,6 +2,7 @@ const { randomUUID } = require('node:crypto');
 const { getLoanCustomerById, listLoanCustomers } = require('../modules/loanCustomerModule');
 const {
   createLoan,
+  canAccessLoanGoldImage,
   deleteLoan,
   getGoldReleaseDetails,
   getLoanById,
@@ -55,6 +56,10 @@ const MAXIMUM = 999999999999;
 
 function validId(value) {
   return /^\d+$/.test(String(value)) && BigInt(value) > 0n;
+}
+
+function loanOwnerUserId(req) {
+  return req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
 }
 
 function validDate(value) {
@@ -200,7 +205,7 @@ function normalizeLoan(body) {
 
 async function getCustomers(req, res, next) {
   try {
-    const ownerUserId = req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
+    const ownerUserId = loanOwnerUserId(req);
     return res.json(await listLoanCustomers(
       String(req.query.search || '').trim().slice(0, 100),
       {},
@@ -214,7 +219,7 @@ async function getCustomers(req, res, next) {
 async function getCustomer(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Customer ID is invalid' });
   try {
-    const ownerUserId = req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
+    const ownerUserId = loanOwnerUserId(req);
     const customer = await getLoanCustomerById(req.params.id, ownerUserId);
     if (!customer) return res.status(404).json({ message: 'Customer not found' });
     return res.json(customer);
@@ -226,11 +231,11 @@ async function getCustomer(req, res, next) {
 async function getCustomerLoans(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Customer ID is invalid' });
   try {
-    const ownerUserId = req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
+    const ownerUserId = loanOwnerUserId(req);
     if (!await getLoanCustomerById(req.params.id, ownerUserId)) {
       return res.status(404).json({ message: 'Customer not found' });
     }
-    return res.json(await listLoansForCustomer(req.params.id));
+    return res.json(await listLoansForCustomer(req.params.id, ownerUserId));
   } catch (error) {
     return next(error);
   }
@@ -271,7 +276,7 @@ async function getLoans(req, res, next) {
   const range = parseDateRange(req.query);
   if (range.error) return res.status(400).json({ message: range.error });
   try {
-    return res.json(await listLoans(range));
+    return res.json(await listLoans(range, loanOwnerUserId(req)));
   } catch (error) {
     return next(error);
   }
@@ -280,7 +285,7 @@ async function getLoans(req, res, next) {
 async function getLoan(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Loan ID is invalid' });
   try {
-    const loan = await getLoanById(req.params.id);
+    const loan = await getLoanById(req.params.id, loanOwnerUserId(req));
     if (!loan) return res.status(404).json({ message: 'Loan not found' });
     return res.json(loan);
   } catch (error) {
@@ -291,7 +296,7 @@ async function getLoan(req, res, next) {
 async function getLoanRenewalDetails(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Loan ID is invalid' });
   try {
-    const renewal = await getLoanRenewal(req.params.id);
+    const renewal = await getLoanRenewal(req.params.id, loanOwnerUserId(req));
     if (!renewal) return res.status(404).json({ message: 'Loan not found' });
     return res.json(renewal);
   } catch (error) {
@@ -323,7 +328,7 @@ async function postLoanRenewal(req, res, next) {
       idempotency_key: idempotencyKey,
       created_by_user_id: req.adminUser.user_id,
       admin_name: req.adminUser.name || req.adminUser.username
-    }));
+    }, loanOwnerUserId(req)));
   } catch (error) {
     if (error.code === 'LOAN_NOT_FOUND') return res.status(404).json({ message: error.message });
     if (error.code === 'FUND_ADMIN_NOT_FOUND') {
@@ -361,7 +366,8 @@ async function postLoanReviewAction(req, res, next) {
       req.params.id,
       action,
       req.body,
-      req.adminUser.id
+      req.adminUser.id,
+      loanOwnerUserId(req)
     ));
   } catch (error) {
     if (error.code === 'LOAN_NOT_FOUND') return res.status(404).json({ message: error.message });
@@ -383,8 +389,8 @@ async function postLoanReviewAction(req, res, next) {
 async function getLoanRenewalHistoryList(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Loan ID is invalid' });
   try {
-    if (!await getLoanById(req.params.id)) return res.status(404).json({ message: 'Loan not found' });
-    return res.json(await getLoanRenewalHistory(req.params.id));
+    if (!await getLoanById(req.params.id, loanOwnerUserId(req))) return res.status(404).json({ message: 'Loan not found' });
+    return res.json(await getLoanRenewalHistory(req.params.id, loanOwnerUserId(req)));
   } catch (error) {
     return next(error);
   }
@@ -392,7 +398,7 @@ async function getLoanRenewalHistoryList(req, res, next) {
 
 async function getGoldReleaseList(req, res, next) {
   try {
-    return res.json(await listGoldReleaseEligible());
+    return res.json(await listGoldReleaseEligible(loanOwnerUserId(req)));
   } catch (error) {
     return next(error);
   }
@@ -436,7 +442,9 @@ async function postGoldRelease(req, res, next) {
   if (notes.length > 2000) return rejectUpload(400, 'Release notes must be 2000 characters or fewer');
   const documentUrl = `/api/loans/gold-release-documents/${req.file.filename}`;
   try {
-    return res.json(await releaseGold(req.params.id, recipient, notes, documentUrl, req.adminUser.id));
+    return res.json(await releaseGold(
+      req.params.id, recipient, notes, documentUrl, req.adminUser.id, loanOwnerUserId(req)
+    ));
   } catch (error) {
     try {
       await removeLoanGoldReleaseDocument(documentUrl);
@@ -456,7 +464,7 @@ async function postGoldRelease(req, res, next) {
 async function getGoldReleaseRecord(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Loan ID is invalid' });
   try {
-    const details = await getGoldReleaseDetails(req.params.id);
+    const details = await getGoldReleaseDetails(req.params.id, loanOwnerUserId(req));
     if (!details) return res.status(404).json({ message: 'Loan not found' });
     if (details.loan.release_status !== 'Released'
       && Number(details.loan.outstanding_principal ?? details.loan.principal_amount) !== 0) {
@@ -469,11 +477,15 @@ async function getGoldReleaseRecord(req, res, next) {
 }
 
 async function getLoanGoldImage(req, res, next) {
-  const imagePath = getLoanGoldImagePath(`/api/loans/gold-images/${req.params.filename}`);
+  const imageReference = `/api/loans/gold-images/${req.params.filename}`;
+  const imagePath = getLoanGoldImagePath(imageReference);
   if (!imagePath) return res.status(400).json({ message: 'Gold image reference is invalid' });
   try {
+    if (!await canAccessLoanGoldImage(imageReference, loanOwnerUserId(req))) {
+      return res.status(404).json({ message: 'Gold image not found' });
+    }
     if (!fs.existsSync(imagePath)) return res.status(404).json({ message: 'Gold image not found' });
-    res.set('Cache-Control', 'private, max-age=86400, immutable');
+    res.set('Cache-Control', 'private, no-store');
     return res.sendFile(imagePath, (error) => {
       if (error && !res.headersSent) next(error);
     });
@@ -485,7 +497,7 @@ async function getLoanGoldImage(req, res, next) {
 async function getLoanGoldReleaseDocument(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Loan ID is invalid' });
   try {
-    const details = await getGoldReleaseDetails(req.params.id);
+    const details = await getGoldReleaseDetails(req.params.id, loanOwnerUserId(req));
     if (!details) return res.status(404).json({ message: 'Loan not found' });
     if (!details.release?.signed_document_url) {
       return res.status(404).json({ message: 'No signed release document is stored for this loan' });
@@ -536,7 +548,7 @@ async function postLoan(req, res, next) {
     return;
   }
   try {
-    const ownerUserId = req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
+    const ownerUserId = loanOwnerUserId(req);
     if (!await getLoanCustomerById(loan.customer_id, ownerUserId)) {
       const cleanupStatus = await rejectUploadedImage(req, next, 404);
       if (cleanupStatus) return res.status(cleanupStatus).json({ message: 'Customer not found' });
@@ -607,7 +619,8 @@ async function putLoan(req, res, next) {
   }
   let uploadedImageSaved = false;
   try {
-    const existingLoan = await getLoanById(req.params.id);
+    const ownerUserId = loanOwnerUserId(req);
+    const existingLoan = await getLoanById(req.params.id, ownerUserId);
     if (!existingLoan) {
       const cleanupStatus = await rejectUploadedImage(req, next, 404);
       if (cleanupStatus) return res.status(cleanupStatus).json({ message: 'Loan not found' });
@@ -622,7 +635,6 @@ async function putLoan(req, res, next) {
       if (cleanupStatus) return res.status(cleanupStatus).json({ message: 'Paid, released, or completed loans cannot be edited. Use the gold release workflow to complete a fully paid loan.' });
       return;
     }
-    const ownerUserId = req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
     if (!await getLoanCustomerById(loan.customer_id, ownerUserId)) {
       const cleanupStatus = await rejectUploadedImage(req, next, 404);
       if (cleanupStatus) return res.status(cleanupStatus).json({ message: 'Customer not found' });
@@ -670,7 +682,7 @@ async function putLoan(req, res, next) {
       loan.principal_amount = calculateLoanAmount(loan.gold_valuation);
     }
     if (req.file) loan.gold_image_url = `/api/loans/gold-images/${req.file.filename}`;
-    const updatedLoan = await updateLoan(req.params.id, loan);
+    const updatedLoan = await updateLoan(req.params.id, loan, ownerUserId);
     if (!updatedLoan) {
       const cleanupStatus = await rejectUploadedImage(req, next, 404);
       if (cleanupStatus) return res.status(cleanupStatus).json({ message: 'Loan not found' });
@@ -695,9 +707,10 @@ async function putLoan(req, res, next) {
 async function removeLoan(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Loan ID is invalid' });
   try {
-    const loan = await getLoanById(req.params.id);
+    const ownerUserId = loanOwnerUserId(req);
+    const loan = await getLoanById(req.params.id, ownerUserId);
     if (!loan) return res.status(404).json({ message: 'Loan not found' });
-    if (!await deleteLoan(req.params.id)) return res.status(404).json({ message: 'Loan not found' });
+    if (!await deleteLoan(req.params.id, ownerUserId)) return res.status(404).json({ message: 'Loan not found' });
     if (loan.gold_image_url) await removeLoanGoldImage(loan.gold_image_url);
     return res.status(204).end();
   } catch (error) {
