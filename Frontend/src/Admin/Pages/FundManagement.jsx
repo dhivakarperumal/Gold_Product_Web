@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, ChevronRight, Plus, RefreshCw, Search, Wallet, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Plus, RefreshCw, Search, Wallet, X } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../api";
 import DateRangeFilter from "../Components/DateRangeFilter";
@@ -70,6 +70,8 @@ function FundManagement() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const pageCount = Math.max(1, Math.ceil(total / 20));
+  const firstEntry = total === 0 ? 0 : (page - 1) * 20 + 1;
+  const lastEntry = Math.min(page * 20, total);
   const statCards = useMemo(() => [
     { label: "Opening Balance", value: summary?.opening_balance, detail: "Opening ledger balance", icon: Wallet, color: "emerald" },
     { label: "Fund Added", value: summary?.fund_added, detail: "Funds added to ledger", icon: Plus, color: "amber" },
@@ -237,12 +239,28 @@ function FundManagement() {
             </tbody>
           </table>
         </div>
-        <footer className="flex items-center justify-between border-t border-slate-100 px-5 py-4 text-sm text-slate-500">
-          <span>{total} entries</span>
-          <div className="flex items-center gap-2">
-            <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40">Previous</button>
-            <span>Page {page} of {pageCount}</span>
-            <button type="button" disabled={page >= pageCount} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40">Next</button>
+        <footer className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <span>Showing {firstEntry} to {lastEntry} of {total} entries</span>
+          <div className="flex items-center justify-end gap-1.5">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage((current) => current - 1)}
+              aria-label="Previous page"
+              className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <span aria-current="page" className="grid h-9 min-w-9 place-items-center rounded-xl bg-[#008577] px-3 font-semibold text-white shadow-sm">{page}</span>
+            <button
+              type="button"
+              disabled={page >= pageCount}
+              onClick={() => setPage((current) => current + 1)}
+              aria-label="Next page"
+              className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronRight size={17} />
+            </button>
           </div>
         </footer>
       </section>
