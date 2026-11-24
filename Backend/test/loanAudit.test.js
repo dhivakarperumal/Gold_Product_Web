@@ -7,6 +7,7 @@ test('migrates numeric loan audit IDs to admin UUID columns', async (context) =>
   const originalExecute = pool.execute;
   const originalQuery = pool.query;
   const statements = [];
+  const executions = [];
   const existingLoanColumns = [
     'id', 'loan_number', 'customer_id', 'gold_pledge_number', 'jewellery_type',
     'metal_type', 'gold_purity', 'gross_weight', 'stone_weight', 'net_gold_weight',
@@ -36,8 +37,24 @@ test('migrates numeric loan audit IDs to admin UUID columns', async (context) =>
     if (sql.includes('SHOW INDEX FROM loans')) return [[{ Key_name: 'uq_loans_gold_pledge_number' }]];
     return [[]];
   };
-  pool.execute = async (sql) => {
+  pool.execute = async (sql, values) => {
     statements.push(sql);
+    if (sql.includes('information_schema.STATISTICS')) {
+      return [[{
+        INDEX_NAME: 'loan_number',
+        COLUMN_NAME: 'loan_number',
+        SEQ_IN_INDEX: 1,
+        NON_UNIQUE: 0
+      }]];
+    }
+    if (sql.startsWith('SELECT id, created_by, DATE_FORMAT(loan_date')) {
+      return [[
+        { id: 1, created_by: 'admin-one', loan_date_key: '20260101', loan_number: 'GL-20260101-000003' },
+        { id: 2, created_by: 'admin-one', loan_date_key: '20260102', loan_number: 'GL-20260102-000004' },
+        { id: 3, created_by: 'admin-two', loan_date_key: '20260103', loan_number: 'GL-20260103-000005' }
+      ]];
+    }
+    executions.push({ sql, values });
     return [{ affectedRows: 1 }];
   };
   context.after(() => {
@@ -55,4 +72,15 @@ test('migrates numeric loan audit IDs to admin UUID columns', async (context) =>
   assert.ok(statements.some((sql) => /ADD COLUMN `updated_by` VARCHAR\(255\)/.test(sql)));
   assert.ok(statements.some((sql) => /JOIN users u ON u\.id = l\.`created_by_legacy_id`/.test(sql)));
   assert.ok(statements.some((sql) => /UPDATE loans SET updated_by = created_by/.test(sql)));
+  assert.ok(statements.some((sql) => /DROP INDEX `loan_number`/.test(sql)));
+  assert.ok(statements.some((sql) => /ADD UNIQUE KEY uq_loans_creator_number \(created_by, loan_number\)/.test(sql)));
+  assert.deepEqual(
+    executions.filter(({ sql }) => sql.startsWith('UPDATE loans SET loan_number')).map(({ values }) => values),
+    [
+      ['GL-20260101-000001', 1],
+      ['GL-20260102-000002', 2],
+      ['GL-20260103-000001', 3]
+    ]
+  );
+  assert.equal(executions.filter(({ sql }) => sql.startsWith('UPDATE funds SET related_reference')).length, 3);
 });

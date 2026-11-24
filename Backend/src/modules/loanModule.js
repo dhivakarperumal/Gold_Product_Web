@@ -129,6 +129,7 @@ async function initializeLoanModule() {
     }
   }
   await pool.query('UPDATE loans SET outstanding_principal = principal_amount WHERE outstanding_principal IS NULL');
+  await ensureLoanNumberUniquePerCreator();
   await pool.query(`
     CREATE TABLE IF NOT EXISTS loan_renewals (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -238,6 +239,60 @@ async function initializeLoanModule() {
       `INSERT INTO interest_types (type_key, label) VALUES (?, ?)
        ON DUPLICATE KEY UPDATE label = VALUES(label)`,
       [typeKey, label]
+    );
+  }
+}
+
+async function ensureLoanNumberUniquePerCreator() {
+  const [indexRows] = await pool.execute(
+    `SELECT INDEX_NAME, COLUMN_NAME, SEQ_IN_INDEX, NON_UNIQUE
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'loans'
+     ORDER BY INDEX_NAME, SEQ_IN_INDEX`
+  );
+  const indexes = new Map();
+  for (const row of indexRows) {
+    if (!indexes.has(row.INDEX_NAME)) {
+      indexes.set(row.INDEX_NAME, { nonUnique: Number(row.NON_UNIQUE), columns: [] });
+    }
+    indexes.get(row.INDEX_NAME).columns.push(row.COLUMN_NAME);
+  }
+
+  for (const [name, index] of indexes) {
+    if (index.nonUnique === 0 && index.columns.length === 1 && index.columns[0] === 'loan_number') {
+      const escapedName = String(name).replace(/`/g, '``');
+      await pool.query(`ALTER TABLE loans DROP INDEX \`${escapedName}\``);
+    }
+  }
+
+  const hasCreatorNumberUniqueKey = Array.from(indexes.values()).some((index) =>
+    index.nonUnique === 0
+      && index.columns.length === 2
+      && index.columns[0] === 'created_by'
+      && index.columns[1] === 'loan_number'
+  );
+  if (!hasCreatorNumberUniqueKey) {
+    const [loans] = await pool.execute(
+      `SELECT id, created_by, DATE_FORMAT(loan_date, '%Y%m%d') AS loan_date_key, loan_number
+       FROM loans ORDER BY created_by, created_at, id`
+    );
+    const nextNumberByCreator = new Map();
+    for (const loan of loans) {
+      const creator = loan.created_by === null ? null : String(loan.created_by);
+      const nextNumber = (nextNumberByCreator.get(creator) || 0) + 1;
+      nextNumberByCreator.set(creator, nextNumber);
+      const loanNumber = `GL-${loan.loan_date_key}-${String(nextNumber).padStart(6, '0')}`;
+      await pool.execute(
+        'UPDATE funds SET related_reference = ? WHERE related_reference = ?',
+        [loanNumber, loan.loan_number]
+      );
+      await pool.execute(
+        'UPDATE loans SET loan_number = ? WHERE id = ?',
+        [loanNumber, loan.id]
+      );
+    }
+    await pool.query(
+      'ALTER TABLE loans ADD UNIQUE KEY uq_loans_creator_number (created_by, loan_number)'
     );
   }
 }
@@ -988,6 +1043,12 @@ async function createLoan(loan, {
       }
     }
     const disbursementAmount = validateLoanDisbursement(loan.principal_amount, fundBalance);
+    const [loanSequences] = await connection.execute(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(loan_number, '-', -1) AS UNSIGNED)), 0) AS max_number
+       FROM loans
+       WHERE created_by = ? AND loan_number REGEXP '^GL-[0-9]{8}-[0-9]+$'`,
+      [loan.created_by]
+    );
     const loanToInsert = { ...loan, outstanding_principal: loan.principal_amount };
     const fields = Object.keys(loanToInsert).filter((field) => field !== 'customer_id');
     const columns = ['loan_number', 'gold_pledge_number', 'customer_id', ...fields];
@@ -999,7 +1060,7 @@ async function createLoan(loan, {
       [temporaryNumber, temporaryPledgeNumber, loan.customer_id, ...fields.map((field) => loanToInsert[field])]
     );
     loanId = result.insertId;
-    const loanNumber = `GL-${loan.loan_date.replaceAll('-', '')}-${String(loanId).padStart(6, '0')}`;
+    const loanNumber = `GL-${loan.loan_date.replaceAll('-', '')}-${String(Number(loanSequences[0]?.max_number || 0) + 1).padStart(6, '0')}`;
     const pledgeNumber = `GP-${loan.loan_date.replaceAll('-', '')}-${String(loanId).padStart(6, '0')}`;
     await connection.execute(
       'UPDATE loans SET loan_number = ?, gold_pledge_number = ? WHERE id = ?',
