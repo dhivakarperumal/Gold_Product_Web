@@ -383,13 +383,14 @@ const SuperHeader = ({ onMenuClick }) => {
   };
 
   useEffect(() => {
+    if (isSuperAdmin) return undefined;
     const initialFetch = window.setTimeout(() => void fetchLowStockProducts(), 0);
     const interval = setInterval(fetchLowStockProducts, 60000);
     return () => {
       window.clearTimeout(initialFetch);
       clearInterval(interval);
     };
-  }, []);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     const initialFetch = window.setTimeout(() => void fetchNotifications(), 0);
@@ -518,8 +519,8 @@ const SuperHeader = ({ onMenuClick }) => {
             </button>
           </div>
 
-          {/* LOW STOCK ALERT */}
-          <div className="relative" ref={lowStockRef}>
+          {!isSuperAdmin && (
+            <div className="relative" ref={lowStockRef}>
             <button
               onClick={() => { setShowLowStock(p => !p); setShowNotifications(false); }}
               className={`relative p-2.5 rounded-xl transition-all active:scale-95
@@ -606,6 +607,7 @@ const SuperHeader = ({ onMenuClick }) => {
                 </div>
             )}
           </div>
+          )}
 
           {/* NOTIFICATION */}
           <div className="relative" ref={notifRef}>
