@@ -9,6 +9,7 @@ function fakeConnection({ balance = '100.00', failOnFundInsert = false, replayLo
     rolledBack: false,
     released: false,
     fundInserts: [],
+    loanInsertParams: null,
     statements: []
   };
   const loan = {
@@ -35,7 +36,10 @@ function fakeConnection({ balance = '100.00', failOnFundInsert = false, replayLo
       if (sql.includes('FROM funds') && sql.includes('idempotency_key = ?')) {
         return [replayLoanId ? [{ related_reference: String(replayLoanId) }] : []];
       }
-      if (sql.startsWith('INSERT INTO loans')) return [{ insertId: loan.id }];
+      if (sql.startsWith('INSERT INTO loans')) {
+        state.loanInsertParams = params;
+        return [{ insertId: loan.id }];
+      }
       if (sql.startsWith('UPDATE loans SET loan_number')) return [{ affectedRows: 1 }];
       if (sql.startsWith('INSERT INTO funds')) {
         if (failOnFundInsert) throw new Error('Simulated fund ledger failure');
@@ -114,7 +118,8 @@ function loanDetails(principalAmount = '50.00') {
     interest_type: 'simple',
     loan_date: '2026-10-20',
     principal_amount: principalAmount,
-    created_by: 7
+    created_by: 'admin-user-uuid',
+    updated_by: 'admin-user-uuid'
   };
 }
 
@@ -138,6 +143,8 @@ test('records the loan disbursement as one owner-scoped fund debit', async (cont
   assert.equal(state.fundInserts[0].params[4], '50.00');
   assert.equal(state.fundInserts[0].params[7], 'Admin One');
   assert.equal(state.fundInserts[0].params[9], 'loan-disbursement:loan-request-1');
+  assert.equal(state.loanInsertParams[6], 'admin-user-uuid');
+  assert.equal(state.loanInsertParams[7], 'admin-user-uuid');
   assert.equal(state.committed, true);
 });
 

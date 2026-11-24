@@ -367,7 +367,8 @@ async function postLoanReviewAction(req, res, next) {
       action,
       req.body,
       req.adminUser.id,
-      loanOwnerUserId(req)
+      loanOwnerUserId(req),
+      req.adminUser.user_id
     ));
   } catch (error) {
     if (error.code === 'LOAN_NOT_FOUND') return res.status(404).json({ message: error.message });
@@ -443,7 +444,8 @@ async function postGoldRelease(req, res, next) {
   const documentUrl = `/api/loans/gold-release-documents/${req.file.filename}`;
   try {
     return res.json(await releaseGold(
-      req.params.id, recipient, notes, documentUrl, req.adminUser.id, loanOwnerUserId(req)
+      req.params.id, recipient, notes, documentUrl, req.adminUser.id,
+      loanOwnerUserId(req), req.adminUser.user_id
     ));
   } catch (error) {
     try {
@@ -571,7 +573,8 @@ async function postLoan(req, res, next) {
       rate_unit: activeRate.rate_unit,
       gold_rate_date: activeRateSet.rate_date,
       gold_image_url: req.file ? `/api/loans/gold-images/${req.file.filename}` : null,
-      created_by: req.adminUser.id
+      created_by: req.adminUser.user_id,
+      updated_by: req.adminUser.user_id
     }, {
       idempotencyKey,
       fundCreatedByUserId: req.adminUser.user_id,
@@ -682,6 +685,7 @@ async function putLoan(req, res, next) {
       loan.principal_amount = calculateLoanAmount(loan.gold_valuation);
     }
     if (req.file) loan.gold_image_url = `/api/loans/gold-images/${req.file.filename}`;
+    loan.updated_by = req.adminUser.user_id;
     const updatedLoan = await updateLoan(req.params.id, loan, ownerUserId);
     if (!updatedLoan) {
       const cleanupStatus = await rejectUploadedImage(req, next, 404);

@@ -119,12 +119,17 @@ test('applies owner scope atomically to loan updates and deletes', async (contex
   context.after(() => { pool.execute = originalExecute; });
 
   const ownerUserId = 'admin-user-uuid';
-  await updateLoan(42, { principal_amount: '60.00' }, ownerUserId);
+  await updateLoan(42, {
+    principal_amount: '60.00',
+    updated_by: ownerUserId
+  }, ownerUserId);
   assert.equal(await deleteLoan(42, ownerUserId), true);
 
   const updateStatement = statements.find((statement) => statement.sql.startsWith('UPDATE loans l'));
   const deleteStatement = statements.find((statement) => statement.sql.startsWith('DELETE l FROM loans'));
   assert.match(updateStatement.sql, /c\.created_by = \?/);
+  assert.match(updateStatement.sql, /l\.`updated_by` = \?/);
+  assert.ok(updateStatement.values.includes(ownerUserId));
   assert.equal(updateStatement.values.at(-1), ownerUserId);
   assert.match(deleteStatement.sql, /c\.created_by = \?/);
   assert.deepEqual(deleteStatement.values, [42, ownerUserId]);

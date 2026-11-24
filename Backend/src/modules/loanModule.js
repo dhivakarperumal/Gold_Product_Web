@@ -16,6 +16,10 @@ const INTEREST_TYPES = [
   ['custom', 'Custom Interest']
 ];
 
+function isIntegerColumn(type) {
+  return /^(?:tinyint|smallint|mediumint|int|bigint)\b/i.test(type || '');
+}
+
 async function initializeLoanModule() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS loans (
@@ -59,7 +63,8 @@ async function initializeLoanModule() {
       gold_released_to VARCHAR(150) NULL,
       notes TEXT NULL,
       gold_image_url VARCHAR(255) NULL,
-      created_by BIGINT UNSIGNED NULL,
+      created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
+      updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       CONSTRAINT fk_loans_customer FOREIGN KEY (customer_id)
@@ -71,6 +76,40 @@ async function initializeLoanModule() {
   `);
   const [loanColumns] = await pool.query('SHOW COLUMNS FROM loans');
   const existingColumns = new Set(loanColumns.map((column) => column.Field));
+  const auditColumns = [
+    ['created_by', 'created_by_legacy_id'],
+    ['updated_by', 'updated_by_legacy_id']
+  ];
+  for (const [column, legacyColumn] of auditColumns) {
+    const columnDefinition = loanColumns.find((item) => item.Field === column);
+    if (columnDefinition && isIntegerColumn(columnDefinition.Type)) {
+      if (existingColumns.has(legacyColumn)) {
+        throw new Error(`Cannot migrate loans.${column}: both numeric and legacy audit columns exist`);
+      }
+      await pool.query(
+        `ALTER TABLE loans CHANGE COLUMN \`${column}\` \`${legacyColumn}\` BIGINT UNSIGNED NULL`
+      );
+      existingColumns.delete(column);
+      existingColumns.add(legacyColumn);
+    }
+    if (!existingColumns.has(column)) {
+      await pool.query(
+        `ALTER TABLE loans ADD COLUMN \`${column}\` VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL`
+      );
+      existingColumns.add(column);
+    }
+    if (existingColumns.has(legacyColumn)) {
+      await pool.query(`
+        UPDATE loans l
+        JOIN users u ON u.id = l.\`${legacyColumn}\`
+        SET l.\`${column}\` = u.user_id
+        WHERE l.\`${column}\` IS NULL
+      `);
+    }
+  }
+  await pool.query(
+    'UPDATE loans SET updated_by = created_by WHERE updated_by IS NULL AND created_by IS NOT NULL'
+  );
   const loanColumnMigrations = {
     outstanding_principal: 'DECIMAL(14,2) NULL AFTER principal_amount',
     release_status: "VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER loan_status",
@@ -228,7 +267,9 @@ async function getGoldReleaseDetails(id, ownerUserId) {
   return { loan, release: releases[0] || null };
 }
 
-async function releaseGold(id, releasedTo, notes, signedDocumentUrl, releasedBy, ownerUserId) {
+async function releaseGold(
+  id, releasedTo, notes, signedDocumentUrl, releasedBy, ownerUserId, updatedByUserId
+) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -277,8 +318,8 @@ async function releaseGold(id, releasedTo, notes, signedDocumentUrl, releasedBy,
     );
     await connection.execute(
       `UPDATE loans SET loan_status = 'Completed', release_status = 'Released',
-        gold_released_at = ?, gold_released_to = ? WHERE id = ?`,
-      [timeRow.released_at, recipient, id]
+        gold_released_at = ?, gold_released_to = ?, updated_by = ? WHERE id = ?`,
+      [timeRow.released_at, recipient, updatedByUserId || null, id]
     );
     const details = await getGoldReleaseDetailsFrom(connection, id, ownerUserId);
     await connection.commit();
@@ -543,7 +584,9 @@ async function getLoanReviewActionsFrom(connection, id) {
   return rows;
 }
 
-async function recordLoanReviewAction(id, action, details, adminUserId, ownerUserId) {
+async function recordLoanReviewAction(
+  id, action, details, adminUserId, ownerUserId, updatedByUserId
+) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -611,8 +654,8 @@ async function recordLoanReviewAction(id, action, details, adminUserId, ownerUse
         throw error;
       }
       await connection.execute(
-        "UPDATE loans SET loan_status = 'Suspended' WHERE id = ?",
-        [id]
+        "UPDATE loans SET loan_status = 'Suspended', updated_by = ? WHERE id = ?",
+        [updatedByUserId || null, id]
       );
     } else if (action === 'reinstate') {
       if (loan.loan_status !== 'Suspended') {
@@ -621,8 +664,8 @@ async function recordLoanReviewAction(id, action, details, adminUserId, ownerUse
         throw error;
       }
       await connection.execute(
-        "UPDATE loans SET loan_status = 'Active' WHERE id = ?",
-        [id]
+        "UPDATE loans SET loan_status = 'Active', updated_by = ? WHERE id = ?",
+        [updatedByUserId || null, id]
       );
     } else {
       const error = new Error('Unsupported loan review action');
@@ -774,10 +817,13 @@ async function renewLoan(id, paymentAmount, adminUserId, paymentDetails, ownerUs
     }
     await connection.execute(
       `UPDATE loans SET outstanding_principal = ?, interest_calculation_start_date = ?,
-        maturity_date = ?, loan_status = ?, release_status = ? WHERE id = ?`,
+        maturity_date = ?, loan_status = ?, release_status = ?, updated_by = ? WHERE id = ?`,
       [
         principalAfter.toFixed(2), preview.renewal_date,
-        newMaturityDate || previousMaturityDate, 'Active', fullyRepaid ? 'Pending Release' : 'Not Ready', id
+        newMaturityDate || previousMaturityDate, 'Active',
+        fullyRepaid ? 'Pending Release' : 'Not Ready',
+        renewalDetails.created_by_user_id,
+        id
       ]
     );
     const [[renewal]] = await connection.query('SELECT LAST_INSERT_ID() AS id');
