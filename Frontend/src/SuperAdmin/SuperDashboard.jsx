@@ -137,7 +137,7 @@ function MetricCard({ label, value, icon: Icon, change, note, loading, tone = "f
   const colors = metricTones[tone] || metricTones.forest;
 
   return (
-    <article className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}>
+    <article className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}>
       <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-inner ${colors.icon}`}>
         <Icon size={25} strokeWidth={1.9} />
       </span>
@@ -181,7 +181,7 @@ function MetricCard({ label, value, icon: Icon, change, note, loading, tone = "f
 
 function Panel({ title, subtitle, action, children, className = "" }) {
   return (
-    <section className={`min-w-0 border border-slate-200 bg-white p-4 shadow-sm sm:p-5 ${className}`}>
+    <section className={`min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 ${className}`}>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-[#1F2937]">{title}</h2>
@@ -514,7 +514,7 @@ export default function SuperDashboard() {
         ))}
       </section>
 
-      <section aria-labelledby="quick-access-title" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <section aria-labelledby="quick-access-title" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 id="quick-access-title" className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Quick Actions &amp; Shortcuts</h2>
@@ -547,7 +547,7 @@ export default function SuperDashboard() {
       </section>
 
       <section aria-label="Platform analytics" className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Monthly Revenue" subtitle="Collected subscription payments · last 12 months" className="rounded-sm">
+        <Panel title="Monthly Revenue" subtitle="Collected subscription payments · last 12 months">
           {loading && !analytics
             ? <ChartSkeleton />
             : <div className="h-64"><Bar data={revenueChartData} options={{
@@ -572,7 +572,7 @@ export default function SuperDashboard() {
             }} /></div>}
         </Panel>
 
-        <Panel title="Gold Shop Registrations" subtitle="New shop registrations · last 12 months" className="rounded-sm">
+        <Panel title="Gold Shop Registrations" subtitle="New shop registrations · last 12 months">
           {loading && !analytics
             ? <ChartSkeleton />
             : <div className="h-64"><Line data={registrationChartData} options={chartOptions} /></div>}
@@ -647,7 +647,7 @@ export default function SuperDashboard() {
             </select>
           </label>
         </div>
-        <div className="overflow-x-auto rounded-t-lg">
+        <div className="overflow-x-auto rounded-t-xl">
           <table className="w-full min-w-[1050px] border-collapse text-left text-xs">
             <thead>
               <tr className="border-y border-[#043D37] bg-[#07564B] text-[11px] uppercase tracking-wide text-white/90">
@@ -740,7 +740,7 @@ export default function SuperDashboard() {
           </Link>
         )}
       >
-        <div className="overflow-x-auto rounded-t-lg">
+        <div className="overflow-x-auto rounded-t-xl">
           <table className="w-full min-w-[760px] border-collapse text-left text-xs">
             <thead>
               <tr className="border-y border-[#043D37] bg-[#07564B] text-[11px] uppercase tracking-wide text-white/90">
