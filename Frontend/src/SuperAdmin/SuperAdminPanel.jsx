@@ -22,7 +22,7 @@ const SuperAdminLayout = () => {
     }, []);
 
     return (
-        <div className="admin-root flex min-h-screen bg-[#F4F7F6] text-slate-900">
+        <div className="admin-root flex min-h-screen bg-[#F8F9FC] text-slate-900">
 
             {/* Sidebar */}
             <Sidebar
@@ -44,14 +44,14 @@ const SuperAdminLayout = () => {
                 <Header onMenuClick={() => setSidebarOpen(true)} />
 
                 {/* Page Content */}
-                <main className="flex-1 p-4 sm:p-5 lg:p-6 overflow-y-auto">
+                <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
                     <div className="glass-container">
                         <Outlet />
                     </div>
                 </main>
 
                 {/* Footer */}
-                <footer className="glass-footer mt-10 border-t border-slate-200 bg-white/80 px-4 py-4 text-center text-xs font-medium text-slate-500">
+                <footer className="glass-footer border-t border-slate-200 bg-white px-4 py-4 text-center text-xs font-medium text-slate-500">
                     © {new Date().getFullYear()} Q-Techx Solutions. All rights reserved.
                 </footer>
 
