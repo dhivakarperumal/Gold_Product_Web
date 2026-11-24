@@ -37,6 +37,10 @@ function displayDate(value) {
   return value ? new Date(value).toLocaleString() : "—";
 }
 
+function isActiveAccount(account) {
+  return account.is_active === true || Number(account.is_active) === 1;
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -69,12 +73,15 @@ function FundManagement() {
         page, page_size: 20,
         transaction_type: filters.transaction_type, search: filters.search
       };
-      const [accountsResponse, summaryResponse, transactionResponse] = await Promise.all([
-        api.get("/funds/accounts"),
+      const accountsResponse = await api.get("/funds/accounts");
+      if (!Array.isArray(accountsResponse.data)) {
+        throw new Error("The server returned an invalid fund account list.");
+      }
+      setAccounts(accountsResponse.data);
+      const [summaryResponse, transactionResponse] = await Promise.all([
         api.get("/funds/summary", { params: dateRange }),
         api.get("/funds/transactions", { params })
       ]);
-      setAccounts(accountsResponse.data);
       setSummary(summaryResponse.data);
       setTransactions(transactionResponse.data.transactions);
       setTotalTransactions(transactionResponse.data.total);
@@ -88,7 +95,10 @@ function FundManagement() {
 
   useEffect(() => { fetchData();   }, [fetchData]);
 
-  const activeAccounts = useMemo(() => accounts.filter((account) => account.is_active), [accounts]);
+  const activeAccounts = useMemo(() => accounts.filter(isActiveAccount), [accounts]);
+  const selectedAccountId = activeAccounts.some((account) => String(account.id) === String(entry.account_id))
+    ? String(entry.account_id)
+    : activeAccounts[0] ? String(activeAccounts[0].id) : "";
   const pageCount = Math.max(1, Math.ceil(totalTransactions / 20));
 
   const openEntry = (type) => {
@@ -110,6 +120,7 @@ function FundManagement() {
       }
       await api.post(`/funds/transactions/${entryType === "FUND_ADDED" ? "fund-added" : entryType.toLowerCase()}`, {
         ...entry,
+        account_id: selectedAccountId,
         idempotency_key: crypto.randomUUID(),
         receipt_url: receiptUrl
       });
@@ -359,7 +370,7 @@ function FundManagement() {
             <div className="flex items-center justify-between border-b border-slate-100 p-5"><div><p className="text-xs font-bold uppercase tracking-widest text-emerald-700">{entryType === "FUND_ADDED" ? "Increase funds" : entryType === "DEBIT" ? "Money paid out" : "Money received"}</p><h2 className="mt-1 text-xl font-black">{entryType === "FUND_ADDED" ? "Add Fund" : entryType === "DEBIT" ? "Record Debit" : "Record Credit"}</h2></div><button type="button" onClick={() => setEntryType("")} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Close"><X size={20} /></button></div>
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               <label className="text-xs font-bold text-slate-600">Transaction Date<input required type="date" value={entry.transaction_date} onChange={(event) => setEntry({ ...entry, transaction_date: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal" /></label>
-              {entryType !== "FUND_ADDED" && <label className="text-xs font-bold text-slate-600">Fund Account<select required value={entry.account_id} onChange={(event) => setEntry({ ...entry, account_id: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal"><option value="">Select account</option>{activeAccounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {money(account.current_balance)}</option>)}</select></label>}
+              <label className="text-xs font-bold text-slate-600">Fund Account<select required value={selectedAccountId} onChange={(event) => setEntry({ ...entry, account_id: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal"><option value="">Select account</option>{activeAccounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {money(account.current_balance)}</option>)}</select></label>
               {entryType !== "FUND_ADDED" && <label className="text-xs font-bold text-slate-600">{entryType === "DEBIT" ? "Debit Category" : "Credit Category"}<select required value={entry.category} onChange={(event) => setEntry({ ...entry, category: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal">{CATEGORIES[entryType].map((category) => <option key={category}>{category}</option>)}</select></label>}
               <label className="text-xs font-bold text-slate-600">Amount (₹)<input required min="0.01" step="0.01" type="number" value={entry.amount} onChange={(event) => setEntry({ ...entry, amount: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal" /></label>
               <label className="text-xs font-bold text-slate-600">Payment Method<select required value={entry.payment_method} onChange={(event) => setEntry({ ...entry, payment_method: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal">{PAYMENT_METHODS.map((method) => <option key={method}>{method}</option>)}</select></label>
@@ -369,6 +380,22 @@ function FundManagement() {
               <label className="text-xs font-bold text-slate-600 sm:col-span-2">Description / Notes<textarea rows="2" maxLength={2000} value={entry.description} onChange={(event) => setEntry({ ...entry, description: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal" /></label>
               <label className="text-xs font-bold text-slate-600 sm:col-span-2">Upload Receipt <span className="font-normal text-slate-400">(PDF, JPG, PNG, WEBP; max 10 MB)</span><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setReceipt(event.target.files?.[0] || null)} className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-normal" /></label>
             </div>
+            {!activeAccounts.length && (
+              <div role="alert" className="mx-5 mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p>
+                  {loading
+                    ? "Loading fund accounts…"
+                    : loadError
+                      ? `Fund accounts could not be loaded: ${loadError}`
+                      : "No active fund accounts are available. Reload the fund data or ask an administrator to activate an account."}
+                </p>
+                {!loading && (
+                  <button type="button" onClick={() => fetchData()} className="mt-1 font-bold underline">
+                    Retry loading accounts
+                  </button>
+                )}
+              </div>
+            )}
             <div className="flex justify-end gap-2 border-t border-slate-100 p-5"><button type="button" onClick={() => setEntryType("")} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button disabled={saving || !activeAccounts.length} className="rounded-lg bg-[#00695C] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">{saving ? "Saving…" : "Save Transaction"}</button></div>
           </form>
         </div>
