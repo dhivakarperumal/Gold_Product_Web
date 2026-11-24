@@ -26,7 +26,6 @@ import {
   IndianRupee,
   LoaderCircle,
   RefreshCw,
-  Search,
   ShieldCheck,
   Store,
   Users,
@@ -266,8 +265,6 @@ export default function SuperDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [shopSearch, setShopSearch] = useState("");
-  const [approvalFilter, setApprovalFilter] = useState("all");
   const [actingOnShop, setActingOnShop] = useState(null);
   const requestId = useRef(0);
 
@@ -316,19 +313,6 @@ export default function SuperDashboard() {
   }, [fetchDashboard]);
 
   const recentShops = Array.isArray(analytics?.recentShops) ? analytics.recentShops : EMPTY_RECENT_SHOPS;
-  const query = shopSearch.trim().toLowerCase();
-  const filteredShops = recentShops.filter((shop) => {
-    const approvalStatus = String(shop.approval_status || "pending").toLowerCase();
-    const matchesStatus = approvalFilter === "all" || approvalStatus === approvalFilter;
-    const matchesSearch = !query || [
-      shop.shop_code,
-      shop.shop_name,
-      shop.owner_name,
-      shop.email,
-      shop.mobile
-    ].some((value) => String(value || "").toLowerCase().includes(query));
-    return matchesStatus && matchesSearch;
-  });
 
   const revenueChartData = useMemo(() => ({
     labels: (analytics?.monthlyRevenue || []).map((item) => item.label),
@@ -613,40 +597,16 @@ export default function SuperDashboard() {
         </Panel>
       </section>
 
-      <Panel
-        title="Recent Shop Registrations"
-        subtitle="Latest onboarding activity and approval decisions"
-        action={(
-          <Link to="/superadmin/goldshop" className="inline-flex items-center gap-1 text-xs font-semibold text-[#805B05] hover:underline">
-            Manage shops <ExternalLink size={13} />
-          </Link>
-        )}
-      >
-        <div className="mb-4 flex flex-wrap gap-2">
-          <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="search"
-              value={shopSearch}
-              onChange={(event) => setShopSearch(event.target.value)}
-              placeholder="Search shops, owners, email..."
-              className="w-full border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#D4A017]"
-            />
-          </label>
-          <label className="relative">
-            <span className="sr-only">Filter by approval status</span>
-            <select
-              value={approvalFilter}
-              onChange={(event) => setApprovalFilter(event.target.value)}
-              className="border border-slate-300 bg-white px-3 py-2.5 pr-8 text-sm text-slate-700 outline-none focus:border-[#D4A017]"
-            >
-              <option value="all">All statuses</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </label>
-        </div>
+      <section aria-label="Recent platform activity" className="grid items-start gap-4 xl:grid-cols-2">
+        <Panel
+          title="Recent Shop Registrations"
+          subtitle="Latest onboarding activity and approval decisions"
+          action={(
+            <Link to="/superadmin/goldshop" className="inline-flex items-center gap-1 text-xs font-semibold text-[#805B05] hover:underline">
+              Manage shops <ExternalLink size={13} />
+            </Link>
+          )}
+        >
         <div className="overflow-x-auto rounded-t-xl">
           <table className="w-full min-w-[1050px] border-collapse text-left text-xs">
             <thead>
@@ -664,8 +624,8 @@ export default function SuperDashboard() {
             <tbody>
               {loading && !analytics
                 ? <TableLoadingRows columns={8} />
-                : filteredShops.length
-                  ? filteredShops.map((shop) => {
+                : recentShops.length
+                  ? recentShops.map((shop) => {
                     const approvalStatus = String(shop.approval_status || "pending").toLowerCase();
                     const isActing = actingOnShop === shop.id;
                     return (
@@ -722,7 +682,7 @@ export default function SuperDashboard() {
                   : (
                     <tr>
                       <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
-                        No shop registrations match these filters.
+                        No recent shop registrations are available.
                       </td>
                     </tr>
                   )}
@@ -731,15 +691,15 @@ export default function SuperDashboard() {
         </div>
       </Panel>
 
-      <Panel
-        title="Recent Payments"
-        subtitle="Latest subscription transactions across gold shops"
-        action={(
-          <Link to="/superadmin/payments" className="inline-flex items-center gap-1 text-xs font-semibold text-[#805B05] hover:underline">
-            Payment management <ExternalLink size={13} />
-          </Link>
-        )}
-      >
+        <Panel
+          title="Recent Payments"
+          subtitle="Latest subscription transactions across gold shops"
+          action={(
+            <Link to="/superadmin/payments" className="inline-flex items-center gap-1 text-xs font-semibold text-[#805B05] hover:underline">
+              Payment management <ExternalLink size={13} />
+            </Link>
+          )}
+        >
         <div className="overflow-x-auto rounded-t-xl">
           <table className="w-full min-w-[760px] border-collapse text-left text-xs">
             <thead>
@@ -778,8 +738,8 @@ export default function SuperDashboard() {
             </tbody>
           </table>
         </div>
-      </Panel>
-
+        </Panel>
+      </section>
     </div>
   );
 }
