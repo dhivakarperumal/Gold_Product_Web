@@ -1,21 +1,26 @@
 const { pool } = require('../config/db');
 const { addDateRangeCondition } = require('../utils/dateRange');
 
-async function getDashboardData(range = 'month', dateRange = null) {
+async function getDashboardData(range = 'month', dateRange = null, adminUser) {
   try {
-    const dateFilter = (column) => {
-      const conditions = [];
-      const values = [];
-      if (dateRange) addDateRangeCondition(conditions, values, column, dateRange);
-      return { where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '', values };
+    const userId = adminUser?.user_id;
+    const adminUserId = adminUser?.id;
+    if (!userId || adminUserId == null) {
+      throw new Error('An authenticated admin user is required to load dashboard reports');
+    }
+    const scopedDateFilter = (ownerColumn, ownerId, dateColumn) => {
+      const conditions = [`${ownerColumn} = ?`];
+      const values = [ownerId];
+      if (dateRange) addDateRangeCondition(conditions, values, dateColumn, dateRange);
+      return { where: `WHERE ${conditions.join(' AND ')}`, values };
     };
     // 1. Loans metrics
-    const loanDateFilter = dateFilter('l.loan_date');
+    const loanDateFilter = scopedDateFilter('l.created_by', adminUserId, 'l.loan_date');
     const loanActivityDate = `CASE
       WHEN l.loan_status = 'Completed' THEN COALESCE(l.gold_released_at, l.loan_date)
       ELSE l.loan_date
     END`;
-    const loanActivityDateFilter = dateFilter(loanActivityDate);
+    const loanActivityDateFilter = scopedDateFilter('l.created_by', adminUserId, loanActivityDate);
     const [[loanCounts]] = await pool.execute(`
       SELECT COUNT(*) AS total_loans FROM loans l ${loanDateFilter.where}
     `, loanDateFilter.values);
@@ -51,45 +56,45 @@ async function getDashboardData(range = 'month', dateRange = null) {
       LIMIT 10
     `, loanActivityDateFilter.values);
 
-    // Match the Users page total: count every account in the users table.
-    const userDateFilter = dateFilter('created_at');
-    const [[{ total_users }]] = await pool.execute(`
-      SELECT COUNT(*) AS total_users FROM users ${userDateFilter.where}
-    `, userDateFilter.values);
-    const totalCustomers = Number(total_users) || 0;
+    const [[{ total_customers }]] = await pool.execute(`
+      SELECT COUNT(DISTINCT l.customer_id) AS total_customers
+      FROM loans l ${loanDateFilter.where}
+    `, loanDateFilter.values);
+    const totalCustomers = Number(total_customers) || 0;
 
     // 3. Products metrics
-    const [[{ total_gold_stock_value }]] = await pool.query(`
-      SELECT COALESCE(SUM(COALESCE(net_gold_weight, gross_weight, 0) * total_stock * COALESCE(gold_rate_per_gram, 0)), 0) AS total_gold_stock_value
-      FROM products
-      WHERE total_stock > 0
-    `);
-    const productDateFilter = dateFilter('created_at');
+    const [[{ total_gold_stock_value }]] = await pool.execute(`
+      SELECT COALESCE(SUM(COALESCE(p.net_gold_weight, p.gross_weight, 0) * p.total_stock * COALESCE(p.gold_rate_per_gram, 0)), 0) AS total_gold_stock_value
+      FROM products p
+      WHERE p.created_by = ? AND p.total_stock > 0
+    `, [userId]);
+    const productDateFilter = scopedDateFilter('p.created_by', userId, 'p.created_at');
+    const categoryDateFilter = scopedDateFilter('c.user_id', userId, 'c.created_at');
     const [[productCounts]] = await pool.execute(`
       SELECT
         COUNT(*) AS total_products,
-        SUM(CASE WHEN total_stock > 0 AND total_stock < 10 THEN 1 ELSE 0 END) AS low_stock_products
-      FROM products ${productDateFilter.where}
+        SUM(CASE WHEN p.total_stock > 0 AND p.total_stock < 10 THEN 1 ELSE 0 END) AS low_stock_products
+      FROM products p ${productDateFilter.where}
     `, productDateFilter.values);
     const [[{ total_categories }]] = await pool.execute(`
-      SELECT COUNT(*) AS total_categories FROM categories ${productDateFilter.where}
-    `, productDateFilter.values);
+      SELECT COUNT(*) AS total_categories FROM categories c ${categoryDateFilter.where}
+    `, categoryDateFilter.values);
 
     const [productRows] = await pool.execute(`
       SELECT 
-        id, product_code, name, category, purity, mrp, offer_price, total_stock, images, rating
-      FROM products ${productDateFilter.where}
-      ORDER BY id DESC
+        p.id, p.product_code, p.name, p.category, p.purity, p.mrp, p.offer_price, p.total_stock, p.images, p.rating
+      FROM products p ${productDateFilter.where}
+      ORDER BY p.id DESC
       LIMIT 10
     `, productDateFilter.values);
 
     // 4. Active Gold Rates
-    const [goldRateRows] = await pool.query(`
-      SELECT metal_type, purity, rate_per_gram, rate_date, effective_from
-      FROM gold_rates
-      WHERE status = 'Active'
-      ORDER BY metal_type ASC, purity DESC
-    `);
+    const [goldRateRows] = await pool.execute(`
+      SELECT r.metal_type, r.purity, r.rate_per_gram, r.rate_date, r.effective_from
+      FROM gold_rates r
+      WHERE r.user_id = ? AND r.status = 'Active'
+      ORDER BY r.metal_type ASC, r.purity DESC
+    `, [userId]);
 
     // Build dashboard metrics exclusively from current database values.
     const realLoansCount = Number(loanCounts.total_loans) || 0;
@@ -166,65 +171,65 @@ async function getDashboardData(range = 'month', dateRange = null) {
     const salesRange = ['week', 'month', 'year'].includes(range) ? range : 'month';
     const revenueQueries = {
       week: `
-        SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS period_key,
-          MIN(DATE_FORMAT(created_at, '%a')) AS label,
-          MIN(DATE_FORMAT(created_at, '%b %d, %Y')) AS date,
-          SUM(total_amount) AS revenue
-        FROM billings
-        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
-          AND created_at < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)
-        GROUP BY DATE(created_at)
-        ORDER BY DATE(created_at)
+        SELECT DATE_FORMAT(b.created_at, '%Y-%m-%d') AS period_key,
+          MIN(DATE_FORMAT(b.created_at, '%a')) AS label,
+          MIN(DATE_FORMAT(b.created_at, '%b %d, %Y')) AS date,
+          SUM(b.total_amount) AS revenue
+        FROM billings b
+        WHERE b.user_id = ? AND b.created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+          AND b.created_at < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)
+        GROUP BY DATE(b.created_at)
+        ORDER BY DATE(b.created_at)
       `,
       month: `
-        SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS period_key,
-          MIN(DATE_FORMAT(created_at, '%b %d')) AS label,
-          MIN(DATE_FORMAT(created_at, '%b %d, %Y')) AS date,
-          SUM(total_amount) AS revenue
-        FROM billings
-        WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-          AND created_at < DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
-        GROUP BY DATE(created_at)
-        ORDER BY DATE(created_at)
+        SELECT DATE_FORMAT(b.created_at, '%Y-%m-%d') AS period_key,
+          MIN(DATE_FORMAT(b.created_at, '%b %d')) AS label,
+          MIN(DATE_FORMAT(b.created_at, '%b %d, %Y')) AS date,
+          SUM(b.total_amount) AS revenue
+        FROM billings b
+        WHERE b.user_id = ? AND b.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND b.created_at < DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+        GROUP BY DATE(b.created_at)
+        ORDER BY DATE(b.created_at)
       `,
       year: `
-        SELECT DATE_FORMAT(created_at, '%Y-%m-01') AS period_key,
-          MIN(DATE_FORMAT(created_at, '%b')) AS label,
-          MIN(DATE_FORMAT(created_at, '%b %Y')) AS date,
-          SUM(total_amount) AS revenue
-        FROM billings
-        WHERE created_at >= MAKEDATE(YEAR(CURDATE()), 1)
-          AND created_at < MAKEDATE(YEAR(CURDATE()) + 1, 1)
-        GROUP BY YEAR(created_at), MONTH(created_at)
-        ORDER BY YEAR(created_at), MONTH(created_at)
+        SELECT DATE_FORMAT(b.created_at, '%Y-%m-01') AS period_key,
+          MIN(DATE_FORMAT(b.created_at, '%b')) AS label,
+          MIN(DATE_FORMAT(b.created_at, '%b %Y')) AS date,
+          SUM(b.total_amount) AS revenue
+        FROM billings b
+        WHERE b.user_id = ? AND b.created_at >= MAKEDATE(YEAR(CURDATE()), 1)
+          AND b.created_at < MAKEDATE(YEAR(CURDATE()) + 1, 1)
+        GROUP BY YEAR(b.created_at), MONTH(b.created_at)
+        ORDER BY YEAR(b.created_at), MONTH(b.created_at)
       `
     };
     let revenueRows;
     if (dateRange) {
-      const revenueFilter = dateFilter('created_at');
+      const revenueFilter = scopedDateFilter('b.user_id', userId, 'b.created_at');
       const trendGrouping = dateRange.startDate
         ? {
-          key: "DATE_FORMAT(created_at, '%Y-%m-%d')",
-          label: "MIN(DATE_FORMAT(created_at, '%b %d, %Y'))",
-          group: "DATE(created_at)"
+          key: "DATE_FORMAT(b.created_at, '%Y-%m-%d')",
+          label: "MIN(DATE_FORMAT(b.created_at, '%b %d, %Y'))",
+          group: "DATE(b.created_at)"
         }
         : {
-          key: "DATE_FORMAT(created_at, '%Y-%m-01')",
-          label: "MIN(DATE_FORMAT(created_at, '%b %Y'))",
-          group: "YEAR(created_at), MONTH(created_at)"
+          key: "DATE_FORMAT(b.created_at, '%Y-%m-01')",
+          label: "MIN(DATE_FORMAT(b.created_at, '%b %Y'))",
+          group: "YEAR(b.created_at), MONTH(b.created_at)"
         };
       const [rows] = await pool.execute(`
         SELECT ${trendGrouping.key} AS period_key,
           ${trendGrouping.label} AS label,
           ${trendGrouping.label} AS date,
-          SUM(total_amount) AS revenue
-        FROM billings ${revenueFilter.where}
+          SUM(b.total_amount) AS revenue
+        FROM billings b ${revenueFilter.where}
         GROUP BY ${trendGrouping.group}
         ORDER BY ${trendGrouping.group}
       `, revenueFilter.values);
       revenueRows = rows;
     } else {
-      [revenueRows] = await pool.query(revenueQueries[salesRange]);
+      [revenueRows] = await pool.execute(revenueQueries[salesRange], [userId]);
     }
     const revenueTrends = revenueRows.map((row) => ({
       label: row.label,
@@ -241,7 +246,7 @@ async function getDashboardData(range = 'month', dateRange = null) {
           id: "total_customers",
           label: "Total Customers",
           value: totalCustomersFormatted,
-          trend: "Users table count",
+          trend: "Customers with shop loans",
           trendUp: true,
           icon: "users",
           color: "emerald"

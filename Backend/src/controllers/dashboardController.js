@@ -7,9 +7,9 @@ async function getDashboard(req, res, next) {
     if (Object.prototype.hasOwnProperty.call(req.query, 'datePreset')) {
       const dateRange = parseDateRange(req.query);
       if (dateRange.error) return res.status(400).json({ message: dateRange.error });
-      return res.json(await getDashboardData(range, dateRange));
+      return res.json(await getDashboardData(range, dateRange, req.adminUser));
     }
-    const data = await getDashboardData(range);
+    const data = await getDashboardData(range, null, req.adminUser);
     return res.json(data);
   } catch (error) {
     return next(error);
