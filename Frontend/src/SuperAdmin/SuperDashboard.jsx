@@ -22,6 +22,7 @@ import {
   Clock3,
   CreditCard,
   ExternalLink,
+  Gem,
   IndianRupee,
   LoaderCircle,
   RefreshCw,
@@ -425,32 +426,70 @@ export default function SuperDashboard() {
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A87908]">Platform overview</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#1F2937] sm:text-3xl">Super Admin Dashboard</h1>
-          <p className="mt-1 text-sm text-[#6B7280]">Gold shop, subscription, and payment activity across your platform.</p>
-        </div>
-        <div className="flex items-center gap-3">
+      <section
+        aria-labelledby="dashboard-welcome-title"
+        className="relative flex min-h-[170px] items-center overflow-hidden rounded-xl border border-[#A87908]/70 bg-[#003B32] shadow-sm sm:min-h-[184px]"
+      >
+        <img
+          src="/images/Hero/hero4.png"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#002D27]/95 via-[#003B32]/80 to-[#003B32]/10" />
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-2 sm:right-5 sm:top-4">
           {lastUpdated && (
-            <span className="hidden text-xs text-slate-500 sm:inline">
+            <span className="hidden text-[10px] text-white/80 sm:inline">
               Updated {lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
           <button
             type="button"
+            aria-label="Refresh dashboard"
             onClick={() => {
               setRefreshing(true);
               void fetchDashboard();
             }}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#D4A017] hover:text-[#805B05] disabled:cursor-wait disabled:opacity-60"
+            className="inline-flex h-9 items-center gap-2 border border-white/40 bg-[#003B32]/75 px-2.5 text-xs font-semibold text-white transition hover:bg-[#003B32] disabled:cursor-wait disabled:opacity-60 sm:px-3"
           >
-            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-            Refresh
+            <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
-      </header>
+        <div className="relative z-10 flex min-h-[170px] w-full items-center px-5 sm:min-h-[184px] sm:px-9">
+          <div className="max-w-[82%] sm:max-w-[56%]">
+            <p className="text-xs font-semibold tracking-wide text-[#FFE39A] sm:text-base">Welcome to</p>
+            <h2
+              id="dashboard-welcome-title"
+              className="mt-0.5 font-serif text-3xl font-bold leading-none text-[#FFD15C] sm:text-5xl"
+            >
+              Sri Golds
+            </h2>
+            <p className="mt-2 max-w-md text-[10px] leading-relaxed text-white/90 sm:text-sm">
+              Your trusted jewellery &amp; gold loan management partner
+            </p>
+            <div className="mt-3 hidden items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-[#FFE39A] sm:flex">
+              <span>Purity</span><span className="text-white/50">|</span>
+              <span>Trust</span><span className="text-white/50">|</span>
+              <span>Prosperity</span>
+            </div>
+          </div>
+          <div className="ml-auto hidden max-w-[190px] space-y-3 pr-3 text-[#FFE39A] lg:block">
+            <div className="flex items-center gap-2">
+              <Gem size={18} className="shrink-0" />
+              <span className="text-[9px] font-bold uppercase leading-tight tracking-wide">Traditional Values</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={18} className="shrink-0" />
+              <span className="text-[9px] font-bold uppercase leading-tight tracking-wide">Modern Management</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Users size={18} className="shrink-0" />
+              <span className="text-[9px] font-bold uppercase leading-tight tracking-wide">Customer Satisfaction</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {loadError && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
