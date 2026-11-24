@@ -335,8 +335,8 @@ export default function SuperDashboard() {
     datasets: [{
       label: "Revenue",
       data: (analytics?.monthlyRevenue || []).map((item) => item.revenue),
-      backgroundColor: "#D4A017",
-      hoverBackgroundColor: "#A87908",
+      backgroundColor: "#07564B",
+      hoverBackgroundColor: "#043D37",
       borderRadius: 2,
       maxBarThickness: 30
     }]
@@ -347,8 +347,9 @@ export default function SuperDashboard() {
     datasets: [{
       label: "Gold shops",
       data: (analytics?.shopRegistrations || []).map((item) => item.registrations),
-      borderColor: "#A87908",
-      backgroundColor: "rgba(212, 160, 23, 0.12)",
+      borderColor: "#07564B",
+      backgroundColor: "rgba(7, 86, 75, 0.12)",
+      pointBackgroundColor: "#07564B",
       fill: true,
       tension: 0.3,
       pointRadius: 3,
@@ -431,7 +432,7 @@ export default function SuperDashboard() {
         className="relative flex min-h-[170px] items-center overflow-hidden rounded-xl border border-[#A87908]/70 bg-[#003B32] shadow-sm sm:min-h-[184px]"
       >
         <img
-          src="/images/Hero/hero4.png"
+          src="/images/registerbanner1.png"
           alt=""
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
@@ -457,16 +458,16 @@ export default function SuperDashboard() {
           </button>
         </div>
         <div className="relative z-10 flex min-h-[170px] w-full items-center px-5 sm:min-h-[184px] sm:px-9">
-          <div className="max-w-[82%] sm:max-w-[56%]">
+          <div className="max-w-[82%] sm:max-w-[64%]">
             <p className="text-xs font-semibold tracking-wide text-[#FFE39A] sm:text-base">Welcome to</p>
             <h2
               id="dashboard-welcome-title"
-              className="mt-0.5 font-serif text-3xl font-bold leading-none text-[#FFD15C] sm:text-5xl"
+              className="mt-0.5 font-serif text-2xl font-bold leading-tight text-[#FFD15C] sm:text-4xl lg:text-5xl"
             >
-              Sri Golds
+              Sri Gold Superadmin
             </h2>
             <p className="mt-2 max-w-md text-[10px] leading-relaxed text-white/90 sm:text-sm">
-              Your trusted jewellery &amp; gold loan management partner
+              Manage your gold retail platform from one place.
             </p>
             <div className="mt-3 hidden items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-[#FFE39A] sm:flex">
               <span>Purity</span><span className="text-white/50">|</span>
@@ -614,18 +615,18 @@ export default function SuperDashboard() {
             </select>
           </label>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-t-lg">
           <table className="w-full min-w-[1050px] border-collapse text-left text-xs">
             <thead>
-              <tr className="border-y border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
-                <th className="px-3 py-3 font-semibold">Shop ID</th>
-                <th className="px-3 py-3 font-semibold">Shop name</th>
-                <th className="px-3 py-3 font-semibold">Owner</th>
-                <th className="px-3 py-3 font-semibold">Email / Mobile</th>
-                <th className="px-3 py-3 font-semibold">Plan</th>
-                <th className="px-3 py-3 font-semibold">Registered</th>
-                <th className="px-3 py-3 font-semibold">Approval</th>
-                <th className="px-3 py-3 font-semibold">Actions</th>
+              <tr className="border-y border-[#043D37] bg-[#07564B] text-[11px] uppercase tracking-wide text-white/90">
+                <th className="px-4 py-4 font-semibold">Shop ID</th>
+                <th className="px-4 py-4 font-semibold">Shop name</th>
+                <th className="px-4 py-4 font-semibold">Owner</th>
+                <th className="px-4 py-4 font-semibold">Email / Mobile</th>
+                <th className="px-4 py-4 font-semibold">Plan</th>
+                <th className="px-4 py-4 font-semibold">Registered</th>
+                <th className="px-4 py-4 font-semibold">Approval</th>
+                <th className="px-4 py-4 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -707,17 +708,17 @@ export default function SuperDashboard() {
           </Link>
         )}
       >
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-t-lg">
           <table className="w-full min-w-[760px] border-collapse text-left text-xs">
             <thead>
-              <tr className="border-y border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
-                <th className="px-3 py-3 font-semibold">Payment ID</th>
-                <th className="px-3 py-3 font-semibold">Gold shop</th>
-                <th className="px-3 py-3 font-semibold">Plan</th>
-                <th className="px-3 py-3 font-semibold">Amount</th>
-                <th className="px-3 py-3 font-semibold">Payment date</th>
-                <th className="px-3 py-3 font-semibold">Method</th>
-                <th className="px-3 py-3 font-semibold">Status</th>
+              <tr className="border-y border-[#043D37] bg-[#07564B] text-[11px] uppercase tracking-wide text-white/90">
+                <th className="px-4 py-4 font-semibold">Payment ID</th>
+                <th className="px-4 py-4 font-semibold">Gold shop</th>
+                <th className="px-4 py-4 font-semibold">Plan</th>
+                <th className="px-4 py-4 font-semibold">Amount</th>
+                <th className="px-4 py-4 font-semibold">Payment date</th>
+                <th className="px-4 py-4 font-semibold">Method</th>
+                <th className="px-4 py-4 font-semibold">Status</th>
               </tr>
             </thead>
             <tbody>
