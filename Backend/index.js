@@ -27,6 +27,7 @@ const {
 const { initializeSubscriptionPlanModule } = require('./src/modules/subscriptionPlanModule');
 const { initializeRevenueReportModule } = require('./src/modules/revenueReportModule');
 const { initializePaymentManagementModule } = require('./src/modules/paymentManagementModule');
+const { initializeKycModule } = require('./src/modules/kycModule');
 const apiRouter = require('./src/router');
 const { pool } = require('./src/config/db');
 const privateUploadGuard = require('./src/middleware/privateUploadGuard');
@@ -78,6 +79,7 @@ app.use((error, req, res, next) => {
 async function startServer() {
   await initializeDatabase();
   await initializeAuthModule();
+  await initializeKycModule();
   await initializeFundsModule();
   await initializeEnquiryModule();
   await initializeCategoryModule();
