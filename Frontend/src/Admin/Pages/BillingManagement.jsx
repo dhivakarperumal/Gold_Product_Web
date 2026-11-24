@@ -438,7 +438,6 @@ export default function BillingManagement() {
   const [showForm, setShowForm] = useState(() => new URLSearchParams(window.location.search).get("new") === "1");
   const [editingBillId, setEditingBillId] = useState(null);
   const [viewingBill, setViewingBill] = useState(null);
-  const [fundAccounts, setFundAccounts] = useState([]);
   const [billPayment, setBillPayment] = useState(null);
   const [billSearch, setBillSearch] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
@@ -528,16 +527,6 @@ export default function BillingManagement() {
 
   useEffect(() => { loadBills(); }, [loadBills]);
   useEffect(() => { loadCatalogProducts(); }, [loadCatalogProducts]);
-  useEffect(() => {
-    let active = true;
-    api.get("/funds/accounts")
-      .then(({ data }) => { if (active) setFundAccounts(data.filter((account) => account.is_active)); })
-      .catch((error) => {
-        console.error("Failed to load fund accounts for billing:", error);
-        toast.error(error.response?.data?.message || "Could not load fund accounts.");
-      });
-    return () => { active = false; };
-  }, []);
   useEffect(() => {
     let active = true;
     api.get("/categories")
@@ -865,7 +854,6 @@ export default function BillingManagement() {
       bill,
       payment_kind: paymentKind,
       amount: paymentKind === "PAYMENT" ? String(Number(bill.balance_due || 0)) : String(Number(bill.paid_amount || 0)),
-      account_id: fundAccounts[0] ? String(fundAccounts[0].id) : "",
       payment_method: "Cash",
       payment_date: new Date().toLocaleString("sv-SE").replace(" ", "T").slice(0, 16),
       reference_number: ""
@@ -881,7 +869,6 @@ export default function BillingManagement() {
       const { data } = await api.post(`/billings/${bill.id}/payments`, {
         ...payment,
         amount: Number(payment.amount),
-        account_id: Number(payment.account_id),
         idempotency_key: crypto.randomUUID()
       });
       setBills((current) => current.map((item) => item.id === data.id ? data : item));
@@ -1553,11 +1540,6 @@ export default function BillingManagement() {
               <label className={labelClass}>Amount received (₹)
                 <input className={inputClass} type="number" required min="0.01" max={billPayment.payment_kind === "REFUND" ? Number(billPayment.bill.paid_amount) : undefined} step="0.01" value={billPayment.amount} onChange={(event) => setBillPayment({ ...billPayment, amount: event.target.value })} />
               </label>
-              <label className={labelClass}>Fund account
-                <select className={inputClass} required value={billPayment.account_id} onChange={(event) => setBillPayment({ ...billPayment, account_id: event.target.value })}>
-                  <option value="">Select account</option>{fundAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-                </select>
-              </label>
               <label className={labelClass}>Payment method
                 <select className={inputClass} value={billPayment.payment_method} onChange={(event) => setBillPayment({ ...billPayment, payment_method: event.target.value })}>
                   {["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"].map((method) => <option key={method}>{method}</option>)}
@@ -1574,7 +1556,7 @@ export default function BillingManagement() {
             </div>
             <footer className="flex justify-end gap-2 border-t border-slate-100 p-5">
               <button type="button" onClick={() => setBillPayment(null)} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold">Cancel</button>
-              <button disabled={saving || fundAccounts.length === 0} className={`rounded-lg px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50 ${billPayment.payment_kind === "PAYMENT" ? "bg-[#00695C]" : "bg-rose-700"}`}>
+              <button disabled={saving} className={`rounded-lg px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50 ${billPayment.payment_kind === "PAYMENT" ? "bg-[#00695C]" : "bg-rose-700"}`}>
                 {saving ? "Saving…" : billPayment.payment_kind === "PAYMENT" ? "Confirm Collection" : "Confirm Refund"}
               </button>
             </footer>

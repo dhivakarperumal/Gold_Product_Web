@@ -126,7 +126,7 @@ test('does not charge minimum interest for a period with no elapsed time', () =>
   assert.equal(makeRenewalPreview(loan, '2026-09-19').accrued_interest, 0);
 });
 
-test('returns a validation response when renewal payment account details are missing', async () => {
+test('returns a validation response when the renewal payment method is missing', async () => {
   const response = {
     statusCode: 200,
     body: null,
@@ -143,9 +143,9 @@ test('returns a validation response when renewal payment account details are mis
   await postLoanRenewal({
     params: { id: '5' },
     body: { payment_amount: '100' },
-    adminUser: { user_id: 1 }
+    adminUser: { user_id: 'admin-user-uuid' }
   }, response, () => assert.fail('Unexpected error handler call'));
 
   assert.equal(response.statusCode, 400);
-  assert.equal(response.body.message, 'Select a valid fund account and payment method');
+  assert.equal(response.body.message, 'Select a valid payment method');
 });

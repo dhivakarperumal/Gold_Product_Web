@@ -367,7 +367,6 @@ async function postBillingPayment(req, res, next) {
   if (!id) return res.status(400).json({ message: 'Invalid bill ID' });
   const body = req.body || {};
   const paymentKind = body.payment_kind;
-  const accountId = validBillingId(body.account_id);
   const amount = Number(body.amount);
   const paymentMethod = body.payment_method;
   const idempotencyKey = body.idempotency_key;
@@ -376,29 +375,32 @@ async function postBillingPayment(req, res, next) {
     ? body.payment_date.replace('T', ' ')
     : null;
   const referenceNumber = body.reference_number == null ? '' : body.reference_number;
-  if (!['PAYMENT', 'REFUND'].includes(paymentKind) || !accountId
+  if (!['PAYMENT', 'REFUND'].includes(paymentKind)
     || !Number.isFinite(amount) || amount <= 0 || amount > 9999999999.99
     || !['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque', 'Other'].includes(paymentMethod)
     || !paymentDate || typeof idempotencyKey !== 'string' || idempotencyKey.length < 1 || idempotencyKey.length > 150
     || typeof referenceNumber !== 'string' || referenceNumber.length > 100) {
-    return res.status(400).json({ message: 'Enter a valid payment date, account, amount, and payment method' });
+    return res.status(400).json({ message: 'Enter a valid payment date, amount, and payment method' });
   }
   try {
     const bill = await recordBillingPayment(id, {
       payment_kind: paymentKind,
-      account_id: accountId,
       amount: amount.toFixed(2),
       payment_method: paymentMethod,
       payment_date: paymentDate,
       reference_number: referenceNumber.trim(),
       idempotency_key: idempotencyKey,
       created_by: req.adminUser.id,
-      updated_by: req.adminUser.user_id
+      updated_by: req.adminUser.user_id,
+      created_by_user_id: req.adminUser.user_id,
+      admin_name: req.adminUser.name || req.adminUser.username
     }, req.adminUser.user_id);
     return res.status(201).json(bill);
   } catch (error) {
     if (error.code === 'BILL_NOT_FOUND') return res.status(404).json({ message: error.message });
-    if (error.code === 'FUND_ACCOUNT_NOT_FOUND') return res.status(400).json({ message: error.message });
+    if (error.code === 'FUND_ADMIN_NOT_FOUND') {
+      return res.status(403).json({ message: 'A valid admin account is required to record this fund movement' });
+    }
     if (['REFUND_EXCEEDS_PAID', 'INSUFFICIENT_FUNDS'].includes(error.code)) {
       return res.status(409).json({ message: error.message });
     }

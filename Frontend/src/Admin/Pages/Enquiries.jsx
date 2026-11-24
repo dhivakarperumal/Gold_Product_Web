@@ -529,13 +529,13 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
       </div>
 
       {viewMode === "table" ? <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-left">
-          <thead><tr className="bg-gradient-to-r from-[#07564B] via-[#064A41] to-[#043D37] text-[10px] uppercase tracking-wide text-emerald-50/90"><th className="rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Customer</th><th className="px-4 py-4">Enquiry Details</th><th className="px-4 py-4">Product</th><th className="px-4 py-4">Date &amp; Time</th><th className="px-4 py-4">Status</th><th className="rounded-tr-2xl px-4 py-4 text-right">Action</th></tr></thead>
+        <table className="w-full min-w-[1220px] text-left">
+          <thead><tr className="bg-gradient-to-r from-[#07564B] via-[#064A41] to-[#043D37] text-[10px] uppercase tracking-wide text-emerald-50/90"><th className="rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Customer</th><th className="px-4 py-4">Enquiry Details</th><th className="px-4 py-4">Product</th><th className="px-4 py-4">Date &amp; Time</th><th className="px-4 py-4">Status</th><th className="px-4 py-4">Created By</th><th className="px-4 py-4">Updated By</th><th className="rounded-tr-2xl px-4 py-4 text-right">Action</th></tr></thead>
           <tbody className="divide-y divide-slate-100">
             {loading
-              ? <tr><td colSpan="7" className="p-10 text-center text-sm text-slate-500">Loading enquiries…</td></tr>
+              ? <tr><td colSpan="9" className="p-10 text-center text-sm text-slate-500">Loading enquiries…</td></tr>
               : enquiries.length === 0
-                ? <tr><td colSpan="7" className="p-10 text-center text-sm text-slate-500">No enquiries found. Add one to get started.</td></tr>
+                ? <tr><td colSpan="9" className="p-10 text-center text-sm text-slate-500">No enquiries found. Add one to get started.</td></tr>
                 : enquiries.map((enquiry, index) => <tr key={enquiry.id} className="hover:bg-slate-50/70">
                   <td className="px-4 py-3 text-xs font-medium tabular-nums text-slate-500">{(page - 1) * pagination.limit + index + 1}</td>
                   <td className="px-3 py-2.5"><div className="flex items-center gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-fuchsia-100 text-xs font-bold text-fuchsia-700">{enquiry.customer_name?.slice(0, 1)?.toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-[11px] text-slate-800">{enquiry.customer_name}</strong><a href={`tel:${enquiry.phone}`} className="block text-[10px] text-slate-500 hover:text-emerald-700">{enquiry.phone}</a><span className="block max-w-32 truncate text-[10px] text-slate-400">{enquiry.email || "No email"}</span></span></div></td>
@@ -543,6 +543,8 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
                   <td className="px-3 py-2.5"><div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><Package size={16} /></span><span><strong className="block max-w-32 truncate text-[11px] text-slate-800">{enquiry.product_name || enquiry.product_category || enquiry.enquiry_type}</strong><span className="block text-[10px] text-slate-400">{enquiry.purity ? `${enquiry.metal_type || "Metal"} · ${purityLabelForEnquiry(enquiry)}` : enquiry.product_category || "Product inquiry"}</span>{enquiry.daily_rate != null && <span className="block text-[10px] font-semibold text-emerald-700">₹{Number(enquiry.daily_rate).toLocaleString("en-IN")} / {enquiry.rate_unit || "gram"}</span>}</span></div></td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-[10px] text-slate-600">{dateTime(enquiry.created_at)}</td>
                   <td className="px-3 py-2.5"><select aria-label={`Change status for enquiry ${enquiry.id}`} value={enquiry.status} onChange={(event) => void updateStatus(enquiry, event.target.value)} className={`max-w-32 rounded-full border-0 px-2.5 py-1.5 text-[10px] font-bold ${statusStyle[enquiry.status] || statusStyle["New Enquiry"]}`}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></td>
+                  <td className="max-w-32 truncate px-3 py-2.5 text-[10px] text-slate-600">{enquiry.created_by_name || (enquiry.source === "Website" ? "Website" : "—")}</td>
+                  <td className="max-w-32 truncate px-3 py-2.5 text-[10px] text-slate-600">{enquiry.updated_by_name || "—"}</td>
                   <td className="px-3 py-2.5"><div className="flex justify-end gap-1.5">
                     <button type="button" aria-label="View enquiry" onClick={() => setSelected(enquiry)} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"><Eye size={14} /></button>
                     <button type="button" aria-label={`Edit enquiry ${enquiry.id}`} onClick={() => navigate(`/admin/enquiries/edit/${enquiry.id}`)} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-sky-50 hover:text-sky-700"><Pencil size={14} /></button>
@@ -583,6 +585,10 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
                     <span className="text-[10px] text-slate-500">{dateTime(enquiry.created_at)}</span>
                     <select aria-label={`Change status for enquiry ${enquiry.id}`} value={enquiry.status} onChange={(event) => void updateStatus(enquiry, event.target.value)} className={`max-w-full rounded-full border-0 px-2.5 py-1.5 text-[10px] font-bold ${statusStyle[enquiry.status] || statusStyle["New Enquiry"]}`}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select>
                   </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-slate-500">
+                    <p className="truncate">Created by: {enquiry.created_by_name || (enquiry.source === "Website" ? "Website" : "—")}</p>
+                    <p className="truncate">Updated by: {enquiry.updated_by_name || "—"}</p>
+                  </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
                   <button type="button" onClick={() => setSelected(enquiry)} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00796B] hover:underline"><Eye size={14} />View details</button>
@@ -615,6 +621,8 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
           {selected.purity && <p className="flex items-center gap-2"><CircleDollarSign size={14} className="text-slate-400" />{selected.metal_type} · {purityLabelForEnquiry(selected)}{selected.daily_rate != null ? ` · ₹${Number(selected.daily_rate).toLocaleString("en-IN")} / ${selected.rate_unit || "gram"}` : ""}</p>}
           {selected.rate_date && <p className="flex items-center gap-2"><CalendarDays size={14} className="text-slate-400" />Rate date: {formatRateDate(selected.rate_date)}</p>}
           <p className="flex items-center gap-2"><CalendarDays size={14} className="text-slate-400" />{dateTime(selected.created_at)}</p>
+          <p className="flex items-center gap-2"><UserRound size={14} className="text-slate-400" />Created by: {selected.created_by_name || (selected.source === "Website" ? "Website" : "—")}</p>
+          <p className="flex items-center gap-2"><UserRound size={14} className="text-slate-400" />Updated by: {selected.updated_by_name || "—"}</p>
           <p className="flex items-center gap-2"><Clock3 size={14} className="text-slate-400" />Follow-up: {selected.follow_up_date || "Not scheduled"} {selected.follow_up_time || ""}</p>
           <p className="flex items-center gap-2"><MapPin size={14} className="text-slate-400" />{[selected.city, selected.state].filter(Boolean).join(", ") || selected.address || "No address"}</p>
         </div>

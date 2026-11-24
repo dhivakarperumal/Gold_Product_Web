@@ -157,6 +157,7 @@ export default function LoanCustomerManagement() {
   const [form, setForm] = useState(EMPTY_CUSTOMER);
   const [accountPassword, setAccountPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState({ reference: "", url: "" });
   const [customerPhotoPreviews, setCustomerPhotoPreviews] = useState({});
@@ -250,6 +251,7 @@ export default function LoanCustomerManagement() {
   const openAddCustomer = () => {
     setEditingCustomer(null);
     setForm(EMPTY_CUSTOMER);
+    setSaveError("");
     setAccountPassword("");
     setDocuments([]);
     setPendingDocuments([]);
@@ -259,6 +261,7 @@ export default function LoanCustomerManagement() {
 
   const openEditCustomer = async (customer) => {
     setEditingCustomer(customer);
+    setSaveError("");
     setDocuments([]);
     setPendingDocuments([]);
     setDocumentType("");
@@ -296,6 +299,7 @@ export default function LoanCustomerManagement() {
     if (saving || uploadingPhoto) return;
     setIsFormOpen(false);
     setEditingCustomer(null);
+    setSaveError("");
     pendingDocuments.forEach(({ previewUrl }) => {
       URL.revokeObjectURL(previewUrl);
       pendingPreviewUrls.current.delete(previewUrl);
@@ -441,10 +445,16 @@ export default function LoanCustomerManagement() {
     }
   };
 
+  const reportSaveError = (message) => {
+    setSaveError(message);
+    toast.error(message);
+  };
+
   const handleSave = async (event) => {
     event.preventDefault();
+    setSaveError("");
     if (!form.photo_url.trim()) {
-      toast.error("Upload a customer photo before saving.");
+      reportSaveError("Upload a customer photo before saving.");
       return;
     }
     const stagedTypes = new Set(pendingDocuments.map((document) => document.document_type));
@@ -456,7 +466,7 @@ export default function LoanCustomerManagement() {
         .filter((document) => document.document_type === type)
         .forEach((document) => savedSides.add(document.document_side));
       if (DOCUMENT_SIDES.some((side) => !savedSides.has(side))) {
-        toast.error(`${DOCUMENT_TYPE_LABELS.get(type) || type} requires both front and back files.`);
+        reportSaveError(`${DOCUMENT_TYPE_LABELS.get(type) || type} requires both front and back files.`);
         return;
       }
     }
@@ -511,9 +521,10 @@ export default function LoanCustomerManagement() {
     } catch (error) {
       console.error("Failed to save loan customer:", error);
       const message = error.response?.data?.message || error.message;
-      toast.error(customerPersisted
+      const errorMessage = customerPersisted
         ? `Customer saved, but a KYC document could not be uploaded${message ? `: ${message}` : ". Try saving again to retry."}`
-        : message || "Could not save customer.");
+        : message || "Could not save customer.";
+      reportSaveError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -755,6 +766,11 @@ export default function LoanCustomerManagement() {
               <button type="button" onClick={closeForm} aria-label="Close form" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><FiX size={20} /></button>
             </header>
             <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
+              {saveError && (
+                <div role="alert" aria-live="assertive" className="mx-5 mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
+                  {saveError}
+                </div>
+              )}
               <div className="flex-1 space-y-4 overflow-y-auto p-5">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <CustomerField label="Full Name" name="full_name" value={form.full_name} onChange={handleChange} required placeholder="Enter full name" />

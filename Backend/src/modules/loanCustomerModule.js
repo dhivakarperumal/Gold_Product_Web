@@ -6,7 +6,7 @@ const CUSTOMER_COLUMNS = `
   id, customer_code, user_id, customer_type, full_name, mobile, alternate_mobile,
   email, date_of_birth, gender, occupation, address, city, district, state, pincode,
   guarantor_name, guarantor_mobile, guarantor_email, guarantor_relationship, guarantor_address,
-  kyc_status, photo_url, notes, created_at, updated_at
+  kyc_status, photo_url, notes, created_by, updated_by, created_at, updated_at
 `;
 
 async function linkExistingCustomerAccounts() {
@@ -84,6 +84,8 @@ async function initializeLoanCustomerModule() {
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
       customer_code VARCHAR(30) NULL UNIQUE,
       user_id INT UNSIGNED NULL UNIQUE,
+      created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
+      updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       customer_type VARCHAR(20) NOT NULL DEFAULT 'Individual',
       full_name VARCHAR(150) NOT NULL,
       mobile VARCHAR(15) NOT NULL,
@@ -114,6 +116,16 @@ async function initializeLoanCustomerModule() {
   if (!existingCustomerColumns.has('user_id')) {
     await pool.query('ALTER TABLE loan_customers ADD COLUMN user_id INT UNSIGNED NULL UNIQUE AFTER customer_code');
   }
+  if (!existingCustomerColumns.has('created_by')) {
+    await pool.query(
+      'ALTER TABLE loan_customers ADD COLUMN created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER user_id'
+    );
+  }
+  if (!existingCustomerColumns.has('updated_by')) {
+    await pool.query(
+      'ALTER TABLE loan_customers ADD COLUMN updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER created_by'
+    );
+  }
   const customerColumnMigrations = {
     email: 'VARCHAR(254) NULL AFTER alternate_mobile',
     guarantor_name: 'VARCHAR(150) NULL AFTER pincode',
@@ -127,6 +139,8 @@ async function initializeLoanCustomerModule() {
       await pool.query(`ALTER TABLE loan_customers ADD COLUMN \`${column}\` ${definition}`);
     }
   }
+  await ensureLoanCustomerAuditForeignKey('created_by', 'fk_loan_customers_created_by_user_id');
+  await ensureLoanCustomerAuditForeignKey('updated_by', 'fk_loan_customers_updated_by_user_id');
   await linkExistingCustomerAccounts();
   await pool.query(`
     CREATE TABLE IF NOT EXISTS loan_customer_documents (
@@ -149,11 +163,40 @@ async function initializeLoanCustomerModule() {
   }
 }
 
-async function listLoanCustomers(search = '', dateRange = {}) {
+async function ensureLoanCustomerAuditForeignKey(column, constraintName) {
+  const [orphanedUsers] = await pool.execute(
+    `SELECT customer.id FROM loan_customers customer
+     LEFT JOIN users audit_user ON audit_user.user_id = customer.\`${column}\`
+     WHERE customer.\`${column}\` IS NOT NULL AND audit_user.user_id IS NULL
+     LIMIT 1`
+  );
+  if (orphanedUsers.length) {
+    throw new Error(`Cannot link loan_customers.${column} for customer ${orphanedUsers[0].id}: the user_id does not exist`);
+  }
+  const [foreignKeys] = await pool.execute(
+    `SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'loan_customers'
+       AND COLUMN_NAME = ? AND REFERENCED_TABLE_NAME = 'users'
+       AND REFERENCED_COLUMN_NAME = 'user_id'`,
+    [column]
+  );
+  if (!foreignKeys.length) {
+    await pool.query(
+      `ALTER TABLE loan_customers ADD CONSTRAINT \`${constraintName}\`
+       FOREIGN KEY (\`${column}\`) REFERENCES users(user_id) ON DELETE SET NULL`
+    );
+  }
+}
+
+async function listLoanCustomers(search = '', dateRange = {}, createdByUserId) {
   const term = `%${search}%`;
   const conditions = [`(? = '' OR CAST(id AS CHAR) LIKE ? OR customer_code LIKE ? OR full_name LIKE ? OR mobile LIKE ?
        OR alternate_mobile LIKE ? OR email LIKE ? OR city LIKE ? OR district LIKE ?)`];
   const values = [search, term, term, term, term, term, term, term, term];
+  if (createdByUserId) {
+    conditions.push('created_by = ?');
+    values.push(createdByUserId);
+  }
   addDateRangeCondition(conditions, values, 'created_at', dateRange);
   const [rows] = await pool.execute(
     `SELECT ${CUSTOMER_COLUMNS}
@@ -165,15 +208,16 @@ async function listLoanCustomers(search = '', dateRange = {}) {
   return rows;
 }
 
-async function getLoanCustomerById(id) {
+async function getLoanCustomerById(id, createdByUserId) {
+  const ownerCondition = createdByUserId ? ' AND created_by = ?' : '';
   const [rows] = await pool.execute(
-    `SELECT ${CUSTOMER_COLUMNS} FROM loan_customers WHERE id = ?`,
-    [id]
+    `SELECT ${CUSTOMER_COLUMNS} FROM loan_customers WHERE id = ?${ownerCondition}`,
+    createdByUserId ? [id, createdByUserId] : [id]
   );
   return rows[0] || null;
 }
 
-async function createLoanCustomer(customer, username, password = customer.mobile) {
+async function createLoanCustomer(customer, username, password = customer.mobile, createdByUserId) {
   const connection = await pool.getConnection();
   let id;
   try {
@@ -196,11 +240,15 @@ async function createLoanCustomer(customer, username, password = customer.mobile
       status: 'Active',
       role: 'user'
     });
-    const fields = ['user_id', ...Object.keys(customer)];
+    const fields = ['user_id', 'created_by', 'updated_by', ...Object.keys(customer)];
     const [result] = await connection.execute(
       `INSERT INTO loan_customers (${fields.map((field) => `\`${field}\``).join(', ')})
        VALUES (${fields.map(() => '?').join(', ')})`,
-      fields.map((field) => field === 'user_id' ? userId : customer[field])
+      fields.map((field) => {
+        if (field === 'user_id') return userId;
+        if (field === 'created_by' || field === 'updated_by') return createdByUserId;
+        return customer[field];
+      })
     );
     id = result.insertId;
     const customerCode = `CUS-${String(id).padStart(6, '0')}`;
@@ -218,17 +266,29 @@ async function createLoanCustomer(customer, username, password = customer.mobile
   return getLoanCustomerById(id);
 }
 
-async function updateLoanCustomer(id, customer) {
+async function updateLoanCustomer(id, customer, updatedByUserId, ownerUserId) {
   const fields = Object.keys(customer);
+  const ownerCondition = ownerUserId ? ' AND created_by = ?' : '';
   await pool.execute(
-    `UPDATE loan_customers SET ${fields.map((field) => `\`${field}\` = ?`).join(', ')} WHERE id = ?`,
-    [...fields.map((field) => customer[field]), id]
+    `UPDATE loan_customers
+     SET ${fields.map((field) => `\`${field}\` = ?`).join(', ')}, updated_by = ?
+     WHERE id = ?${ownerCondition}`,
+    [
+      ...fields.map((field) => customer[field]),
+      updatedByUserId,
+      id,
+      ...(ownerUserId ? [ownerUserId] : [])
+    ]
   );
-  return getLoanCustomerById(id);
+  return getLoanCustomerById(id, ownerUserId);
 }
 
-async function deleteLoanCustomer(id) {
-  const [result] = await pool.execute('DELETE FROM loan_customers WHERE id = ?', [id]);
+async function deleteLoanCustomer(id, ownerUserId) {
+  const ownerCondition = ownerUserId ? ' AND created_by = ?' : '';
+  const [result] = await pool.execute(
+    `DELETE FROM loan_customers WHERE id = ?${ownerCondition}`,
+    ownerUserId ? [id, ownerUserId] : [id]
+  );
   return result.affectedRows > 0;
 }
 
@@ -250,11 +310,15 @@ async function getLoanCustomerDocumentById(id) {
   return rows[0] || null;
 }
 
-async function getLoanCustomerDocumentByRef(fileRef) {
+async function getLoanCustomerDocumentByRef(fileRef, ownerUserId) {
+  const ownerCondition = ownerUserId ? ' AND customer.created_by = ?' : '';
   const [rows] = await pool.execute(
-    `SELECT id, customer_id, document_type, document_side, file_ref, original_name, mime_type, file_size, created_at
-     FROM loan_customer_documents WHERE file_ref = ?`,
-    [fileRef]
+    `SELECT document.id, document.customer_id, document.document_type, document.document_side,
+       document.file_ref, document.original_name, document.mime_type, document.file_size, document.created_at
+     FROM loan_customer_documents document
+     JOIN loan_customers customer ON customer.id = document.customer_id
+     WHERE document.file_ref = ?${ownerCondition}`,
+    ownerUserId ? [fileRef, ownerUserId] : [fileRef]
   );
   return rows[0] || null;
 }

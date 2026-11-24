@@ -176,7 +176,14 @@ const router = createHashRouter([
       { path: "dealers", element: <Dealers /> },
       { path: "dealers/*", element: <Dealers /> },
       { path: "settings", element: <Settings /> },
-      { path: "funds", element: <FundManagement /> },
+      {
+        path: "funds",
+        element: (
+          <PrivateRoute allowedRoles={["admin"]}>
+            <FundManagement />
+          </PrivateRoute>
+        )
+      },
       { path: "settings/daily-gold-rate", element: <DailyGoldRate /> },
       { path: "settings/receipt", element: <ReceiptSettings /> },
       { path: "settings/home-sections", element: <HomeSections /> },

@@ -212,9 +212,13 @@ async function createOrResubmitApplication({ userId, actorId, documents, consent
   }
 }
 
-async function listKycApplications({ page, pageSize, status, search, dateFrom, dateTo }) {
+async function listKycApplications({ page, pageSize, status, search, dateFrom, dateTo, ownerUserId }) {
   const conditions = [];
   const values = [];
+  if (ownerUserId) {
+    conditions.push('EXISTS (SELECT 1 FROM loan_customers lc WHERE lc.user_id = a.user_id AND lc.created_by = ?)');
+    values.push(ownerUserId);
+  }
   if (status) {
     conditions.push('a.status = ?');
     values.push(status);
@@ -246,20 +250,24 @@ async function listKycApplications({ page, pageSize, status, search, dateFrom, d
   return { applications, total: Number(countRows[0].total) };
 }
 
-async function getKycStats({ dateFrom = '', dateTo = '' } = {}) {
+async function getKycStats({ dateFrom = '', dateTo = '', ownerUserId } = {}) {
   const conditions = [];
   const values = [];
+  if (ownerUserId) {
+    conditions.push('EXISTS (SELECT 1 FROM loan_customers lc WHERE lc.user_id = a.user_id AND lc.created_by = ?)');
+    values.push(ownerUserId);
+  }
   if (dateFrom) {
-    conditions.push('created_at >= ?');
+    conditions.push('a.created_at >= ?');
     values.push(`${dateFrom} 00:00:00`);
   }
   if (dateTo) {
-    conditions.push('created_at < DATE_ADD(?, INTERVAL 1 DAY)');
+    conditions.push('a.created_at < DATE_ADD(?, INTERVAL 1 DAY)');
     values.push(`${dateTo} 00:00:00`);
   }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const [rows] = await pool.execute(
-    `SELECT status, COUNT(*) AS total FROM kyc_applications ${where} GROUP BY status`,
+    `SELECT a.status, COUNT(*) AS total FROM kyc_applications a ${where} GROUP BY a.status`,
     values
   );
   return Object.fromEntries(REVIEW_STATUSES.map((status) => [
@@ -268,8 +276,15 @@ async function getKycStats({ dateFrom = '', dateTo = '' } = {}) {
   ]));
 }
 
-async function getKycApplicationById(applicationId) {
-  const [rows] = await pool.execute(`${applicationProjection()} WHERE a.id = ? LIMIT 1`, [applicationId]);
+async function getKycApplicationById(applicationId, ownerUserId) {
+  const ownerCondition = ownerUserId
+    ? ' AND EXISTS (SELECT 1 FROM loan_customers lc WHERE lc.user_id = a.user_id AND lc.created_by = ?)'
+    : '';
+  const values = ownerUserId ? [applicationId, ownerUserId] : [applicationId];
+  const [rows] = await pool.execute(
+    `${applicationProjection()} WHERE a.id = ?${ownerCondition} LIMIT 1`,
+    values
+  );
   if (!rows[0]) return null;
   const application = rows[0];
   const [documents] = await pool.execute(
@@ -287,13 +302,16 @@ async function getKycApplicationById(applicationId) {
   return { ...application, documents, audit };
 }
 
-async function reviewKycApplication({ applicationId, reviewerId, decision, reason }) {
+async function reviewKycApplication({ applicationId, reviewerId, decision, reason, ownerUserId }) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    const ownerCondition = ownerUserId
+      ? ' AND EXISTS (SELECT 1 FROM loan_customers lc WHERE lc.user_id = a.user_id AND lc.created_by = ?)'
+      : '';
     const [rows] = await connection.execute(
-      'SELECT id, status FROM kyc_applications WHERE id = ? FOR UPDATE',
-      [applicationId]
+      `SELECT a.id, a.status FROM kyc_applications a WHERE a.id = ?${ownerCondition} FOR UPDATE`,
+      ownerUserId ? [applicationId, ownerUserId] : [applicationId]
     );
     const application = rows[0];
     if (!application) {
@@ -324,14 +342,15 @@ async function reviewKycApplication({ applicationId, reviewerId, decision, reaso
   } finally {
     connection.release();
   }
-  return getKycApplicationById(applicationId);
+  return getKycApplicationById(applicationId, ownerUserId);
 }
 
 async function getKycDocument(documentId) {
   const [rows] = await pool.execute(
-    `SELECT d.id, d.application_id, a.user_id, d.document_type, d.storage_key,
-            d.mime_type, d.file_size
+    `SELECT d.id, d.application_id, a.user_id, lc.created_by AS applicant_created_by,
+            d.document_type, d.storage_key, d.mime_type, d.file_size
      FROM kyc_documents d JOIN kyc_applications a ON a.id = d.application_id
+     LEFT JOIN loan_customers lc ON lc.user_id = a.user_id
      WHERE d.id = ? LIMIT 1`,
     [documentId]
   );

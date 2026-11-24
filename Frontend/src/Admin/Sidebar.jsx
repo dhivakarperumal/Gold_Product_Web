@@ -26,19 +26,13 @@ import {
   Clock3,
   Coins,
   CheckCircle2,
-  Wallet,
   MessageCircle
 } from "lucide-react";
 
 /* ================= NAV ITEMS ================= */
 const navItems = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-
- 
-
-   { path: "/admin/settings/daily-gold-rate", label: "Daily Gold Rate", icon: Coins },
-  //  { path: "/admin/funds", label: "Fund Management", icon: Wallet },
- 
+  { path: "/admin/settings/daily-gold-rate", label: "Daily Gold Rate", icon: Coins },
 
   { path: "/admin/billings", label: "Billing", icon: Files },
   { path: "/admin/enquiries", label: "All Enquiries", icon:  MessageCircle, activePaths: ["/admin/enquiries/new"] },
@@ -135,6 +129,7 @@ const navItems = [
 /* ================= SIDEBAR ================= */
 const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   const location = useLocation();
+  const visibleNavItems = navItems;
 
   /* ================= HELPERS & LOGIC ================= */
   const matchesRoute = (routePath) => {
@@ -257,7 +252,7 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
 
         {/* ========== NAVIGATION ========== */}
         <nav aria-label="Admin navigation" className="hide-scrollbar flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
 
             /* ===== DROPDOWN ITEM ===== */

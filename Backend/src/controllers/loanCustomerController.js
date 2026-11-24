@@ -111,15 +111,31 @@ function normalizeCustomerUsername(value) {
   return { username };
 }
 
+function duplicateCustomerAccountMessage(error) {
+  const detail = String(error.message || '').toLowerCase();
+  if (detail.includes('phone')) return 'This mobile number is already registered. Use a different mobile number.';
+  if (detail.includes('email')) return 'This email address is already registered. Use a different email address.';
+  if (detail.includes('username')) return 'This customer name is already registered. Use a different full name.';
+  return 'This customer account name, email, or mobile number is already registered.';
+}
+
 function validId(value) {
   return /^\d+$/.test(value) && BigInt(value) > 0n;
+}
+
+function getCustomerOwnerUserId(req) {
+  return req.adminUser.role === 'superadmin' ? undefined : req.adminUser.user_id;
 }
 
 async function getCustomers(req, res, next) {
   const range = parseDateRange(req.query);
   if (range.error) return res.status(400).json({ message: range.error });
   try {
-    return res.json(await listLoanCustomers(String(req.query.search || '').trim(), range));
+    return res.json(await listLoanCustomers(
+      String(req.query.search || '').trim(),
+      range,
+      getCustomerOwnerUserId(req)
+    ));
   } catch (error) {
     return next(error);
   }
@@ -128,7 +144,7 @@ async function getCustomers(req, res, next) {
 async function getCustomerById(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Customer ID is invalid' });
   try {
-    const customer = await getLoanCustomerById(req.params.id);
+    const customer = await getLoanCustomerById(req.params.id, getCustomerOwnerUserId(req));
     if (!customer) return res.status(404).json({ message: 'Customer not found' });
     return res.json(customer);
   } catch (error) {
@@ -147,10 +163,15 @@ async function postCustomer(req, res, next) {
     return res.status(400).json({ message: 'Password must be at least 8 characters' });
   }
   try {
-    return res.status(201).json(await createLoanCustomer(customer, username, password));
+    return res.status(201).json(await createLoanCustomer(
+      customer,
+      username,
+      password,
+      req.adminUser.user_id
+    ));
   } catch (createError) {
     if (createError.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ message: 'Username, email, or phone number is already registered' });
+      return res.status(409).json({ message: duplicateCustomerAccountMessage(createError) });
     }
     return next(createError);
   }
@@ -188,7 +209,9 @@ async function getCustomerPhoto(req, res, next) {
 async function getCustomerDocuments(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Customer ID is invalid' });
   try {
-    if (!await getLoanCustomerById(req.params.id)) return res.status(404).json({ message: 'Customer not found' });
+    if (!await getLoanCustomerById(req.params.id, getCustomerOwnerUserId(req))) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
     return res.json(await listLoanCustomerDocuments(req.params.id));
   } catch (error) {
     return next(error);
@@ -218,7 +241,7 @@ async function postCustomerDocuments(req, res, next) {
   if (files.length === 0) return res.status(400).json({ message: 'Choose at least one document file' });
 
   try {
-    if (!await getLoanCustomerById(req.params.id)) {
+    if (!await getLoanCustomerById(req.params.id, getCustomerOwnerUserId(req))) {
       await cleanup();
       return res.status(404).json({ message: 'Customer not found' });
     }
@@ -251,7 +274,7 @@ async function getCustomerDocument(req, res, next) {
   const filePath = getLoanCustomerDocumentPath(fileRef);
   if (!filePath) return res.status(400).json({ message: 'Document reference is invalid' });
   try {
-    const document = await getLoanCustomerDocumentByRef(fileRef);
+    const document = await getLoanCustomerDocumentByRef(fileRef, getCustomerOwnerUserId(req));
     if (!document || !fs.existsSync(filePath)) {
       return res.status(404).json({ message: 'Customer document not found' });
     }
@@ -269,8 +292,9 @@ async function getCustomerDocument(req, res, next) {
 async function removeCustomerDocument(req, res, next) {
   if (!validId(req.params.documentId)) return res.status(400).json({ message: 'Document ID is invalid' });
   try {
+    const customer = await getLoanCustomerById(req.params.id, getCustomerOwnerUserId(req));
     const document = await getLoanCustomerDocumentById(req.params.documentId);
-    if (!document || String(document.customer_id) !== String(req.params.id)) {
+    if (!customer || !document || String(document.customer_id) !== String(req.params.id)) {
       return res.status(404).json({ message: 'Customer document not found' });
     }
     if (!await deleteLoanCustomerDocument(req.params.documentId)) {
@@ -288,11 +312,17 @@ async function putCustomer(req, res, next) {
   const { customer, error } = normalizeCustomer(req.body || {});
   if (error) return res.status(400).json({ message: error });
   try {
-    const existing = await getLoanCustomerById(req.params.id);
+    const ownerUserId = getCustomerOwnerUserId(req);
+    const existing = await getLoanCustomerById(req.params.id, ownerUserId);
     if (!existing) {
       return res.status(404).json({ message: 'Customer not found' });
     }
-    const updated = await updateLoanCustomer(req.params.id, customer);
+    const updated = await updateLoanCustomer(
+      req.params.id,
+      customer,
+      req.adminUser.user_id,
+      ownerUserId
+    );
     if (existing.photo_url && existing.photo_url !== updated.photo_url) {
       await removeLoanCustomerPhoto(existing.photo_url);
     }
@@ -305,10 +335,16 @@ async function putCustomer(req, res, next) {
 async function verifyCustomerKyc(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Customer ID is invalid' });
   try {
-    const existing = await getLoanCustomerById(req.params.id);
+    const ownerUserId = getCustomerOwnerUserId(req);
+    const existing = await getLoanCustomerById(req.params.id, ownerUserId);
     if (!existing) return res.status(404).json({ message: 'Customer not found' });
     if (existing.kyc_status === 'Verified') return res.json(existing);
-    return res.json(await updateLoanCustomer(req.params.id, { kyc_status: 'Verified' }));
+    return res.json(await updateLoanCustomer(
+      req.params.id,
+      { kyc_status: 'Verified' },
+      req.adminUser.user_id,
+      ownerUserId
+    ));
   } catch (error) {
     return next(error);
   }
@@ -317,10 +353,13 @@ async function verifyCustomerKyc(req, res, next) {
 async function removeCustomer(req, res, next) {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Customer ID is invalid' });
   try {
-    const customer = await getLoanCustomerById(req.params.id);
+    const ownerUserId = getCustomerOwnerUserId(req);
+    const customer = await getLoanCustomerById(req.params.id, ownerUserId);
     if (!customer) return res.status(404).json({ message: 'Customer not found' });
     const documents = await listLoanCustomerDocuments(req.params.id);
-    if (!await deleteLoanCustomer(req.params.id)) return res.status(404).json({ message: 'Customer not found' });
+    if (!await deleteLoanCustomer(req.params.id, ownerUserId)) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
     await removeLoanCustomerPhoto(customer.photo_url);
     await removeLoanCustomerDocuments(documents);
     return res.json({ message: 'Customer deleted successfully' });
@@ -339,6 +378,7 @@ module.exports = {
   getCustomerDocuments,
   getCustomerPhoto,
   getCustomers,
+  duplicateCustomerAccountMessage,
   normalizeCustomer,
   normalizeCustomerUsername,
   postCustomer,

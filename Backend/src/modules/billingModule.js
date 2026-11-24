@@ -1,5 +1,5 @@
 const { pool } = require('../config/db');
-const { insertTransaction } = require('./fundModule');
+const { getFundBalance, insertFundRecord } = require('./fundsModule');
 const { addDateRangeCondition } = require('../utils/dateRange');
 
 async function initializeBillingModule() {
@@ -55,7 +55,6 @@ async function initializeBillingModule() {
     CREATE TABLE IF NOT EXISTS billing_payments (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
       billing_id BIGINT UNSIGNED NOT NULL,
-      account_id BIGINT UNSIGNED NOT NULL,
       payment_kind ENUM('PAYMENT', 'REFUND') NOT NULL,
       amount DECIMAL(12,2) NOT NULL,
       payment_method VARCHAR(40) NOT NULL,
@@ -66,8 +65,6 @@ async function initializeBillingModule() {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_billing_payments_bill FOREIGN KEY (billing_id)
         REFERENCES billings(id) ON DELETE RESTRICT,
-      CONSTRAINT fk_billing_payments_account FOREIGN KEY (account_id)
-        REFERENCES fund_accounts(id) ON DELETE RESTRICT,
       UNIQUE KEY uq_billing_payment_idempotency (idempotency_key),
       INDEX idx_billing_payments_bill (billing_id, payment_date, id)
     )
@@ -187,15 +184,6 @@ async function recordBillingPayment(id, payment, userId) {
       error.code = 'BILL_NOT_FOUND';
       throw error;
     }
-    const [accounts] = await connection.execute(
-      'SELECT id, is_active FROM fund_accounts WHERE id = ? FOR UPDATE',
-      [payment.account_id]
-    );
-    if (!accounts.length || !accounts[0].is_active) {
-      const error = new Error('Select an active fund account');
-      error.code = 'FUND_ACCOUNT_NOT_FOUND';
-      throw error;
-    }
     const bill = bills[0];
     const currentPaid = Number(bill.paid_amount);
     if (payment.payment_kind === 'REFUND' && Number(payment.amount) > currentPaid) {
@@ -203,48 +191,38 @@ async function recordBillingPayment(id, payment, userId) {
       error.code = 'REFUND_EXCEEDS_PAID';
       throw error;
     }
+    const balance = await getFundBalance(connection, payment.created_by_user_id, true);
     if (payment.payment_kind === 'REFUND') {
-      const [balanceRows] = await connection.execute(
-        `SELECT a.opening_balance + COALESCE(SUM(CASE
-          WHEN t.status = 'POSTED' AND t.transaction_type IN ('FUND_ADDED', 'CREDIT', 'TRANSFER_IN') THEN t.amount
-          WHEN t.status = 'POSTED' AND t.transaction_type IN ('DEBIT', 'TRANSFER_OUT') THEN -t.amount ELSE 0
-        END), 0) AS balance
-         FROM fund_accounts a LEFT JOIN fund_transactions t ON t.account_id = a.id
-         WHERE a.id = ? GROUP BY a.id`,
-        [payment.account_id]
-      );
-      if (Number(balanceRows[0].balance) < Number(payment.amount)) {
-        const error = new Error('The selected account does not have enough available funds for this refund');
+      if (balance < Number(payment.amount)) {
+        const error = new Error('The admin fund balance does not have enough available funds for this refund');
         error.code = 'INSUFFICIENT_FUNDS';
         throw error;
       }
     }
     await connection.execute(
       `INSERT INTO billing_payments
-        (billing_id, account_id, payment_kind, amount, payment_method, reference_number,
+        (billing_id, payment_kind, amount, payment_method, reference_number,
          payment_date, idempotency_key, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id, payment.account_id, payment.payment_kind, payment.amount, payment.payment_method,
+        id, payment.payment_kind, payment.amount, payment.payment_method,
         payment.reference_number || null, payment.payment_date, payment.idempotency_key,
         payment.created_by || null
       ]
     );
     const customerData = typeof bill.customers === 'string' ? JSON.parse(bill.customers) : bill.customers;
     const customerName = Array.isArray(customerData) ? customerData.map((customer) => customer.name).join(', ') : '';
-    await insertTransaction(connection, {
-      account_id: payment.account_id,
+    await insertFundRecord(connection, {
       transaction_type: payment.payment_kind === 'PAYMENT' ? 'CREDIT' : 'DEBIT',
-      category: payment.payment_kind === 'PAYMENT' ? 'Gold Sales Billing Collection' : 'Customer Refund',
       transaction_date: payment.payment_date,
       amount: payment.amount,
-      party_name: customerName,
       related_reference: bill.invoice_no,
       payment_method: payment.payment_method,
-      reference_number: payment.reference_number,
-      description: payment.payment_kind === 'PAYMENT' ? 'Billing collection' : 'Refund against original bill',
+      description: `${payment.payment_kind === 'PAYMENT' ? 'Billing collection' : 'Refund against bill'} ${bill.invoice_no}${customerName ? ` · ${customerName}` : ''}`,
       idempotency_key: payment.idempotency_key,
-      created_by: payment.created_by
+      created_by: payment.created_by_user_id,
+      updated_by: payment.created_by_user_id,
+      admin_name: payment.admin_name
     });
     const paidAmount = currentPaid + (payment.payment_kind === 'PAYMENT' ? Number(payment.amount) : -Number(payment.amount));
     await connection.execute(

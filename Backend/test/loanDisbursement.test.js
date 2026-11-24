@@ -1,14 +1,22 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { pool } = require('../src/config/db');
-const {
-  allocateLoanDisbursement,
-  createLoan
-} = require('../src/modules/loanModule');
+const { createLoan } = require('../src/modules/loanModule');
 
-function fakeConnection({ balances = ['40.00', '30.00'], failOnFundInsert = 0, replayLoanId = null } = {}) {
-  const state = { committed: false, rolledBack: false, released: false, fundInserts: 0, statements: [] };
-  const loan = { id: replayLoanId || 25, loan_number: 'GL-20261020-000025', principal_amount: '50.00' };
+function fakeConnection({ balance = '100.00', failOnFundInsert = false, replayLoanId = null } = {}) {
+  const state = {
+    committed: false,
+    rolledBack: false,
+    released: false,
+    fundInserts: [],
+    loanInsertParams: null,
+    statements: []
+  };
+  const loan = {
+    id: replayLoanId || 25,
+    loan_number: 'GL-20261020-000025',
+    principal_amount: '50.00'
+  };
   const connection = {
     async beginTransaction() {},
     async commit() { state.committed = true; },
@@ -23,22 +31,20 @@ function fakeConnection({ balances = ['40.00', '30.00'], failOnFundInsert = 0, r
       state.statements.push(sql);
       if (sql.includes('FROM loan_customers WHERE id = ?')) return [[{ id: 1, full_name: 'Test Customer' }]];
       if (sql.includes('FROM interest_types WHERE type_key = ?')) return [[{ enabled: 1 }]];
-      if (sql.includes('SELECT id FROM fund_accounts ORDER BY id FOR UPDATE')) {
-        return [balances.map((_, index) => ({ id: index + 1 }))];
-      }
-      if (sql.includes('SELECT related_reference FROM fund_transactions')) {
+      if (sql.includes('FROM users WHERE user_id = ?')) return [[{ user_id: params[0] }]];
+      if (sql.includes('AS balance')) return [[{ balance }]];
+      if (sql.includes('FROM funds') && sql.includes('idempotency_key = ?')) {
         return [replayLoanId ? [{ related_reference: String(replayLoanId) }] : []];
       }
-      if (sql.includes('FROM fund_accounts a')) {
-        const accountId = Number(params[0]);
-        return [[{ balance: balances[accountId - 1] }]];
+      if (sql.startsWith('INSERT INTO loans')) {
+        state.loanInsertParams = params;
+        return [{ insertId: loan.id }];
       }
-      if (sql.startsWith('INSERT INTO loans')) return [{ insertId: loan.id }];
       if (sql.startsWith('UPDATE loans SET loan_number')) return [{ affectedRows: 1 }];
-      if (sql.startsWith('INSERT INTO fund_transactions')) {
-        state.fundInserts += 1;
-        if (failOnFundInsert === state.fundInserts) throw new Error('Simulated fund ledger failure');
-        return [{ insertId: state.fundInserts }];
+      if (sql.startsWith('INSERT INTO funds')) {
+        if (failOnFundInsert) throw new Error('Simulated fund ledger failure');
+        state.fundInserts.push({ sql, params });
+        return [{ insertId: state.fundInserts.length }];
       }
       if (sql.includes('FROM loans l JOIN loan_customers c')) return [[loan]];
       throw new Error(`Unexpected statement: ${sql}`);
@@ -50,12 +56,12 @@ function fakeConnection({ balances = ['40.00', '30.00'], failOnFundInsert = 0, r
 function createConcurrentPool(shared) {
   return {
     async getConnection() {
-      const local = { fundTransactions: [], loan: null, unlock: null };
+      const local = { fundEntries: [], loan: null, unlock: null };
       return {
         async beginTransaction() {},
         async commit() {
-          shared.balance -= local.fundTransactions.reduce((sum, entry) => sum + entry.amount, 0);
-          shared.fundTransactions.push(...local.fundTransactions);
+          shared.balance -= local.fundEntries.reduce((sum, entry) => sum + entry.amount, 0);
+          shared.fundEntries.push(...local.fundEntries);
           if (local.loan) shared.loans.set(local.loan.id, local.loan);
           local.unlock?.();
         },
@@ -68,33 +74,32 @@ function createConcurrentPool(shared) {
         async execute(sql, params = []) {
           if (sql.includes('FROM loan_customers WHERE id = ?')) return [[{ id: 1, full_name: 'Test Customer' }]];
           if (sql.includes('FROM interest_types WHERE type_key = ?')) return [[{ enabled: 1 }]];
-          if (sql.includes('SELECT id FROM fund_accounts ORDER BY id FOR UPDATE')) {
-            const previous = shared.accountLock;
-            shared.accountLock = new Promise((resolve) => { local.unlock = resolve; });
+          if (sql.includes('FROM users WHERE user_id = ?')) {
+            const previous = shared.adminLock;
+            shared.adminLock = new Promise((resolve) => { local.unlock = resolve; });
             await previous;
-            return [[{ id: 1 }]];
+            return [[{ user_id: params[0] }]];
           }
-          if (sql.includes('SELECT related_reference FROM fund_transactions')) {
-            const keyPrefix = params[0].slice(0, -1);
-            const transaction = shared.fundTransactions.find((entry) => entry.idempotency_key.startsWith(keyPrefix));
+          if (sql.includes('AS balance')) return [[{ balance: shared.balance.toFixed(2) }]];
+          if (sql.includes('FROM funds') && sql.includes('idempotency_key = ?')) {
+            const transaction = shared.fundEntries.find((entry) => entry.idempotency_key === params[1]);
             return [transaction ? [{ related_reference: transaction.related_reference }] : []];
           }
-          if (sql.includes('FROM fund_accounts a')) return [[{ balance: shared.balance.toFixed(2) }]];
           if (sql.startsWith('INSERT INTO loans')) {
-            local.loan = { id: ++shared.nextLoanId, loan_number: '' };
+            local.loan = { id: ++shared.nextLoanId, loan_number: '', principal_amount: params[0] };
             return [{ insertId: local.loan.id }];
           }
           if (sql.startsWith('UPDATE loans SET loan_number')) {
             local.loan.loan_number = params[0];
             return [{ affectedRows: 1 }];
           }
-          if (sql.startsWith('INSERT INTO fund_transactions')) {
-            local.fundTransactions.push({
+          if (sql.startsWith('INSERT INTO funds')) {
+            local.fundEntries.push({
               amount: Number(params[4]),
-              related_reference: params[6],
-              idempotency_key: params[11]
+              related_reference: params[8],
+              idempotency_key: params[9]
             });
-            return [{ insertId: local.fundTransactions.length }];
+            return [{ insertId: local.fundEntries.length }];
           }
           if (sql.includes('FROM loans l JOIN loan_customers c')) {
             const loanId = Number(params[0]);
@@ -107,112 +112,118 @@ function createConcurrentPool(shared) {
   };
 }
 
-test('allocates a loan smaller than the available balance', () => {
-  assert.deepEqual(
-    allocateLoanDisbursement('25.00', [{ id: 1, balance: '100.00' }]),
-    [{ account_id: 1, amount: '25.00' }]
-  );
-});
-
-test('allows a loan equal to total available funds', () => {
-  assert.deepEqual(
-    allocateLoanDisbursement('70.00', [{ id: 1, balance: '40.00' }, { id: 2, balance: '30.00' }]),
-    [{ account_id: 1, amount: '40.00' }, { account_id: 2, amount: '30.00' }]
-  );
-});
-
-test('rejects a loan greater than available funds', () => {
-  assert.throws(
-    () => allocateLoanDisbursement('70.01', [{ id: 1, balance: '40.00' }, { id: 2, balance: '30.00' }]),
-    (error) => error.code === 'INSUFFICIENT_FUNDS' && error.available_balance === '70.00'
-  );
-});
-
-test('rejects a positive loan when available funds are zero', () => {
-  assert.throws(
-    () => allocateLoanDisbursement('0.01', [{ id: 1, balance: '0.00' }]),
-    (error) => error.code === 'INSUFFICIENT_FUNDS' && error.available_balance === '0.00'
-  );
-});
-
-test('rejects zero, negative, empty, and invalid loan amounts', () => {
-  for (const amount of [0, -1, '', 'invalid', NaN]) {
-    assert.throws(() => allocateLoanDisbursement(amount, [{ id: 1, balance: '100.00' }]), {
-      code: 'INVALID_LOAN_AMOUNT'
-    });
-  }
-});
-
-test('rolls back loan creation when recording a split fund debit fails', async (context) => {
-  const originalGetConnection = pool.getConnection;
-  const { connection, state } = fakeConnection({ failOnFundInsert: 2 });
-  pool.getConnection = async () => connection;
-  context.after(() => { pool.getConnection = originalGetConnection; });
-
-  await assert.rejects(createLoan({
+function loanDetails(principalAmount = '50.00') {
+  return {
     customer_id: '1',
     interest_type: 'simple',
     loan_date: '2026-10-20',
-    principal_amount: '50.0000',
-    created_by: 7
-  }, { idempotencyKey: 'test-request-key' }), /Simulated fund ledger failure/);
+    principal_amount: principalAmount,
+    created_by: 'admin-user-uuid',
+    updated_by: 'admin-user-uuid'
+  };
+}
 
-  assert.equal(state.fundInserts, 2);
+test('records the loan disbursement as one owner-scoped fund debit', async (context) => {
+  const originalGetConnection = pool.getConnection;
+  const { connection, state } = fakeConnection();
+  pool.getConnection = async () => connection;
+  context.after(() => { pool.getConnection = originalGetConnection; });
+
+  await createLoan(loanDetails(), {
+    idempotencyKey: 'loan-request-1',
+    fundCreatedByUserId: 'admin-user-uuid',
+    fundAdminName: 'Admin One'
+  });
+
+  assert.equal(state.fundInserts.length, 1);
+  assert.match(state.fundInserts[0].sql, /INSERT INTO funds/);
+  assert.deepEqual(state.fundInserts[0].params.slice(0, 3), [
+    'admin-user-uuid', 'admin-user-uuid', 'DEBIT'
+  ]);
+  assert.equal(state.fundInserts[0].params[4], '50.00');
+  assert.equal(state.fundInserts[0].params[7], 'Admin One');
+  assert.equal(state.fundInserts[0].params[9], 'loan-disbursement:loan-request-1');
+  assert.equal(state.loanInsertParams[6], 'admin-user-uuid');
+  assert.equal(state.loanInsertParams[7], 'admin-user-uuid');
+  assert.equal(state.committed, true);
+});
+
+test('rolls back a loan when its disbursement exceeds the admin balance', async (context) => {
+  const originalGetConnection = pool.getConnection;
+  const { connection, state } = fakeConnection({ balance: '49.99' });
+  pool.getConnection = async () => connection;
+  context.after(() => { pool.getConnection = originalGetConnection; });
+
+  await assert.rejects(createLoan(loanDetails(), {
+    idempotencyKey: 'loan-request-2',
+    fundCreatedByUserId: 'admin-user-uuid',
+    fundAdminName: 'Admin One'
+  }), { code: 'INSUFFICIENT_FUNDS', available_balance: '49.99' });
+
+  assert.equal(state.fundInserts.length, 0);
   assert.equal(state.committed, false);
   assert.equal(state.rolledBack, true);
   assert.equal(state.released, true);
 });
 
-test('returns the existing loan for a repeated idempotency key', async (context) => {
+test('rolls back loan creation if the fund ledger write fails', async (context) => {
+  const originalGetConnection = pool.getConnection;
+  const { connection, state } = fakeConnection({ failOnFundInsert: true });
+  pool.getConnection = async () => connection;
+  context.after(() => { pool.getConnection = originalGetConnection; });
+
+  await assert.rejects(createLoan(loanDetails(), {
+    idempotencyKey: 'loan-request-3',
+    fundCreatedByUserId: 'admin-user-uuid',
+    fundAdminName: 'Admin One'
+  }), /Simulated fund ledger failure/);
+
+  assert.equal(state.committed, false);
+  assert.equal(state.rolledBack, true);
+  assert.equal(state.released, true);
+});
+
+test('returns the original loan for a repeated disbursement key', async (context) => {
   const originalGetConnection = pool.getConnection;
   const { connection, state } = fakeConnection({ replayLoanId: 25 });
   pool.getConnection = async () => connection;
   context.after(() => { pool.getConnection = originalGetConnection; });
 
-  const loan = await createLoan({
-    customer_id: '1',
-    interest_type: 'simple',
-    loan_date: '2026-10-20',
-    principal_amount: '50.0000',
-    created_by: 7
-  }, { idempotencyKey: 'test-request-key' });
+  const result = await createLoan(loanDetails(), {
+    idempotencyKey: 'loan-request-4',
+    fundCreatedByUserId: 'admin-user-uuid',
+    fundAdminName: 'Admin One'
+  });
 
-  assert.equal(loan.id, 25);
-  assert.equal(state.fundInserts, 0);
+  assert.equal(result.id, 25);
+  assert.equal(state.fundInserts.length, 0);
   assert.equal(state.committed, true);
-  const accountLockIndex = state.statements.findIndex((sql) => sql.includes('ORDER BY id FOR UPDATE'));
-  const idempotencyCheckIndex = state.statements.findIndex((sql) => sql.includes('SELECT related_reference FROM fund_transactions'));
-  assert.ok(accountLockIndex >= 0);
-  assert.ok(idempotencyCheckIndex > accountLockIndex);
 });
 
-test('serializes concurrent loans so they cannot spend the same available funds', async (context) => {
+test('serializes concurrent loans so they cannot spend the same admin balance', async (context) => {
   const originalGetConnection = pool.getConnection;
   const shared = {
-    accountLock: Promise.resolve(),
+    adminLock: Promise.resolve(),
     balance: 100,
-    fundTransactions: [],
+    fundEntries: [],
     loans: new Map(),
     nextLoanId: 0
   };
   pool.getConnection = createConcurrentPool(shared).getConnection;
   context.after(() => { pool.getConnection = originalGetConnection; });
-  const loan = {
-    customer_id: '1',
-    interest_type: 'simple',
-    loan_date: '2026-10-20',
-    principal_amount: '60.00',
-    created_by: 7
+  const options = {
+    fundCreatedByUserId: 'admin-user-uuid',
+    fundAdminName: 'Admin One'
   };
 
   const results = await Promise.allSettled([
-    createLoan(loan, { idempotencyKey: '00000000-0000-4000-8000-000000000001' }),
-    createLoan(loan, { idempotencyKey: '00000000-0000-4000-8000-000000000002' })
+    createLoan(loanDetails('60.00'), { ...options, idempotencyKey: 'loan-request-5a' }),
+    createLoan(loanDetails('60.00'), { ...options, idempotencyKey: 'loan-request-5b' })
   ]);
 
   assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
   assert.equal(results.filter((result) => result.status === 'rejected' && result.reason.code === 'INSUFFICIENT_FUNDS').length, 1);
   assert.equal(shared.balance, 40);
   assert.equal(shared.loans.size, 1);
-  assert.equal(shared.fundTransactions.reduce((sum, entry) => sum + entry.amount, 0), 60);
+  assert.equal(shared.fundEntries.reduce((sum, entry) => sum + entry.amount, 0), 60);
 });

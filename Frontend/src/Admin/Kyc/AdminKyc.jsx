@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, ShieldCheck, Users, Clock3, CheckCircle2, XCircle, ChevronLeft, ChevronRight, FileText, X, LayoutGrid, List } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../api";
+import { useAuth } from "../../PrivateRouter/AuthContext";
 import DateRangeFilter from "../Components/DateRangeFilter";
 import useAdminCachedList from "../useAdminCachedList";
 
@@ -28,8 +29,10 @@ const documentLabels = {
 const dateLabel = (value) => value ? new Date(value).toLocaleString() : "—";
 
 const AdminKyc = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [statsError, setStatsError] = useState(false);
+  const [statsOwnerUserId, setStatsOwnerUserId] = useState(user?.user_id);
   const [allowedDocumentTypes, setAllowedDocumentTypes] = useState(null);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
@@ -41,22 +44,27 @@ const AdminKyc = () => {
   const [saving, setSaving] = useState(false);
   const [documentUrls, setDocumentUrls] = useState({});
   const documentUrlsRef = useRef({});
+  const visibleStats = statsOwnerUserId === user?.user_id ? stats : null;
+  const visibleStatsError = statsOwnerUserId === user?.user_id && statsError;
 
   const loadStats = useCallback(async () => {
+    const ownerUserId = user?.user_id;
     try {
       const response = await api.get("/kyc/admin/stats", {
         params: { dateFrom: dateRange.startDate, dateTo: dateRange.endDate }
       });
+      setStatsOwnerUserId(ownerUserId);
       setStats(response.data.stats || {});
       setAllowedDocumentTypes(response.data.allowedDocumentTypes || []);
       setStatsError(false);
     } catch (error) {
+      setStatsOwnerUserId(ownerUserId);
       setStatsError(true);
       throw error;
     }
-  }, [dateRange.startDate, dateRange.endDate]);
+  }, [dateRange.startDate, dateRange.endDate, user?.user_id]);
 
-  const listCacheKey = `admin:kyc:${JSON.stringify({
+  const listCacheKey = `admin:kyc:${user?.user_id || "unknown"}:${JSON.stringify({
     search, status, startDate: dateRange.startDate, endDate: dateRange.endDate, page, pageSize: PAGE_SIZE
   })}`;
   const {
@@ -100,7 +108,7 @@ const AdminKyc = () => {
       loadStats().catch((error) => toast.error(error.response?.data?.message || "Unable to load KYC statistics"));
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [loadStats]);
+  }, [loadStats, user?.user_id]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -163,10 +171,10 @@ const AdminKyc = () => {
   };
 
   const statCards = [
-    { label: "Total applications", value: statsError ? "Unavailable" : stats ? Object.values(stats).reduce((sum, count) => sum + Number(count || 0), 0) : "—", icon: Users, color: "text-slate-700 bg-slate-100" },
-    { label: "Pending", value: statsError ? "Unavailable" : stats?.pending ?? "—", icon: Clock3, color: "text-amber-700 bg-amber-100" },
-    { label: "In review", value: statsError ? "Unavailable" : stats?.in_review ?? "—", icon: ShieldCheck, color: "text-sky-700 bg-sky-100" },
-    { label: "Verified", value: statsError ? "Unavailable" : stats?.verified ?? "—", icon: CheckCircle2, color: "text-emerald-700 bg-emerald-100" }
+    { label: "Total applications", value: visibleStatsError ? "Unavailable" : visibleStats ? Object.values(visibleStats).reduce((sum, count) => sum + Number(count || 0), 0) : "—", icon: Users, color: "text-slate-700 bg-slate-100" },
+    { label: "Pending", value: visibleStatsError ? "Unavailable" : visibleStats?.pending ?? "—", icon: Clock3, color: "text-amber-700 bg-amber-100" },
+    { label: "In review", value: visibleStatsError ? "Unavailable" : visibleStats?.in_review ?? "—", icon: ShieldCheck, color: "text-sky-700 bg-sky-100" },
+    { label: "Verified", value: visibleStatsError ? "Unavailable" : visibleStats?.verified ?? "—", icon: CheckCircle2, color: "text-emerald-700 bg-emerald-100" }
   ];
 
   return (
