@@ -1,30 +1,37 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Package,
   BarChart3,
+  Bell,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  Package,
+  Settings,
+  UserRound,
   X,
   ChevronLeft,
-  Layers,
+  Users,
   Wallet,
 } from "lucide-react";
 import { useAuth } from "../PrivateRouter/AuthContext";
 
 const navItems = [
-  { path: "/superadmin", label: "Dashboard ", icon: LayoutDashboard, exact: true },
+  { path: "/superadmin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { path: "/superadmin/goldshop", label: "Gold Shop Management", icon: Package },
-  { path: "/superadmin/subscription-plans", label: "Subscription Plan", icon: Layers, exact: true },
-  // { label: "Subscription Activation & Expiry", icon: CalendarDays, disabled: true },
+  { path: "/superadmin/users", label: "User Management", icon: Users, exact: true },
+  { path: "/superadmin/subscription-plans", label: "Subscription Plans", icon: CreditCard, exact: true },
   { path: "/superadmin/payments", label: "Payment Management", icon: Wallet, exact: true },
-  // { label: "Transaction History", icon: Files, disabled: true },
-  // { label: "Subscription Renewal History", icon: RefreshCw, disabled: true },
-  { path: "/superadmin/revenue-reports", label: "Revenue Reports", icon: BarChart3, exact: true }
+  { path: "/superadmin/revenue-reports", label: "Revenue Analytics", icon: BarChart3, exact: true },
+  { path: "/superadmin/profile", search: "?tab=notifications", label: "Notifications", icon: Bell, exact: true },
+  { path: "/superadmin/profile", search: "?tab=security", label: "Settings", icon: Settings, exact: true },
+  { path: "/superadmin/profile", label: "My Profile", icon: UserRound, exact: true }
 ];
 
 /* ================= SIDEBAR ================= */
 const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   const location = useLocation();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const displayName = user?.name?.trim() || user?.username || "Super Admin";
   const normalizedRole = String(user?.role || "superadmin").toLowerCase().replace(/[\s_-]/g, "");
   const roleLabel = normalizedRole === "superadmin"
@@ -48,9 +55,22 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
 
   const isActiveRoute = (item) => {
     if (!item.path) return false;
+    if (item.search) return location.pathname === item.path && location.search === item.search;
+    if (item.path === "/superadmin/profile" && location.pathname === item.path) {
+      return !location.search || location.search === "?tab=personal";
+    }
     return item.exact
       ? location.pathname === item.path
       : matchesRoute(item.path);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/login", { replace: true });
+    } catch (error) {
+      console.error("Super Admin logout failed:", error);
+    }
   };
 
   return (
@@ -112,37 +132,12 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         <nav aria-label="Super Admin navigation" className="hide-scrollbar flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const title = item.disabled ? `${item.label} (Coming soon)` : item.label;
-
-            if (item.disabled) {
-              return (
-                <div
-                  key={item.label}
-                  aria-disabled="true"
-                  title={collapsed ? title : undefined}
-                  className="group flex items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-emerald-50/45"
-                >
-                  <Icon className="h-5 w-5 shrink-0 text-emerald-100/35" />
-                  {!collapsed && (
-                    <>
-                      <span className="min-w-0 flex-1 text-sm font-semibold leading-snug tracking-wide">
-                        {item.label}
-                      </span>
-                      <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-50/60">
-                        Soon
-                      </span>
-                    </>
-                  )}
-                </div>
-              );
-            }
-
             const isActive = isActiveRoute(item);
 
             return (
               <NavLink
-                key={item.path}
-                to={item.path}
+                key={`${item.path}${item.search || ""}`}
+                to={item.search ? { pathname: item.path, search: item.search } : item.path}
                 end={item.exact}
                 title={collapsed ? item.label : undefined}
                 onClick={() => {
@@ -151,7 +146,7 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                 className={`
                   group flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-200
                   ${isActive
-                    ? "border-white/10 bg-gradient-to-r from-[#078D7B] to-[#087263] text-white shadow-lg shadow-black/15"
+                    ? "border-amber-200/30 bg-[#A87908] text-white shadow-md shadow-black/10"
                     : "border-transparent text-emerald-50/75 hover:border-white/[0.08] hover:bg-white/[0.07] hover:text-white"
                   }
                 `}
@@ -164,18 +159,9 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         </nav>
 
         <div className={`border-t border-white/10 ${collapsed ? "px-3 py-4" : "px-4 py-4"}`}>
-          <NavLink
-            to="/superadmin/profile"
-            end
+          <div
             title={collapsed ? `${displayName} - ${roleLabel}` : undefined}
-            onClick={() => {
-              if (isOpen) onClose();
-            }}
-            className={({ isActive }) => `group flex items-center rounded-2xl border px-3 py-3 transition ${collapsed ? "justify-center" : "gap-3"} ${
-              isActive
-                ? "border-white/15 bg-white/10"
-                : "border-transparent hover:border-white/10 hover:bg-white/[0.07]"
-            }`}
+            className={`flex items-center rounded-2xl border border-white/10 px-3 py-3 ${collapsed ? "justify-center" : "gap-3"}`}
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-200 to-amber-500 text-base font-black text-[#123b32] shadow-md shadow-black/15">
               {avatarInitial}
@@ -186,7 +172,16 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                 <span className="mt-0.5 block truncate text-[11px] font-semibold text-emerald-100/65">{roleLabel}</span>
               </span>
             )}
-          </NavLink>
+          </div>
+          <button
+            type="button"
+            title={collapsed ? "Log out" : undefined}
+            onClick={() => void handleLogout()}
+            className={`mt-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold text-emerald-50/80 transition hover:bg-white/[0.08] hover:text-white ${collapsed ? "justify-center" : ""}`}
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Logout</span>}
+          </button>
         </div>
 
         {/* ========== COLLAPSE BUTTON ========== */}

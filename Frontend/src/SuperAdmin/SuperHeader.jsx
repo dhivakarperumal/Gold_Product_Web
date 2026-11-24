@@ -9,11 +9,11 @@ import {
   User,
   LogOut,
   ChevronDown,
-  ShoppingBag,
+  CreditCard,
   Package,
+  Store,
   X,
   AlertTriangle,
-  TrendingDown,
   Maximize,
 } from "lucide-react";
 
@@ -53,7 +53,10 @@ const getHeaderProductImage = (product) => {
 
 const pageTitles = {
   "/superadmin/goldshop": "Gold Shops Management",
+  "/superadmin/users": "User Management",
   "/superadmin/subscription-plans": "Subscription Plan Management",
+  "/superadmin/payments": "Payment Management",
+  "/superadmin/revenue-reports": "Revenue Analytics",
   "/superadmin/profile": "My Profile",
   "/admin": "Dashboard",
   "/admin/products/all": "All Products",
@@ -131,6 +134,8 @@ const SuperHeader = ({ onMenuClick }) => {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const normalizedRole = String(role || "").toLowerCase().replace(/[\s_-]/g, "");
+  const isSuperAdmin = normalizedRole === "superadmin";
 
   useEffect(() => {
     if (showSearch && searchInputRef.current) {
@@ -139,6 +144,11 @@ const SuperHeader = ({ onMenuClick }) => {
   }, [showSearch]);
 
   const getPageTitle = () => {
+    if (location.pathname === "/superadmin/profile") {
+      const tab = new URLSearchParams(location.search).get("tab");
+      if (tab === "notifications") return "Notifications";
+      if (tab === "security") return "Settings";
+    }
     if (pageTitles[location.pathname]) return pageTitles[location.pathname];
     if (location.pathname.startsWith("/admin/enquiries/edit/")) return pageTitles["/admin/enquiries/edit"];
     if (/^\/admin\/products\/[^/]+$/.test(location.pathname)
@@ -160,9 +170,54 @@ const SuperHeader = ({ onMenuClick }) => {
     }
   };
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
-      const response = await api.get("/loans").catch(() => ({ data: [] }));
+      if (isSuperAdmin) {
+        const response = await api.get("/super-admin/dashboard/analytics");
+        const analytics = response.data?.data;
+        if (!Array.isArray(analytics?.recentShops) || !Array.isArray(analytics?.recentPayments)) {
+          throw new Error("Dashboard analytics response is missing recent platform activity");
+        }
+
+        const events = [
+          ...analytics.recentShops.map((shop) => ({
+            id: `shop-${shop.id}`,
+            type: "shop",
+            path: `/superadmin/goldshop/${shop.id}`,
+            loan_number: shop.shop_name,
+            jewellery_type: shop.owner_name || shop.email || "New shop registration",
+            loan_status: shop.approval_status || "pending",
+            date: shop.created_at,
+          })),
+          ...analytics.recentPayments.map((payment) => ({
+            id: `payment-${payment.id}`,
+            type: "payment",
+            path: "/superadmin/payments",
+            loan_number: payment.paymentId,
+            jewellery_type: `${payment.shop_name} · ${payment.plan_name}`,
+            loan_status: payment.payment_status,
+            principal_amount: payment.amount,
+            date: payment.payment_date,
+          }))
+        ].sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime());
+
+        const now = new Date();
+        const isToday = (value) => {
+          const date = new Date(value);
+          return !Number.isNaN(date.getTime())
+            && date.getFullYear() === now.getFullYear()
+            && date.getMonth() === now.getMonth()
+            && date.getDate() === now.getDate();
+        };
+        setNotifications({
+          today: events.filter((event) => isToday(event.date)),
+          earlier: events.filter((event) => !isToday(event.date))
+        });
+        setUnreadCount(events.length);
+        return;
+      }
+
+      const response = await api.get("/loans");
       const loans = Array.isArray(response.data) ? response.data : (response.data?.loans || []);
 
       const activeLoans = loans.filter(l => l.loan_status === "Active" || l.loan_status === "Processing" || l.loan_status === "Pending");
@@ -194,11 +249,11 @@ const SuperHeader = ({ onMenuClick }) => {
       }, { today: [], earlier: [] });
 
       setNotifications(categorized);
-      setUnreadCount(activeLoans.length || 3);
+      setUnreadCount(activeLoans.length);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     }
-  };
+  }, [isSuperAdmin]);
 
   // Pre-fetch products & loans for search on mount
   useEffect(() => {
@@ -328,28 +383,28 @@ const SuperHeader = ({ onMenuClick }) => {
   };
 
   useEffect(() => {
-    fetchLowStockProducts();
-    const interval = setInterval(fetchLowStockProducts, 60000); // refresh every 1 min
-    return () => clearInterval(interval);
+    const initialFetch = window.setTimeout(() => void fetchLowStockProducts(), 0);
+    const interval = setInterval(fetchLowStockProducts, 60000);
+    return () => {
+      window.clearTimeout(initialFetch);
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
+    const initialFetch = window.setTimeout(() => void fetchNotifications(), 0);
     const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleNotificationClick = (orderId) => {
-    navigate(`/admin/orders/${orderId}`);
-    setShowNotifications(false);
-  };
+    return () => {
+      window.clearTimeout(initialFetch);
+      clearInterval(interval);
+    };
+  }, [fetchNotifications]);
 
   // ✅ Safe values
   const userName = profileName || "Admin";
 
-  const normalizedRole = String(role || "").toLowerCase().replace(/[\s_-]/g, "");
-  const profilePath = normalizedRole === "superadmin" ? "/superadmin/profile" : "/admin/profile";
-  const userRole = normalizedRole === "superadmin"
+  const profilePath = isSuperAdmin ? "/superadmin/profile" : "/admin/profile";
+  const userRole = isSuperAdmin
     ? "Super Admin"
     : role
       ? role.charAt(0).toUpperCase() + role.slice(1)
@@ -577,10 +632,10 @@ const SuperHeader = ({ onMenuClick }) => {
 
                   <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                      Recent Activity
+                      {isSuperAdmin ? "Recent Platform Activity" : "Recent Activity"}
                     </h3>
                     <span className="text-[10px] font-black bg-emerald-50 text-[#008577] px-2.5 py-1 rounded-lg uppercase">
-                      {(notifications.today?.length || 0) + (notifications.earlier?.length || 0)} Active
+                      {(notifications.today?.length || 0) + (notifications.earlier?.length || 0)} {isSuperAdmin ? "Items" : "Active"}
                     </span>
                   </div>
 
@@ -591,21 +646,30 @@ const SuperHeader = ({ onMenuClick }) => {
                         {notifications.today?.length > 0 && (
                           <>
                             <div className="px-5 py-2 bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
-                              <p className="text-[9px] font-black text-[#008577] uppercase tracking-[0.2em]">Today's Loans</p>
+                              <p className="text-[9px] font-black text-[#008577] uppercase tracking-[0.2em]">
+                                {isSuperAdmin ? "Today's activity" : "Today's Loans"}
+                              </p>
                             </div>
                             {notifications.today.map((loan) => (
                               <button
                                 key={loan.id}
-                                onClick={() => { navigate(`/admin/loans/details/${loan.id}`); setShowNotifications(false); }}
+                                onClick={() => {
+                                  navigate(isSuperAdmin ? loan.path : `/admin/loans/details/${loan.id}`);
+                                  setShowNotifications(false);
+                                }}
                                 className="w-full px-5 py-4 flex items-start gap-4 hover:bg-emerald-50/30 transition-all text-left group"
                               >
                                 <div className="w-10 h-10 rounded-xl bg-amber-100/60 flex items-center justify-center text-amber-700 shrink-0 group-hover:scale-110 transition-transform shadow-sm">
-                                  <Package className="w-5 h-5" />
+                                  {isSuperAdmin
+                                    ? loan.type === "shop" ? <Store className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />
+                                    : <Package className="w-5 h-5" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between mb-0.5">
                                     <p className="text-sm font-black text-slate-800 tracking-tight">{loan.loan_number || `#GL-${loan.id}`}</p>
-                                    <p className="text-[12px] text-[#008577] font-black">{formatCurrency(loan.principal_amount || 0)}</p>
+                                    {loan.principal_amount != null && (
+                                      <p className="text-[12px] text-[#008577] font-black">{formatCurrency(loan.principal_amount)}</p>
+                                    )}
                                   </div>
                                   <div className="flex items-center justify-between">
                                     <p className="text-[10px] text-slate-500 font-bold truncate">
@@ -625,21 +689,30 @@ const SuperHeader = ({ onMenuClick }) => {
                         {notifications.earlier?.length > 0 && (
                           <>
                             <div className="px-5 py-2 bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Active Records</p>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                {isSuperAdmin ? "Earlier activity" : "Active Records"}
+                              </p>
                             </div>
                             {notifications.earlier.map((loan) => (
                               <button
                                 key={loan.id}
-                                onClick={() => { navigate(`/admin/loans/details/${loan.id}`); setShowNotifications(false); }}
+                                onClick={() => {
+                                  navigate(isSuperAdmin ? loan.path : `/admin/loans/details/${loan.id}`);
+                                  setShowNotifications(false);
+                                }}
                                 className="w-full px-5 py-4 flex items-start gap-4 hover:bg-slate-50 transition-all text-left group opacity-80 hover:opacity-100"
                               >
                                 <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0 group-hover:scale-110 transition-transform">
-                                  <Package className="w-5 h-5" />
+                                  {isSuperAdmin
+                                    ? loan.type === "shop" ? <Store className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />
+                                    : <Package className="w-5 h-5" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between mb-0.5">
                                     <p className="text-sm font-black text-slate-800 tracking-tight">{loan.loan_number || `#GL-${loan.id}`}</p>
-                                    <p className="text-[12px] text-slate-600 font-black">{formatCurrency(loan.principal_amount || 0)}</p>
+                                    {loan.principal_amount != null && (
+                                      <p className="text-[12px] text-slate-600 font-black">{formatCurrency(loan.principal_amount)}</p>
+                                    )}
                                   </div>
                                   <div className="flex items-center justify-between">
                                     <p className="text-[10px] text-slate-400 font-bold truncate">
@@ -659,18 +732,18 @@ const SuperHeader = ({ onMenuClick }) => {
                       <div className="px-6 py-12 text-center text-slate-400">
                         <Package className="mx-auto w-12 h-12 opacity-10 mb-3" />
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">
-                          No pending notifications
+                          {isSuperAdmin ? "No recent platform activity" : "No pending notifications"}
                         </p>
                       </div>
                     )}
                   </div>
 
                   <Link
-                    to="/admin/loans/allloans"
+                    to={isSuperAdmin ? "/superadmin/goldshop" : "/admin/loans/allloans"}
                     onClick={() => setShowNotifications(false)}
                     className="block w-full py-3.5 text-center text-[10px] font-black text-[#004D40] uppercase tracking-[0.2em] bg-emerald-50/60 hover:bg-emerald-50 transition-colors border-t border-slate-50"
                   >
-                    View All Loans →
+                    {isSuperAdmin ? "Manage Gold Shops" : "View All Loans"} →
                   </Link>
                 </div>
             )}
@@ -745,7 +818,7 @@ const SuperHeader = ({ onMenuClick }) => {
                   </Link>
 
                   <Link
-                    to="/admin/settings"
+                    to={isSuperAdmin ? "/superadmin/profile?tab=security" : "/admin/settings"}
                     onClick={() => setShowDropdown(false)}
                     className="flex items-center gap-3 px-3 py-2.5 
                     rounded-xl hover:bg-emerald-50 hover:text-[#004D40]

@@ -124,6 +124,7 @@ const router = createHashRouter([
     children: [
       { index: true, element: <SuperDashboard /> },
       { path: "profile", element: <SuperProfile /> },
+      { path: "users", element: <Users /> },
       { path: "goldshop", element: <AllGoldsShop /> },
       { path: "goldshop/:id", element: <GoldShopDetails /> },
       { path: "subscription-plans", element: <AllSubscriptionPlan /> },

@@ -17,7 +17,7 @@ import {
   UserRound
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import api from "../../api";
 
@@ -65,6 +65,7 @@ function photoUrl(path) {
 
 export default function SuperProfile() {
   const { user, login } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -72,10 +73,11 @@ export default function SuperProfile() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [savingPreference, setSavingPreference] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [activeTab, setActiveTab] = useState("personal");
   const [showPasswords, setShowPasswords] = useState(false);
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
   const photoInputRef = useRef(null);
+  const requestedTab = searchParams.get("tab");
+  const activeTab = TABS.some(({ id }) => id === requestedTab) ? requestedTab : "personal";
 
   const fetchProfile = useCallback(async (signal) => {
     const { data } = await api.get("/auth/me", signal ? { signal } : undefined);
@@ -346,7 +348,7 @@ export default function SuperProfile() {
                 id={`super-profile-tab-${id}`}
                 aria-selected={activeTab === id}
                 aria-controls={`super-profile-panel-${id}`}
-                onClick={() => setActiveTab(id)}
+                onClick={() => setSearchParams(id === "personal" ? {} : { tab: id })}
                 className={`inline-flex min-w-max items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition lg:w-full ${activeTab === id ? "bg-[#123b32] text-white shadow-md shadow-emerald-950/10" : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"}`}
               >
                 <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${activeTab === id ? "bg-white/10 text-amber-300" : "bg-stone-100 text-stone-500"}`}><Icon size={17} /></span>
