@@ -71,11 +71,11 @@ function FundManagement() {
 
   const pageCount = Math.max(1, Math.ceil(total / 20));
   const statCards = useMemo(() => [
-    { label: "Opening Balance", value: summary?.opening_balance, icon: Wallet, style: "border-emerald-200 bg-emerald-50 text-emerald-900" },
-    { label: "Fund Added", value: summary?.fund_added, icon: Plus, style: "border-amber-200 bg-amber-50 text-amber-900" },
-    { label: "Total Credits", value: summary?.total_credit, icon: ArrowDownLeft, style: "border-sky-200 bg-sky-50 text-sky-900" },
-    { label: "Total Debits", value: summary?.total_debit, icon: ArrowUpRight, style: "border-rose-200 bg-rose-50 text-rose-900" },
-    { label: "Available Balance", value: summary?.current_balance, icon: Wallet, style: "border-teal-300 bg-teal-50 text-teal-900" }
+    { label: "Opening Balance", value: summary?.opening_balance, icon: Wallet, style: "bg-emerald-50 text-emerald-700" },
+    { label: "Fund Added", value: summary?.fund_added, icon: Plus, style: "bg-amber-50 text-amber-700" },
+    { label: "Total Credits", value: summary?.total_credit, icon: ArrowDownLeft, style: "bg-sky-50 text-sky-700" },
+    { label: "Total Debits", value: summary?.total_debit, icon: ArrowUpRight, style: "bg-rose-50 text-rose-700" },
+    { label: "Available Balance", value: summary?.current_balance, icon: Wallet, style: "bg-teal-50 text-teal-700" }
   ], [summary]);
 
   const openForm = () => {
@@ -109,13 +109,13 @@ function FundManagement() {
 
   return (
     <main className="space-y-6">
-      <header className="flex flex-col gap-4 rounded-2xl bg-gradient-to-r from-[#003B3B] via-[#00594f] to-[#087568] px-5 py-6 text-white shadow-lg sm:flex-row sm:items-center sm:justify-between sm:px-7">
+      <header className="relative flex flex-col gap-5 overflow-hidden rounded-3xl bg-gradient-to-r from-[#003B3B] via-[#00594f] to-[#087568] px-5 py-6 text-white shadow-lg sm:flex-row sm:items-center sm:justify-between sm:px-7">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">Sri Gold Shop · Finance</p>
-          <h1 className="mt-1 text-2xl font-black sm:text-3xl">Fund Management</h1>
-          <p className="mt-2 text-sm text-white/75">Your fund entries and balances are private to your admin account.</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">Finance · Ledger</p>
+          <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Fund Management</h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-white/75">Review fund entries and balances recorded for your admin account.</p>
         </div>
-        <button onClick={openForm} className="inline-flex items-center gap-2 self-start rounded-xl bg-white px-4 py-2.5 text-sm font-extrabold text-[#00594f] hover:bg-emerald-50">
+        <button onClick={openForm} className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-white px-4 py-3 text-sm font-extrabold text-[#00594f] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-emerald-50 sm:self-center">
           <Plus size={16} /> Add Fund Entry
         </button>
       </header>
@@ -129,24 +129,24 @@ function FundManagement() {
 
       <section aria-label="Fund summary" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {statCards.map(({ label, value, icon: Icon, style }) => (
-          <article key={label} className={`flex min-h-28 items-center gap-3 rounded-2xl border p-4 shadow-sm ${style}`}>
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/80"><Icon size={20} /></span>
+          <article key={label} className="flex min-h-28 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${style}`}><Icon size={20} /></span>
             <div className="min-w-0">
-              <p className="truncate text-xs font-semibold opacity-75">{label}</p>
-              <p className="mt-1 truncate text-lg font-black">{loading && value == null ? "—" : money(value)}</p>
+              <p className="truncate text-xs font-semibold text-slate-500">{label}</p>
+              <p className="mt-1 truncate text-lg font-black tracking-tight text-slate-900">{loading && value == null ? "—" : money(value)}</p>
             </div>
           </article>
         ))}
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/70 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <DateRangeFilter onApply={(range) => { setDateRange(range); setPage(1); }} />
             <select
               value={filters.transaction_type}
               onChange={(event) => updateFilter("transaction_type", event.target.value)}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-[#008577] focus:ring-2 focus:ring-emerald-100"
               aria-label="Filter by transaction type"
             >
               <option value="ALL">All types</option>
@@ -154,23 +154,23 @@ function FundManagement() {
             </select>
           </div>
           <div className="flex gap-2">
-            <label className="flex min-w-48 items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
+            <label className="flex min-w-48 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 transition focus-within:border-[#008577] focus-within:ring-2 focus-within:ring-emerald-100">
               <Search size={16} className="text-slate-400" />
               <input
                 value={filters.search}
                 onChange={(event) => updateFilter("search", event.target.value)}
                 placeholder="Search entries"
-                className="w-full text-sm outline-none"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
               />
             </label>
-            <button type="button" onClick={() => fetchData()} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 disabled:opacity-50">
+            <button type="button" onClick={() => fetchData()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50">
               <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Refresh
             </button>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="bg-[#064A41] text-xs uppercase tracking-wide text-white">
               <tr>
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Type</th>
@@ -183,7 +183,7 @@ function FundManagement() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {transactions.map((transaction) => (
-                <tr key={transaction.id}>
+                <tr key={transaction.id} className="transition-colors hover:bg-emerald-50/40">
                   <td className="px-4 py-3 text-slate-600">{displayDate(transaction.transaction_date)}</td>
                   <td className="px-4 py-3 font-semibold text-slate-700">{typeLabel(transaction.transaction_type)}</td>
                   <td className={`px-4 py-3 font-bold ${transaction.transaction_type === "DEBIT" ? "text-rose-700" : "text-emerald-700"}`}>
