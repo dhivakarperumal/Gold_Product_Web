@@ -184,12 +184,12 @@ async function listUsers(dateRange = {}) {
   return users;
 }
 
-async function updateUser(userId, { username, name, email, phone, role }) {
+async function updateUser(userId, { username, name, email, phone, role, status }) {
   await pool.execute(
     `UPDATE users
-     SET username = ?, name = ?, email = ?, phone = ?, role = ?
+     SET username = ?, name = ?, email = ?, phone = ?, role = ?, status = COALESCE(?, status)
      WHERE id = ?`,
-    [username, name, email, phone || null, role, userId]
+    [username, name, email, phone || null, role, status || null, userId]
   );
   return getUserById(userId);
 }

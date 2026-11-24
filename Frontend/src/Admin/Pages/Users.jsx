@@ -88,6 +88,7 @@ const Users = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [editUserId, setEditUserId] = useState(null);
     const [submitLoading, setSubmitLoading] = useState(false);
+    const [statusUpdatingUserId, setStatusUpdatingUserId] = useState(null);
     const [formData, setFormData] = useState({
         username: "",
         name: "",
@@ -252,6 +253,32 @@ const Users = () => {
         }
     };
 
+    const handleStatusChange = async (user, status) => {
+        if (refreshing || statusUpdatingUserId !== null || user.status === status) return;
+        setStatusUpdatingUserId(user.id);
+        try {
+            await api.put(`/auth/users/${user.id}`, {
+                username: user.username || user.name,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                status: status.toLowerCase(),
+            });
+            setUsers((currentUsers) => currentUsers.map((currentUser) =>
+                String(currentUser.id) === String(user.id)
+                    ? { ...currentUser, status }
+                    : currentUser
+            ));
+            toast.success(`${user.name} status changed to ${status.toLowerCase()}.`);
+        } catch (error) {
+            console.error("Failed to update customer status:", error);
+            toast.error(error.response?.data?.message || "Could not update customer status.");
+        } finally {
+            setStatusUpdatingUserId(null);
+        }
+    };
+
     const statCards = [
         { label: "Total Customers", value: users.length, note: "Registered accounts", icon: FiUserPlus, color: "bg-emerald-100 text-emerald-700", tone: "forest" },
         { label: "New Today", value: todayCount, note: "Joined today", icon: FiUserCheck, color: "bg-amber-100 text-amber-700", tone: "gold" },
@@ -350,18 +377,38 @@ const Users = () => {
                                 setCurrentPage(1);
                                 setDateRange(range);
                             }} />
-                            <label className="relative">
-                                <FiFilter className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                                <select
-                                    value={statusFilter}
-                                    onChange={(event) => setStatusFilter(event.target.value)}
-                                    className="appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-8 pr-7 text-xs text-slate-600 outline-none focus:border-[#008577]"
-                                >
-                                    <option value="all">All Status</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </label>
+                            {isSuperAdminUsersPage ? (
+                                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Filter customers by status">
+                                    {[
+                                        { value: "all", label: "All" },
+                                        { value: "active", label: "Active" },
+                                        { value: "inactive", label: "Inactive" },
+                                    ].map(({ value, label }) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() => setStatusFilter(value)}
+                                            aria-pressed={statusFilter === value}
+                                            className={`rounded-md px-3 py-2 text-xs font-semibold transition ${statusFilter === value ? "bg-[#00695C] text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <label className="relative">
+                                    <FiFilter className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <select
+                                        value={statusFilter}
+                                        onChange={(event) => setStatusFilter(event.target.value)}
+                                        className="appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-8 pr-7 text-xs text-slate-600 outline-none focus:border-[#008577]"
+                                    >
+                                        <option value="all">All Status</option>
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
+                                </label>
+                            )}
                             <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Customer view mode">
                                 <button
                                     type="button"
@@ -433,7 +480,22 @@ const Users = () => {
                                             </td>
                                             <td className="px-3 py-3 text-xs capitalize text-slate-600">{user.role}</td>
                                             <td className="px-3 py-3">
-                                                <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${user.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{user.status}</span>
+                                                {isSuperAdminUsersPage ? (
+                                                    <select
+                                                        value={user.status}
+                                                        onChange={(event) => void handleStatusChange(user, event.target.value)}
+                                                        onClick={(event) => event.stopPropagation()}
+                                                        disabled={refreshing || statusUpdatingUserId !== null}
+                                                        aria-label={`Change status for ${user.name}`}
+                                                        title="Change customer status"
+                                                        className={`rounded-md border px-2 py-1 text-[10px] font-bold outline-none transition disabled:cursor-wait disabled:opacity-60 ${user.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}
+                                                    >
+                                                        <option value="Active">Active</option>
+                                                        <option value="Inactive">Inactive</option>
+                                                    </select>
+                                                ) : (
+                                                    <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${user.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{user.status}</span>
+                                                )}
                                             </td>
                                             <td className="px-3 py-3 text-xs text-slate-500">{formatJoinDate(user.created_at, { day: "2-digit", month: "short", year: "numeric" })}</td>
                                             <td className="px-3 py-3">

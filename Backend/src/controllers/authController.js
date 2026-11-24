@@ -239,6 +239,8 @@ async function updateManagedUser(req, res, next) {
   const email = String(req.body.email || '').trim().toLowerCase();
   const phone = String(req.body.phone || '').trim();
   const role = String(req.body.role || 'user').trim().toLowerCase();
+  const hasStatus = Object.prototype.hasOwnProperty.call(req.body, 'status');
+  const status = hasStatus ? String(req.body.status).trim().toLowerCase() : undefined;
 
   if (!Number.isSafeInteger(userId) || userId < 1) {
     return res.status(400).json({ message: 'Customer ID is invalid' });
@@ -252,12 +254,18 @@ async function updateManagedUser(req, res, next) {
   if (!['admin', 'manager', 'dealer', 'user'].includes(role)) {
     return res.status(400).json({ message: 'Role must be admin, manager, dealer, or user' });
   }
+  if (hasStatus && !['active', 'inactive'].includes(status)) {
+    return res.status(400).json({ message: 'Status must be active or inactive' });
+  }
   if (userId === req.adminUser.id && role !== req.adminUser.role) {
     return res.status(400).json({ message: 'You cannot change your own administrator role' });
   }
+  if (userId === req.adminUser.id && status === 'inactive') {
+    return res.status(400).json({ message: 'You cannot deactivate your own account' });
+  }
 
   try {
-    const user = await updateUser(userId, { username, name, email, phone, role });
+    const user = await updateUser(userId, { username, name, email, phone, role, status });
     if (!user) return res.status(404).json({ message: 'Customer not found' });
     return res.json({ message: 'Customer updated successfully', user });
   } catch (error) {
