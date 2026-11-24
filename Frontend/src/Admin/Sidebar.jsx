@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { useAuth } from "../PrivateRouter/AuthContext";
 import {
   LayoutDashboard,
   Package,
@@ -27,7 +26,6 @@ import {
   Clock3,
   Coins,
   CheckCircle2,
-  Wallet,
   MessageCircle
 } from "lucide-react";
 
@@ -35,7 +33,6 @@ import {
 const navItems = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { path: "/admin/settings/daily-gold-rate", label: "Daily Gold Rate", icon: Coins },
-  { path: "/admin/funds", label: "Fund Management", icon: Wallet },
 
   { path: "/admin/billings", label: "Billing", icon: Files },
   { path: "/admin/enquiries", label: "All Enquiries", icon:  MessageCircle, activePaths: ["/admin/enquiries/new"] },
@@ -132,10 +129,7 @@ const navItems = [
 /* ================= SIDEBAR ================= */
 const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   const location = useLocation();
-  const { user } = useAuth();
-  const visibleNavItems = user?.role === "admin"
-    ? navItems
-    : navItems.filter((item) => item.path !== "/admin/funds");
+  const visibleNavItems = navItems;
 
   /* ================= HELPERS & LOGIC ================= */
   const matchesRoute = (routePath) => {
