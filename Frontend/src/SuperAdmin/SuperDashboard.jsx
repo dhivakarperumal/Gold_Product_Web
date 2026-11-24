@@ -514,8 +514,40 @@ export default function SuperDashboard() {
         ))}
       </section>
 
+      <section aria-labelledby="quick-access-title" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 id="quick-access-title" className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Quick Actions &amp; Shortcuts</h2>
+            <p className="mt-1 text-xs text-slate-500">One-click access to common platform tasks</p>
+          </div>
+          <span className="border border-[#E8E1CF] bg-[#FBF8F0] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#805B05]">
+            Super Admin
+          </span>
+        </div>
+        <nav aria-label="Dashboard shortcuts" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: "Gold Shop Management", detail: "Review registrations", to: "/superadmin/goldshop", icon: Store, color: "from-[#07564B] to-[#008577]" },
+            { label: "User Management", detail: "Manage platform accounts", to: "/superadmin/users", icon: Users, color: "from-[#17364D] to-[#28708A]" },
+            { label: "Subscription Plans", detail: "Manage available plans", to: "/superadmin/subscription-plans", icon: CreditCard, color: "from-[#A87908] to-[#D4A017]" },
+            { label: "Notifications", detail: "Review platform activity", to: "/superadmin/profile?tab=notifications", icon: Bell, color: "from-[#71384D] to-[#A94760]" }
+          ].map(({ label, detail, to, icon: Icon, color }) => (
+            <Link
+              key={label}
+              to={to}
+              className="group flex min-h-[132px] flex-col items-center justify-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-4 text-center transition duration-200 hover:-translate-y-0.5 hover:border-[#D4A017]/60 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4A017]"
+            >
+              <span className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${color} text-white shadow-sm transition-transform group-hover:scale-105`}>
+                <Icon size={19} strokeWidth={1.8} />
+              </span>
+              <span className="block text-xs font-bold leading-snug text-slate-800 group-hover:text-[#07564B] sm:text-[13px]">{label}</span>
+              <span className="block text-[11px] leading-snug text-slate-500">{detail}</span>
+            </Link>
+          ))}
+        </nav>
+      </section>
+
       <section aria-label="Platform analytics" className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Monthly Revenue" subtitle="Collected subscription payments · last 12 months">
+        <Panel title="Monthly Revenue" subtitle="Collected subscription payments · last 12 months" className="rounded-sm">
           {loading && !analytics
             ? <ChartSkeleton />
             : <div className="h-64"><Bar data={revenueChartData} options={{
@@ -540,7 +572,7 @@ export default function SuperDashboard() {
             }} /></div>}
         </Panel>
 
-        <Panel title="Gold Shop Registrations" subtitle="New shop registrations · last 12 months">
+        <Panel title="Gold Shop Registrations" subtitle="New shop registrations · last 12 months" className="rounded-sm">
           {loading && !analytics
             ? <ChartSkeleton />
             : <div className="h-64"><Line data={registrationChartData} options={chartOptions} /></div>}
@@ -748,40 +780,6 @@ export default function SuperDashboard() {
         </div>
       </Panel>
 
-      <section aria-labelledby="quick-access-title" className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#A87908]">Platform tools</p>
-            <h2 id="quick-access-title" className="mt-1 text-lg font-semibold text-[#1F2937]">Quick Access</h2>
-          </div>
-          <p className="text-xs text-slate-500">Jump to frequently used admin pages</p>
-        </div>
-        <nav aria-label="Dashboard shortcuts" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            { label: "Gold Shop Management", detail: "Review registrations and shop details", to: "/superadmin/goldshop", icon: Store },
-            { label: "User Management", detail: "Manage platform accounts", to: "/superadmin/users", icon: Users },
-            { label: "Subscription Plans", detail: "Manage available plans", to: "/superadmin/subscription-plans", icon: CreditCard },
-            { label: "Notifications", detail: "Manage account preferences", to: "/superadmin/profile?tab=notifications", icon: Bell }
-          ].map(({ label, detail, to, icon: Icon }) => (
-            <Link
-              key={label}
-              to={to}
-              className="group flex min-h-36 flex-col justify-between rounded-xl border border-slate-200 border-t-2 border-t-[#D4A017] bg-white p-4 text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#07564B] hover:border-t-[#D4A017] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4A017]"
-            >
-              <span className="flex w-full items-start justify-between">
-                <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#FBF5E5] text-[#07564B] transition-colors group-hover:bg-[#07564B] group-hover:text-[#FFE39A]">
-                  <Icon size={20} strokeWidth={1.8} />
-                </span>
-                <ArrowUpRight size={17} className="text-slate-400 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#07564B]" />
-              </span>
-              <span className="mt-4 block">
-                <span className="block text-sm font-semibold text-slate-800 group-hover:text-[#07564B]">{label}</span>
-                <span className="mt-1 block text-xs leading-relaxed text-slate-500">{detail}</span>
-              </span>
-            </Link>
-          ))}
-        </nav>
-      </section>
     </div>
   );
 }
