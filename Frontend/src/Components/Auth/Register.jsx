@@ -3,6 +3,7 @@ import { CheckCircle2, LoaderCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import api from "../../api";
+import AuthLayout from "./AuthLayout";
 import AddGoldShop from "../../SuperAdmin/GoldShopmanegement/AddGoldShop";
 
 function Register() {
@@ -52,10 +53,17 @@ function Register() {
 
   if (submitted) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#faf9f8] px-4 py-10">
-        <section className="w-full max-w-lg rounded-3xl border border-stone-200 bg-white p-8 text-center shadow-xl">
+      <AuthLayout
+        eyebrow="Application received"
+        title="Registration submitted"
+        subtitle="Your gold shop details are now with our review team."
+        alternatePrompt="Already registered?"
+        alternateLabel="Sign in"
+        alternateTo="/login"
+        contentClassName="mx-auto max-w-lg"
+      >
+        <section className="rounded-2xl border border-stone-200 bg-white p-7 text-center shadow-sm sm:p-9">
           <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-600" aria-hidden="true" />
-          <h1 className="mt-5 text-2xl font-bold text-stone-900">Registration submitted</h1>
           <p className="mt-3 text-sm leading-6 text-stone-600">
             Your gold shop details are waiting for Super Admin approval. You can sign in after your registration is approved.
           </p>
@@ -63,14 +71,22 @@ function Register() {
             Back to login
           </Link>
         </section>
-      </main>
+      </AuthLayout>
     );
   }
 
   if (plansLoading || plansError || plans.length === 0) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#faf9f8] px-4 py-10">
-        <section className="w-full max-w-md rounded-3xl border border-stone-200 bg-white p-7 text-center shadow-xl">
+      <AuthLayout
+        eyebrow="Shop registration"
+        title="Register your gold shop"
+        subtitle="Set up your shop profile and request an administrator account."
+        alternatePrompt="Already have an account?"
+        alternateLabel="Sign in"
+        alternateTo="/login"
+        contentClassName="mx-auto max-w-md"
+      >
+        <section className="rounded-2xl border border-stone-200 bg-white p-7 text-center shadow-sm">
           {plansLoading ? (
             <LoaderCircle className="mx-auto h-8 w-8 animate-spin text-amber-700" aria-label="Loading subscription plans" />
           ) : (
@@ -91,19 +107,28 @@ function Register() {
             Back to login
           </button>
         </section>
-      </main>
+      </AuthLayout>
     );
   }
 
   return (
-    <AddGoldShop
-      mode="register"
-      registrationMode
-      plans={plans}
-      submitting={submitting}
-      onCancel={() => navigate("/login")}
-      onSubmit={submitRegistration}
-    />
+    <AuthLayout
+      eyebrow="Shop registration"
+      title="Register your gold shop"
+      subtitle="Complete the steps below to submit your application for review."
+      alternatePrompt="Already have an account?"
+      alternateLabel="Sign in"
+      alternateTo="/login"
+    >
+      <AddGoldShop
+        mode="register"
+        registrationMode
+        plans={plans}
+        submitting={submitting}
+        onCancel={() => navigate("/login")}
+        onSubmit={submitRegistration}
+      />
+    </AuthLayout>
   );
 }
 

@@ -1,10 +1,11 @@
 ﻿import { useState, useContext } from "react";
 import api from "../../api";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../PrivateRouter/AuthContext";
 import { toast } from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react";
 import SubscriptionCheckoutModal from "../Subscription/SubscriptionCheckoutModal";
+import AuthLayout from "./AuthLayout";
 
 const getPostLoginPath = (role) => {
   const normalizedRole = String(role || "").trim().toLowerCase();
@@ -92,74 +93,16 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full font-sans flex bg-[#faf9f8] relative selection:bg-primary selection:text-white">
-
-      {/* Background Accents */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-pink-100/40 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-0 right-[20%] w-[400px] h-[400px] bg-yellow-100/30 rounded-full blur-[80px] pointer-events-none" />
-
-      <svg width="0" height="0" className="absolute">
-        <defs>
-          <clipPath id="sCurve" clipPathUnits="objectBoundingBox">
-            <path d="M 0 0 L 0.92 0 C 1 0.35, 0.9 0.7, 0.65 1 L 0 1 Z" />
-          </clipPath>
-        </defs>
-      </svg>
-
-      {/* LEFT IMAGE */}
-      <div className="hidden lg:block lg:w-5/12 relative min-h-screen z-20 drop-shadow-[20px_0_30px_rgba(0,0,0,0.15)]">
-        <div
-          className="absolute inset-0 bg-gradient-to-b from-yellow-200 via-yellow-500 to-yellow-700 w-[101.5%] h-full z-10"
-          style={{ clipPath: 'url(#sCurve)' }}
-        />
-        <div
-          className="absolute inset-0 bg-black w-full h-full z-20"
-          style={{ clipPath: 'url(#sCurve)' }}
-        >
-          <img
-            src="/images/loginbanner.png"
-            alt="Login banner"
-            className="h-full w-full object-cover object-[72%_center] opacity-90 transition-transform duration-1000 hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-black/20 to-transparent pointer-events-none" />
-          <div className="absolute bottom-44 left-12 xl:left-16 text-white z-30">
-            <h1 className="text-4xl xl:text-5xl font-serif mb-4 leading-tight drop-shadow-2xl text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300">
-              Timeless Gold<br />Lasting Elegance
-            </h1>
-            <p className="text-gray-200 text-sm max-w-[260px] font-light tracking-wide drop-shadow-md">
-              Discover beautifully crafted gold jewellery for life's most meaningful moments.
-            </p>
-            <div className="flex items-center gap-3 mt-6">
-              <div className="h-[2px] w-10 bg-gradient-to-r from-yellow-400 to-transparent" />
-              <span className="text-yellow-400 text-sm drop-shadow-lg shadow-yellow-400">✦</span>
-              <div className="h-[2px] w-10 bg-gradient-to-l from-yellow-400 to-transparent" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* RIGHT FORM */}
-      <div className="w-full lg:w-7/12 min-h-screen flex flex-col justify-center px-6 py-10 sm:px-16 lg:px-24 relative z-10">
-        <div className="max-w-md mx-auto w-full">
-
-          {/* Logo & Header */}
-          <div className="text-center mb-5">
-            <div className="flex justify-center mb-2 relative">
-              <div className="absolute inset-0 bg-yellow-400/20 blur-xl rounded-full scale-150" />
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" className="text-yellow-600 relative z-10 drop-shadow-sm">
-                <path d="M12 22C12 22 19 18 19 12C19 9 17 6.5 14.5 5.5C13.5 5.1 12.5 5 12 5C11.5 5 10.5 5.1 9.5 5.5C7 6.5 5 9 5 12C5 18 12 22 12 22Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M12 22C12 22 15.5 17 15.5 11C15.5 7.5 13.5 4 12 2C10.5 4 8.5 7.5 8.5 11C8.5 17 12 22 12 22Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M14.5 5.5C16.5 4.5 19 4.5 21 6C21 11 17 17 12 22" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9.5 5.5C7.5 4.5 5 4.5 3 6C3 11 7 17 12 22" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            
-            <p className="text-xs text-yellow-700 font-bold tracking-[0.2em] uppercase mb-4">Gold shop management</p>
-            <h3 className="text-xl font-serif text-gray-800 mb-1">Admin Portal</h3>
-            <p className="text-gray-500 text-sm">Sign in with your admin or super admin account.</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-gray-100 p-4 sm:p-5">
+    <AuthLayout
+      eyebrow="Administrator access"
+      title="Welcome back"
+      subtitle="Sign in to your gold shop management account."
+      alternatePrompt="New gold shop?"
+      alternateLabel="Register here"
+      alternateTo="/register"
+      contentClassName="mx-auto max-w-md"
+    >
+      <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-7">
 
             {/* Email/Mobile */}
             <div>
@@ -177,7 +120,7 @@ function Login() {
                   type="text"
                   placeholder="Enter your email or mobile number"
                   onChange={handleChange}
-                  className="w-full pl-12 p-3.5 rounded-xl bg-white border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm font-medium text-gray-700"
+                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-amber-600 focus:ring-2 focus:ring-amber-600/15"
                   required
                 />
               </div>
@@ -199,7 +142,7 @@ function Login() {
                   name="password"
                   placeholder="Enter your password"
                   onChange={handleChange}
-                  className="w-full pl-12 p-3.5 pr-12 rounded-xl bg-white border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm font-medium text-gray-700"
+                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 pr-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-amber-600 focus:ring-2 focus:ring-amber-600/15"
                   required
                 />
                 <button
@@ -237,16 +180,7 @@ function Login() {
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             </button>
 
-            <p className="text-center text-sm text-gray-500">
-              New gold shop?{" "}
-              <Link to="/register" className="font-bold text-primary-light transition-all hover:underline">
-                Register here
-              </Link>
-            </p>
-
           </form>
-        </div>
-      </div>
 
       {expiredTrialAccount && !checkoutOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
@@ -291,7 +225,7 @@ function Login() {
         />
       )}
 
-    </div>
+    </AuthLayout>
 
   );
 }

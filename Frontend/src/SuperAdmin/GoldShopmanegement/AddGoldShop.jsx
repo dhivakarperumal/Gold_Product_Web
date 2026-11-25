@@ -547,33 +547,32 @@ export default function AddGoldShop({
   const activeTabIndex = TABS.findIndex((tab) => tab.id === activeTab);
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6">
+    <div className={registrationMode ? "w-full" : "fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"}>
       <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="gold-shop-form-title"
-        className="my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl sm:h-[calc(100vh-3rem)]"
+        role={registrationMode ? "region" : "dialog"}
+        aria-modal={registrationMode ? undefined : "true"}
+        aria-label={registrationMode ? "Gold shop registration form" : undefined}
+        aria-labelledby={registrationMode ? undefined : "gold-shop-form-title"}
+        className={registrationMode
+          ? "mx-auto flex h-[calc(100vh-17rem)] min-h-[560px] max-h-[760px] w-full flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
+          : "my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl sm:h-[calc(100vh-3rem)]"}
       >
-        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-amber-100 bg-gradient-to-r from-[#13211d] to-[#26342d] px-5 py-5 text-white sm:px-7">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-              {registrationMode ? "Gold Shop Registration" : "Gold Shops Management"}
-            </p>
-            <h2 id="gold-shop-form-title" className="mt-1 text-xl font-bold sm:text-2xl">
-              {isEditing ? "Edit Gold Shop" : registrationMode ? "Register Your Gold Shop" : "Add New Gold Shop"}
-            </h2>
-            <p className="mt-1 text-sm text-white/65">
-              {isEditing
-                ? "Update owner, address, shop, and document information."
-                : registrationMode
-                  ? "Submit your shop details for review. Login access is created after approval."
-                  : "Register a shop, login, and first subscription."}
-            </p>
-          </div>
-          <button type="button" onClick={onCancel} aria-label="Close form" className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white">
-            <X size={20} />
-          </button>
-        </header>
+        {!registrationMode && (
+          <header className="flex shrink-0 items-start justify-between gap-4 border-b border-amber-100 bg-gradient-to-r from-[#13211d] to-[#26342d] px-5 py-5 text-white sm:px-7">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Gold Shops Management</p>
+              <h2 id="gold-shop-form-title" className="mt-1 text-xl font-bold sm:text-2xl">
+                {isEditing ? "Edit Gold Shop" : "Add New Gold Shop"}
+              </h2>
+              <p className="mt-1 text-sm text-white/65">
+                {isEditing ? "Update owner, address, shop, and document information." : "Register a shop, login, and first subscription."}
+              </p>
+            </div>
+            <button type="button" onClick={onCancel} aria-label="Close form" className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white">
+              <X size={20} />
+            </button>
+          </header>
+        )}
 
         <form noValidate onSubmit={(event) => submit(event)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4 sm:p-6">
