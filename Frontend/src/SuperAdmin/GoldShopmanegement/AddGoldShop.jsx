@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, CreditCard, Eye, EyeOff, FileText, KeyRound, LoaderCircle, Store, UserRound, X } from "lucide-react";
+import { CalendarDays, CreditCard, Eye, EyeOff, FileText, KeyRound, LoaderCircle, MapPin, Store, UserRound, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 
@@ -7,6 +7,16 @@ const today = () => {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
+
+const INDIAN_STATES_AND_UTS = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa",
+  "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
+  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland",
+  "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+  "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands",
+  "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi",
+  "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+];
 
 function formatDate(value) {
   const [year, month, day] = value.split("-");
@@ -159,6 +169,8 @@ export default function AddGoldShop({
   const [shopDetailsError, setShopDetailsError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState("");
+  const [fetchingLocation, setFetchingLocation] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
   const [formError, setFormError] = useState("");
   const isEditing = mode === "edit";
@@ -234,6 +246,31 @@ export default function AddGoldShop({
     }));
     setFormError("");
     event.target.value = "";
+  };
+
+  const fetchCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Location is not supported by this browser.");
+      return;
+    }
+    setFetchingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const coordinates = `Latitude: ${coords.latitude.toFixed(6)}, Longitude: ${coords.longitude.toFixed(6)}`;
+        setCurrentLocation(coordinates);
+        setFetchingLocation(false);
+      },
+      (error) => {
+        const message = error.code === error.PERMISSION_DENIED
+          ? "Location permission was denied. Allow location access in your browser and try again."
+          : error.code === error.POSITION_UNAVAILABLE
+            ? "Your current location is unavailable."
+            : "Location request timed out. Please try again.";
+        toast.error(message);
+        setFetchingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   const downloadDocument = async (document) => {
@@ -367,7 +404,8 @@ export default function AddGoldShop({
           </button>
         </header>
 
-        <form noValidate onSubmit={(event) => submit(event)} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+        <form noValidate onSubmit={(event) => submit(event)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
@@ -412,12 +450,26 @@ export default function AddGoldShop({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Shop name" name="shopName" value={form.shopName} onChange={handleChange} required placeholder="e.g. Sri Golds" />
                   <Field label="GST number" name="gstNumber" value={form.gstNumber} onChange={handleChange} placeholder="15-character GSTIN" />
-                  <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="City" />
-                  <Field label="State" name="state" value={form.state} onChange={handleChange} placeholder="State" />
-                  <Field label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} placeholder="Postal code" />
+                  <div className="grid gap-4 sm:col-span-2 lg:grid-cols-3">
+                    <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="City" />
+                    <label className={labelClass}>
+                      State
+                      <select className={inputClass} name="state" value={form.state} onChange={handleChange}>
+                        <option value="">Select state</option>
+                        {INDIAN_STATES_AND_UTS.map((state) => <option key={state} value={state}>{state}</option>)}
+                      </select>
+                    </label>
+                    <Field label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} placeholder="Postal code" />
+                  </div>
                   <label className={`${labelClass} sm:col-span-2`}>
-                    Shop address
+                    <span className="flex flex-wrap items-center justify-between gap-2">
+                      <span>Shop address</span>
+                      <button type="button" onClick={fetchCurrentLocation} disabled={fetchingLocation} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 px-2.5 py-1.5 text-[11px] font-bold normal-case tracking-normal text-amber-900 transition hover:bg-amber-50 disabled:cursor-wait disabled:opacity-60">
+                        <MapPin size={13} />{fetchingLocation ? "Fetching location…" : "Fetch current location"}
+                      </button>
+                    </span>
                     <textarea className={`${inputClass} min-h-24 resize-y`} name="address" value={form.address} onChange={handleChange} rows={3} placeholder="Street address" />
+                    {currentLocation && <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-stone-500">{currentLocation}. Enter the street address, city, state, and pincode manually; coordinates are not sent to an external service.</span>}
                   </label>
                   <label className={`${labelClass} sm:col-span-2`}>
                     Admin notes
@@ -511,8 +563,9 @@ export default function AddGoldShop({
               )}
             </section>
           </fieldset>
+          </div>
 
-          <footer className="sticky bottom-0 z-10 flex justify-between gap-3 border-t border-stone-200 bg-[#fbfaf7] py-4">
+          <footer className="flex shrink-0 justify-between gap-3 border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6">
             <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40">Previous</button>
             {activeTabIndex === TABS.length - 1 ? (
               <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
