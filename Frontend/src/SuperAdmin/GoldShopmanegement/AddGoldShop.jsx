@@ -253,9 +253,14 @@ export default function AddGoldShop({
     }
   };
 
-  const submit = (event, addAnother = false) => {
+  const submit = (event) => {
     event.preventDefault();
     if (shopDetailsLoading || shopDetailsError) return;
+    if (activeTabIndex !== TABS.length - 1) {
+      setActiveTab(TABS[activeTabIndex + 1].id);
+      setFormError("");
+      return;
+    }
     const requiredFields = [
       ["ownerName", "personal", "Owner name is required."],
       ["mobile", "personal", "Mobile number is required."],
@@ -331,7 +336,7 @@ export default function AddGoldShop({
         startDate: form.startDate
       };
     }
-    onSubmit(shop, addAnother);
+    onSubmit(shop);
   };
 
   const sectionClass = "rounded-2xl border border-stone-200 bg-white p-4 sm:p-5";
@@ -507,28 +512,20 @@ export default function AddGoldShop({
             </section>
           </fieldset>
 
-          <footer className="flex flex-col-reverse gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onCancel} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-100">
-              Cancel
-            </button>
-            {!isEditing && (
-              <button type="button" onClick={() => { setForm(createInitialForm(null)); setFiles({ profilePhoto: null }); setActiveTab("personal"); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-100">
-                Reset
+          <footer className="flex justify-end gap-3 border-t border-stone-200 pt-4">
+            {activeTabIndex === TABS.length - 1 ? (
+              <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
+                {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                {isEditing ? "Save Changes" : "Save Gold Shop"}
+              </button>
+            ) : (
+              <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError)} onClick={() => { setActiveTab(TABS[activeTabIndex + 1].id); setFormError(""); }} className="rounded-xl bg-stone-800 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                Save &amp; Next
               </button>
             )}
-            {!isEditing && (
-              <button type="button" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || !plans.length} onClick={(event) => submit(event, true)} className="rounded-xl border border-amber-300 px-4 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50">
-                Save &amp; Add Another
-              </button>
-            )}
-            <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
-              {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
-              {isEditing ? "Save Changes" : "Save Gold Shop"}
-            </button>
           </footer>
           <div className="flex justify-between">
             <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40">Previous</button>
-            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === TABS.length - 1} onClick={() => { setActiveTab(TABS[activeTabIndex + 1].id); setFormError(""); }} className="rounded-xl bg-stone-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">Next</button>
           </div>
         </form>
       </section>
