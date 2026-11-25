@@ -61,6 +61,7 @@ function Register() {
         alternateLabel="Sign in"
         alternateTo="/login"
         contentClassName="mx-auto max-w-lg"
+        splitLayout
         fixedHeight
       >
         <section className="rounded-2xl border border-stone-200 bg-white p-7 text-center shadow-sm sm:p-9">
@@ -86,6 +87,7 @@ function Register() {
         alternateLabel="Sign in"
         alternateTo="/login"
         contentClassName="mx-auto max-w-md"
+        splitLayout
         fixedHeight
       >
         <section className="rounded-2xl border border-stone-200 bg-white p-7 text-center shadow-sm">
@@ -118,6 +120,7 @@ function Register() {
       alternatePrompt="Already have an account?"
       alternateLabel="Sign in"
       alternateTo="/login"
+      splitLayout
       fixedHeight
       hideHeader
     >

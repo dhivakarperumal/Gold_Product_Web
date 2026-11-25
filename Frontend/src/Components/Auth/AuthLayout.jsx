@@ -16,8 +16,8 @@ export default function AuthLayout({
 }) {
   if (splitLayout) {
     return (
-      <main className="min-h-screen bg-white">
-        <div className="flex min-h-screen w-full overflow-hidden bg-white">
+      <main className="min-h-screen bg-white lg:h-screen lg:overflow-hidden">
+        <div className="flex min-h-screen w-full overflow-hidden bg-white lg:h-full lg:min-h-0">
           <aside className="relative hidden min-h-full w-[62%] flex-none flex-col justify-between overflow-hidden bg-[#063d2c] p-10 text-white lg:flex xl:p-14">
             <img
               src="/images/loginbanner.png"
@@ -72,7 +72,7 @@ export default function AuthLayout({
             </div>
           </aside>
 
-          <section className="flex w-full min-w-0 flex-col bg-white px-5 py-5 sm:px-8 sm:py-7 lg:-ml-[4%] lg:w-[42%] lg:flex-none lg:rounded-l-[5rem] lg:px-10 lg:py-8 xl:px-14">
+          <section className="flex w-full min-w-0 flex-col bg-white px-5 py-5 sm:px-8 sm:py-7 lg:-ml-[4%] lg:h-full lg:min-h-0 lg:w-[42%] lg:flex-none lg:rounded-l-[5rem] lg:px-10 lg:py-8 xl:px-14">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 lg:hidden">
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#063d2c] text-amber-300">
