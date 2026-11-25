@@ -231,7 +231,7 @@ function normalizeBilling(body, currentRateSet = null) {
   if (!Number.isFinite(rawGstRate) || rawGstRate < 0 || rawGstRate > 100) {
     return { error: 'GST rate must be a valid percentage between 0 and 100' };
   }
-  const gstRate = Math.round(rawGstRate * 100) / 100;
+  const gstRate = Math.round(rawGstRate * 10000) / 10000;
   const netSubtotal = subTotal - discount.value - exchangeCredit;
   const gstAmount = Math.round(netSubtotal * gstRate) / 100;
   const totalAmount = Math.round((netSubtotal + gstAmount) * 100) / 100;

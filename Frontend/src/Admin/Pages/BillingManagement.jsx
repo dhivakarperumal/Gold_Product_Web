@@ -97,6 +97,42 @@ function resolveProductDetails(product, metalRates, activeRateSet) {
   };
 }
 
+function getTackOrderPrefill(order) {
+  if (!order) return null;
+  const customer = order.customer || {};
+  const address = [
+    customer.address,
+    [customer.city, customer.district, customer.state, customer.pincode].filter(Boolean).join(", ")
+  ].filter(Boolean).join(", ");
+  const taxableSubtotal = Math.max(0, Number(order.sub_total || 0) - Number(order.discount_amount || 0));
+  const gstRate = order.gst_included && taxableSubtotal > 0
+    ? Math.round((Number(order.gst_amount || 0) / taxableSubtotal) * 1000000) / 10000
+    : 0;
+
+  return {
+    sourceId: String(order.id),
+    sourceNo: order.order_no || "",
+    customers: [{
+      name: customer.name || "",
+      phone: customer.phone || "",
+      email: customer.email || "",
+      address
+    }],
+    products: (Array.isArray(order.items) ? order.items : []).map((item) => ({
+      ...EMPTY_PRODUCT,
+      product_id: String(item.product_id || ""),
+      product_name: item.product_name || "Product",
+      category: item.category || "Tack Order",
+      purity: item.purity || "",
+      net_gold_weight: item.net_gold_weight ?? null,
+      quantity: Number(item.quantity) || 1,
+      price: String(item.price ?? 0)
+    })),
+    gstRate: String(gstRate),
+    discount: Number(order.discount_amount) > 0 ? String(order.discount_amount) : ""
+  };
+}
+
 function TextField({ label, value, onChange, type = "text", required = false, placeholder = "", min, step, readOnly = false }) {
   return (
     <label className={labelClass}>
@@ -430,6 +466,7 @@ function CatalogProductFields({ product, catalogProducts, loading, onSelect, sel
 export default function BillingManagement() {
   const location = useLocation();
   const navigate = useNavigate();
+  const tackOrderPrefill = getTackOrderPrefill(location.state?.tackOrderToBill);
   const [bills, setBills] = useState([]);
   const [dateRange, setDateRange] = useState({ preset: "all", startDate: "", endDate: "" });
   const [loading, setLoading] = useState(true);
@@ -439,22 +476,22 @@ export default function BillingManagement() {
   const [catalogProductDetails, setCatalogProductDetails] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showForm, setShowForm] = useState(() => Boolean(location.state?.tackOrderToBill)
+  const [showForm, setShowForm] = useState(() => Boolean(tackOrderPrefill)
     || new URLSearchParams(window.location.search).get("new") === "1");
   const [editingBillId, setEditingBillId] = useState(null);
-  const [tackOrderSourceId, setTackOrderSourceId] = useState(null);
-  const [tackOrderSourceNo, setTackOrderSourceNo] = useState("");
+  const [tackOrderSourceId, setTackOrderSourceId] = useState(tackOrderPrefill?.sourceId || null);
+  const [tackOrderSourceNo, setTackOrderSourceNo] = useState(tackOrderPrefill?.sourceNo || "");
   const [viewingBill, setViewingBill] = useState(null);
   const [billPayment, setBillPayment] = useState(null);
   const [billSearch, setBillSearch] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [billView, setBillView] = useState("list");
   const [todayKey] = useState(() => new Date().toLocaleDateString("en-CA"));
-  const [customers, setCustomers] = useState([{ ...EMPTY_CUSTOMER }]);
-  const [products, setProducts] = useState([]);
+  const [customers, setCustomers] = useState(() => tackOrderPrefill?.customers || [{ ...EMPTY_CUSTOMER }]);
+  const [products, setProducts] = useState(() => tackOrderPrefill?.products || []);
   const [productToAdd, setProductToAdd] = useState({ ...EMPTY_PRODUCT });
-  const [gstRateInput, setGstRateInput] = useState("0");
-  const [discountInput, setDiscountInput] = useState("");
+  const [gstRateInput, setGstRateInput] = useState(tackOrderPrefill?.gstRate || "0");
+  const [discountInput, setDiscountInput] = useState(tackOrderPrefill?.discount || "");
   const [exchanges, setExchanges] = useState([]);
   const [paymentType, setPaymentType] = useState("FULL_PAYMENT");
   const metalRates = useMemo(
@@ -535,44 +572,9 @@ export default function BillingManagement() {
   useEffect(() => { loadBills(); }, [loadBills]);
   useEffect(() => { loadCatalogProducts(); }, [loadCatalogProducts]);
   useEffect(() => {
-    const order = location.state?.tackOrderToBill;
-    if (!order) return;
-
-    const customer = order.customer || {};
-    const address = [
-      customer.address,
-      [customer.city, customer.district, customer.state, customer.pincode].filter(Boolean).join(", ")
-    ].filter(Boolean).join(", ");
-    const taxableSubtotal = Math.max(0, Number(order.sub_total || 0) - Number(order.discount_amount || 0));
-    const prefilledGstRate = order.gst_included && taxableSubtotal > 0
-      ? Math.round((Number(order.gst_amount || 0) / taxableSubtotal) * 10000) / 100
-      : 0;
-
-    setTackOrderSourceId(String(order.id));
-    setTackOrderSourceNo(order.order_no || "");
-    setCustomers([{
-      name: customer.name || "",
-      phone: customer.phone || "",
-      email: customer.email || "",
-      address
-    }]);
-    setProducts((Array.isArray(order.items) ? order.items : []).map((item) => ({
-      ...EMPTY_PRODUCT,
-      product_id: String(item.product_id || ""),
-      product_name: item.product_name || "Product",
-      category: item.category || "Tack Order",
-      purity: item.purity || "",
-      net_gold_weight: item.net_gold_weight ?? null,
-      quantity: Number(item.quantity) || 1,
-      price: String(item.price ?? 0)
-    })));
-    setProductToAdd({ ...EMPTY_PRODUCT });
-    setPaymentType("FULL_PAYMENT");
-    setGstRateInput(String(prefilledGstRate));
-    setDiscountInput(Number(order.discount_amount) > 0 ? String(order.discount_amount) : "");
-    setExchanges([]);
-    setShowForm(true);
-    navigate(location.pathname, { replace: true, state: null });
+    if (location.state?.tackOrderToBill) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
   }, [location.pathname, location.state, navigate]);
   useEffect(() => {
     let active = true;
@@ -1462,7 +1464,7 @@ export default function BillingManagement() {
                 type="number"
                 min="0"
                 max="100"
-                step="0.01"
+                step="0.0001"
                 value={gstRateInput}
                 onChange={(event) => setGstRateInput(event.target.value)}
                 placeholder="0"
