@@ -206,6 +206,7 @@ const Dashboard = () => {
   const totalLoansCount = data.totalLoansCount ?? 0;
   const accountPlan = data.accountPlan;
   const showTrialWarning = Boolean(accountPlan?.trial_active)
+    && String(accountPlan.payment_status || "").toLowerCase() !== "paid"
     && Number(accountPlan.trial_days_remaining) < 3
     && dismissedTrialEndDate !== accountPlan.trial_end_date
     && !checkoutOpen;

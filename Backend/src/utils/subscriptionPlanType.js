@@ -22,19 +22,20 @@ function getSubscriptionAccountPlan(subscription) {
   const today = dayNumber(subscription.database_date) ?? dayNumber(new Date());
   const trialStart = dayNumber(subscription.trial_start_date);
   const trialEnd = dayNumber(subscription.trial_end_date);
-  const isTrial = trialDays > 0 && !isPaid;
-  const trialActive = isTrial && trialStart != null && trialEnd != null
+  const hasTrialDates = trialDays > 0 && trialStart != null && trialEnd != null;
+  const trialActive = hasTrialDates
     && today >= trialStart && today <= trialEnd;
-  const trialExpired = isTrial && trialEnd != null && today > trialEnd;
+  const trialExpired = hasTrialDates && !isPaid && today > trialEnd;
   const paymentPending = !isPaid && !trialActive && !trialExpired;
+  const showTrialPeriod = trialActive || trialExpired;
 
   return {
     ...Object.fromEntries(Object.entries(subscription).filter(([key]) => key !== 'database_date')),
     account_plan_type: trialActive ? 'trial' : trialExpired ? 'expired' : paymentPending ? 'pending' : 'live',
     trial_active: trialActive,
     trial_days_remaining: trialActive ? trialEnd - today + 1 : 0,
-    account_start_date: isTrial ? subscription.trial_start_date : subscription.start_date,
-    account_end_date: isTrial ? subscription.trial_end_date : subscription.end_date
+    account_start_date: showTrialPeriod ? subscription.trial_start_date : subscription.start_date,
+    account_end_date: showTrialPeriod ? subscription.trial_end_date : subscription.end_date
   };
 }
 

@@ -38,6 +38,7 @@ test('rejects invalid subscription dates without throwing', () => {
 
 test('calculates the trial period and account status from assigned trial days', () => {
   assert.equal(calculateTrialEndDate('2026-11-25', 3), '2026-11-27');
+  assert.equal(calculateTrialEndDate('2026-11-25', 5), '2026-11-29');
   const subscription = {
     plan_name: 'Basic',
     start_date: '2026-11-25',
@@ -59,8 +60,18 @@ test('calculates the trial period and account status from assigned trial days', 
   assert.equal(getSubscriptionAccountPlan({
     ...subscription,
     payment_status: 'paid',
+    database_date: '2026-11-26'
+  }).account_plan_type, 'trial');
+  assert.equal(getSubscriptionAccountPlan({
+    ...subscription,
+    payment_status: 'paid',
     database_date: '2026-11-28'
   }).account_plan_type, 'live');
+  assert.equal(getSubscriptionAccountPlan({
+    ...subscription,
+    payment_status: 'paid',
+    database_date: '2026-11-28'
+  }).account_end_date, '2026-12-25');
   assert.equal(getSubscriptionAccountPlan({
     ...subscription,
     trial_days: 0,
@@ -86,7 +97,7 @@ test('includes account plan type with each listed gold shop', async () => {
         trial_end_date: '2026-11-27',
         start_date: '2026-11-25',
         end_date: '2026-12-25',
-        payment_status: 'pending',
+        payment_status: 'paid',
         database_date: '2026-11-25'
       }], []];
     }
