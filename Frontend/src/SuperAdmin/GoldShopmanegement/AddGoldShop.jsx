@@ -348,9 +348,9 @@ export default function AddGoldShop({
         role="dialog"
         aria-modal="true"
         aria-labelledby="gold-shop-form-title"
-        className="my-auto w-full max-w-4xl overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl"
+        className="my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl sm:h-[calc(100vh-3rem)]"
       >
-        <header className="flex items-start justify-between gap-4 border-b border-amber-100 bg-gradient-to-r from-[#13211d] to-[#26342d] px-5 py-5 text-white sm:px-7">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-amber-100 bg-gradient-to-r from-[#13211d] to-[#26342d] px-5 py-5 text-white sm:px-7">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
               Gold Shops Management
@@ -367,7 +367,7 @@ export default function AddGoldShop({
           </button>
         </header>
 
-        <form noValidate onSubmit={(event) => submit(event)} className="max-h-[calc(100vh-9rem)] space-y-4 overflow-y-auto p-4 sm:p-6">
+        <form noValidate onSubmit={(event) => submit(event)} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
@@ -512,7 +512,8 @@ export default function AddGoldShop({
             </section>
           </fieldset>
 
-          <footer className="flex justify-end gap-3 border-t border-stone-200 pt-4">
+          <footer className="sticky bottom-0 z-10 flex justify-between gap-3 border-t border-stone-200 bg-[#fbfaf7] py-4">
+            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40">Previous</button>
             {activeTabIndex === TABS.length - 1 ? (
               <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
                 {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
@@ -524,9 +525,6 @@ export default function AddGoldShop({
               </button>
             )}
           </footer>
-          <div className="flex justify-between">
-            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40">Previous</button>
-          </div>
         </form>
       </section>
     </div>
