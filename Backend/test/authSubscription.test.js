@@ -93,6 +93,41 @@ test('requires payment before login when the assigned plan has no trial', async 
   assert.equal(checkoutResponse.body.checkoutToken, 'checkout-token');
 });
 
+test('allows normal login and admin access during an unpaid trial', async () => {
+  const originalSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'test-subscription-secret';
+  state.user = { ...state.user, status: 'Active' };
+  state.accountPlan = {
+    account_plan_type: 'trial',
+    trial_active: true,
+    payment_status: 'pending'
+  };
+  const loginResponse = createResponse();
+
+  try {
+    await login(
+      { body: { identifier: 'owner@example.com', password: 'password' } },
+      loginResponse,
+      assert.ifError
+    );
+    assert.equal(loginResponse.statusCode, 200);
+    assert.equal(loginResponse.body.token, 'admin-token');
+
+    const token = jwt.sign({ user_id: state.user.user_id, role: 'admin' }, process.env.JWT_SECRET);
+    const adminResponse = createResponse();
+    let nextCalled = false;
+    await requireAdmin(
+      { get: () => `Bearer ${token}` },
+      adminResponse,
+      () => { nextCalled = true; }
+    );
+    assert.equal(nextCalled, true);
+  } finally {
+    if (originalSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = originalSecret;
+  }
+});
+
 test('blocks existing admin sessions after an unpaid trial expires', async () => {
   const originalSecret = process.env.JWT_SECRET;
   process.env.JWT_SECRET = 'test-subscription-secret';
