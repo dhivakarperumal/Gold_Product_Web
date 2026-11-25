@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, CreditCard, Eye, EyeOff, FileText, KeyRound, LoaderCircle, MapPin, Store, UserRound, X } from "lucide-react";
+import { CalendarDays, CreditCard, Eye, EyeOff, FileText, KeyRound, LoaderCircle, Store, UserRound, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 
@@ -44,6 +44,7 @@ function createInitialForm(shop) {
     loginUsername: shop?.owner_username || "",
     loginPassword: mobileLoginPassword(shop?.mobile),
     confirmPassword: mobileLoginPassword(shop?.mobile),
+    aadhaarNumber: shop?.aadhaar_number || "",
     gstNumber: shop?.gst_number || "",
     address: shop?.address || "",
     city: shop?.city || "",
@@ -62,7 +63,7 @@ function createInitialForm(shop) {
 const inputClass = "mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-100";
 const labelClass = "text-xs font-semibold uppercase tracking-wide text-stone-600";
 
-function Field({ label, name, value, onChange, required, type = "text", placeholder, min, max }) {
+function Field({ label, name, value, onChange, required, type = "text", placeholder, min, max, maxLength, inputMode }) {
   return (
     <label className={labelClass}>
       {label}{required && <span className="ml-1 text-rose-600">*</span>}
@@ -76,6 +77,8 @@ function Field({ label, name, value, onChange, required, type = "text", placehol
         placeholder={placeholder}
         min={min}
         max={max}
+        maxLength={maxLength}
+        inputMode={inputMode}
       />
     </label>
   );
@@ -135,7 +138,6 @@ function PasswordField({ label, name, value, onChange, visible, onToggle, placeh
 
 const TABS = [
   { id: "personal", label: "Personal Details", icon: UserRound },
-  { id: "address", label: "Address Details", icon: MapPin },
   { id: "shop", label: "Shop Details", icon: Store },
   { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "login", label: "Login Credential", icon: KeyRound }
@@ -150,12 +152,11 @@ export default function AddGoldShop({
   onSubmit
 }) {
   const [form, setForm] = useState(() => createInitialForm(initialShop));
-  const [files, setFiles] = useState({ profilePhoto: null, aadhaarCard: null, gstCertificate: null, otherDocuments: [] });
+  const [files, setFiles] = useState({ profilePhoto: null });
   const [existingDocuments, setExistingDocuments] = useState([]);
   const [shopDetails, setShopDetails] = useState(initialShop);
   const [shopDetailsLoading, setShopDetailsLoading] = useState(mode === "edit" && Boolean(initialShop?.id));
   const [shopDetailsError, setShopDetailsError] = useState("");
-  const [documentConsent, setDocumentConsent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
@@ -218,28 +219,18 @@ export default function AddGoldShop({
   const handleFileChange = (name, event) => {
     const selected = Array.from(event.target.files || []);
     if (selected.some((file) => file.size > 5 * 1024 * 1024)) {
-      setFormError("Each document must be 5 MB or smaller.");
+      setFormError("Profile photos must be 5 MB or smaller.");
       event.target.value = "";
       return;
     }
-    if (name === "profilePhoto" && selected.some((file) => !["image/jpeg", "image/png"].includes(file.type))) {
+    if (selected.some((file) => !["image/jpeg", "image/png"].includes(file.type))) {
       setFormError("Profile photos must be JPG or PNG images.");
-      event.target.value = "";
-      return;
-    }
-    if (selected.some((file) => !["application/pdf", "image/jpeg", "image/png"].includes(file.type))) {
-      setFormError("Documents must be PDF, JPG, or PNG files.");
-      event.target.value = "";
-      return;
-    }
-    if (name === "otherDocuments" && selected.length + files.otherDocuments.length > 4) {
-      setFormError("Choose no more than 4 supporting documents.");
       event.target.value = "";
       return;
     }
     setFiles((current) => ({
       ...current,
-      [name]: name === "otherDocuments" ? [...current.otherDocuments, ...selected] : (selected[0] || null)
+      [name]: selected[0] || null
     }));
     setFormError("");
     event.target.value = "";
@@ -306,9 +297,9 @@ export default function AddGoldShop({
       setFormError("Password and confirm password do not match.");
       return;
     }
-    if ((files.aadhaarCard || files.gstCertificate || files.otherDocuments.length) && !documentConsent) {
+    if (form.aadhaarNumber && !/^\d{12}$/.test(form.aadhaarNumber.trim())) {
       setActiveTab("personal");
-      setFormError("Confirm that you have the owner's authorization to upload these documents.");
+      setFormError("Aadhaar number must contain exactly 12 digits.");
       return;
     }
     const shop = {
@@ -316,6 +307,7 @@ export default function AddGoldShop({
       ownerName: form.ownerName.trim(),
       mobile: form.mobile.trim(),
       email: form.email.trim(),
+      aadhaarNumber: form.aadhaarNumber.trim(),
       ...(isEditing ? {} : {
         credentials: {
           username: form.loginUsername.trim(),
@@ -330,7 +322,6 @@ export default function AddGoldShop({
       maxBranches: isEditing ? (initialShop?.max_branches || 1) : 1,
       maxStaff: isEditing ? (initialShop?.max_staff || 1) : 1,
       notes: form.notes.trim(),
-      documentConsent,
       documents: files
     };
     if (!isEditing) {
@@ -345,7 +336,6 @@ export default function AddGoldShop({
 
   const sectionClass = "rounded-2xl border border-stone-200 bg-white p-4 sm:p-5";
   const activeTabIndex = TABS.findIndex((tab) => tab.id === activeTab);
-  const acceptedDocuments = ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
 
   return (
     <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6">
@@ -401,24 +391,7 @@ export default function AddGoldShop({
                 <Field label="Owner name" name="ownerName" value={form.ownerName} onChange={handleChange} required placeholder="Full name" />
                 <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} required type="tel" placeholder="+919876543210" />
                 <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." />
-                <FileField label="Aadhaar card" name="aadhaarCard" accept={acceptedDocuments} files={files.aadhaarCard} onChange={(event) => handleFileChange("aadhaarCard", event)} hint="Upload an Aadhaar image or PDF, up to 5 MB. Stored privately." />
-                <label className="flex items-start gap-2 text-xs font-medium text-stone-600 sm:col-span-2">
-                  <input type="checkbox" checked={documentConsent} onChange={(event) => setDocumentConsent(event.target.checked)} className="mt-0.5 accent-amber-700" />
-                  <span>I have the owner's authorization to upload these documents. Sensitive documents are stored privately and accessible only to Super Admins.</span>
-                </label>
-              </div>
-            </section>
-
-            <section id="gold-shop-panel-address" role="tabpanel" aria-labelledby="gold-shop-tab-address" hidden={activeTab !== "address"} className={sectionClass}>
-              <h3 className="mb-4 font-bold text-stone-800">Address Details</h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="City" />
-                <Field label="State" name="state" value={form.state} onChange={handleChange} placeholder="State" />
-                <Field label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} placeholder="Postal code" />
-                <label className={`${labelClass} sm:col-span-2`}>
-                  Shop address
-                  <textarea className={`${inputClass} min-h-24 resize-y`} name="address" value={form.address} onChange={handleChange} rows={3} placeholder="Street address" />
-                </label>
+                <Field label="Aadhaar number" name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} type="text" inputMode="numeric" maxLength={12} placeholder="12-digit Aadhaar number" />
               </div>
             </section>
 
@@ -434,8 +407,13 @@ export default function AddGoldShop({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Shop name" name="shopName" value={form.shopName} onChange={handleChange} required placeholder="e.g. Sri Golds" />
                   <Field label="GST number" name="gstNumber" value={form.gstNumber} onChange={handleChange} placeholder="15-character GSTIN" />
-                  <FileField label="GST certificate" name="gstCertificate" accept={acceptedDocuments} files={files.gstCertificate} onChange={(event) => handleFileChange("gstCertificate", event)} hint="PDF, JPG, or PNG, up to 5 MB." />
-                  <FileField label="Other important documents" name="otherDocuments" accept={acceptedDocuments} multiple files={files.otherDocuments} onChange={(event) => handleFileChange("otherDocuments", event)} hint="Upload up to 4 supporting documents; each up to 5 MB." />
+                  <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="City" />
+                  <Field label="State" name="state" value={form.state} onChange={handleChange} placeholder="State" />
+                  <Field label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} placeholder="Postal code" />
+                  <label className={`${labelClass} sm:col-span-2`}>
+                    Shop address
+                    <textarea className={`${inputClass} min-h-24 resize-y`} name="address" value={form.address} onChange={handleChange} rows={3} placeholder="Street address" />
+                  </label>
                   <label className={`${labelClass} sm:col-span-2`}>
                     Admin notes
                     <textarea className={`${inputClass} min-h-20 resize-y`} name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Internal notes about this shop" />
@@ -534,7 +512,7 @@ export default function AddGoldShop({
               Cancel
             </button>
             {!isEditing && (
-              <button type="button" onClick={() => { setForm(createInitialForm(null)); setFiles({ profilePhoto: null, aadhaarCard: null, gstCertificate: null, otherDocuments: [] }); setDocumentConsent(false); setActiveTab("personal"); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-100">
+              <button type="button" onClick={() => { setForm(createInitialForm(null)); setFiles({ profilePhoto: null }); setActiveTab("personal"); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-100">
                 Reset
               </button>
             )}

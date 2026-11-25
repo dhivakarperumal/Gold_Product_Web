@@ -165,6 +165,22 @@ test('validates required shop identity and normalizes contact details', () => {
   assert.equal(result.shop.owner_name, 'A Owner');
   assert.equal(result.shop.mobile, '+919876543210');
   assert.equal(result.shop.email, 'owner@example.com');
+  assert.equal(validateShop({
+    shopName: 'Gold House',
+    ownerName: 'A Owner',
+    mobile: '+919876543210',
+    aadhaarNumber: ' 123456789012 ',
+    maxBranches: 1,
+    maxStaff: 1
+  }).shop.aadhaar_number, '123456789012');
+  assert.equal(validateShop({
+    shopName: 'Gold House',
+    ownerName: 'A Owner',
+    mobile: '+919876543210',
+    aadhaarNumber: '12345678901',
+    maxBranches: 1,
+    maxStaff: 1
+  }).error, 'Aadhaar number must contain exactly 12 digits');
   assert.equal(validateShop({ maxBranches: 1, maxStaff: 1 }).error,
     'Shop name, owner name, and mobile number are required');
   assert.equal(validateShop({

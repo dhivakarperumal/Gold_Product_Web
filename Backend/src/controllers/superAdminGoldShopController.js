@@ -140,6 +140,7 @@ function validateShop(body, { creating = false } = {}) {
   const ownerName = String(body.ownerName || '').trim();
   const mobile = String(body.mobile || '').replace(/[\s()-]/g, '').trim();
   const email = normalizeOptionalString(body.email)?.toLowerCase() || null;
+  const aadhaarNumber = normalizeOptionalString(body.aadhaarNumber);
   const gstNumber = normalizeOptionalString(body.gstNumber)?.toUpperCase() || null;
   const address = normalizeOptionalString(body.address);
   const city = normalizeOptionalString(body.city);
@@ -163,6 +164,9 @@ function validateShop(body, { creating = false } = {}) {
   }
   if (!PHONE_PATTERN.test(mobile)) return { error: 'Enter a valid mobile number' };
   if (email && (email.length > 255 || !EMAIL_PATTERN.test(email))) return { error: 'Enter a valid email address' };
+  if (aadhaarNumber && !/^\d{12}$/.test(aadhaarNumber)) {
+    return { error: 'Aadhaar number must contain exactly 12 digits' };
+  }
   if (gstNumber && (gstNumber.length !== 15 || !/^[A-Z0-9]{15}$/.test(gstNumber))) {
     return { error: 'GST number must contain 15 letters or numbers' };
   }
@@ -182,6 +186,7 @@ function validateShop(body, { creating = false } = {}) {
       owner_name: ownerName,
       mobile,
       email,
+      aadhaar_number: aadhaarNumber,
       gst_number: gstNumber,
       address,
       city,
