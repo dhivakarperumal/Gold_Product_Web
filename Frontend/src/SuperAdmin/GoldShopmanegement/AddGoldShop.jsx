@@ -556,7 +556,6 @@ export default function AddGoldShop({
     ? "rounded-2xl border-0 bg-transparent p-4 sm:p-6"
     : "rounded-2xl border border-stone-200 bg-white p-4 sm:p-5";
   const activeTabIndex = TABS.findIndex((tab) => tab.id === activeTab);
-  const ActiveTabIcon = TABS[activeTabIndex]?.icon || UserRound;
   const tabNavigation = (
     <div className={registrationMode ? "grid grid-cols-4 border-b border-stone-200" : "grid grid-cols-4 gap-1 rounded-2xl bg-stone-100 p-1"} role="tablist" aria-label="Gold shop form sections">
       {TABS.map(({ id, label, icon: Icon }) => {
@@ -571,7 +570,7 @@ export default function AddGoldShop({
             aria-controls={`gold-shop-panel-${id}`}
             onClick={() => { setActiveTab(id); setFormError(""); }}
             className={registrationMode
-              ? `inline-flex min-w-0 items-center justify-center gap-0.5 whitespace-nowrap border-b-2 px-0.5 py-2 text-center text-[8px] font-semibold transition sm:gap-2 sm:px-2 sm:py-3 sm:text-xs ${isActive ? "border-emerald-900 text-emerald-950" : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"}`
+              ? `inline-flex min-w-0 items-center justify-center gap-0.5 whitespace-nowrap rounded-t-lg border-b-2 px-0.5 py-2 text-center text-[8px] font-semibold transition sm:gap-2 sm:px-2 sm:py-3 sm:text-xs ${isActive ? "border-emerald-900 bg-emerald-900 text-white" : "border-transparent text-stone-500 hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800"}`
               : `inline-flex min-h-9 whitespace-normal items-center justify-center gap-0 rounded-xl px-0 py-1 text-[8px] font-bold transition sm:whitespace-nowrap sm:gap-1 sm:px-1 sm:text-[10px] lg:text-xs ${isActive ? "bg-white text-amber-900 shadow-sm" : "text-stone-600 hover:bg-white/70"}`}
           >
             {registrationMode ? (
@@ -624,12 +623,6 @@ export default function AddGoldShop({
           <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
 
           <div className={registrationMode ? "overflow-hidden rounded-2xl border border-b-0 border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)]" : "contents"}>
-            {registrationMode && (
-              <div className="flex min-h-12 items-center gap-3 bg-emerald-950 px-4 py-2.5 text-white sm:px-6">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-400 text-emerald-950"><ActiveTabIcon size={18} /></span>
-                <span className="text-sm font-semibold sm:text-base">{TABS[activeTabIndex]?.label}</span>
-              </div>
-            )}
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
               {!registrationMode && <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>}
               <div className="grid gap-2 sm:grid-cols-2">
