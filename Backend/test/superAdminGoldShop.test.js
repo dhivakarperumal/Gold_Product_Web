@@ -8,8 +8,10 @@ const {
   getPlanPrice,
   isValidDate,
   approveGoldShop,
+  listGoldShops,
   rejectGoldShop
 } = require('../src/modules/superAdminGoldShopModule');
+const { getSubscriptionPlanType } = require('../src/utils/subscriptionPlanType');
 const {
   validateShop,
   validateLoginCredentials,
@@ -30,6 +32,34 @@ test('rejects invalid subscription dates without throwing', () => {
   assert.equal(isValidDate('9999-99-99'), false);
   assert.equal(validateSubscription({ planId: 1, duration: 'monthly', startDate: '9999-99-99' }).error,
     'Enter a valid subscription start date');
+});
+
+test('classifies account plan type from the plan name', () => {
+  assert.equal(getSubscriptionPlanType('Gold Trial'), 'trial');
+  assert.equal(getSubscriptionPlanType('Gold Trail'), 'trial');
+  assert.equal(getSubscriptionPlanType('Gold Premium'), 'live');
+  assert.equal(getSubscriptionPlanType(null), null);
+});
+
+test('includes account plan type with each listed gold shop', async () => {
+  const originalExecute = pool.execute;
+  pool.execute = async (sql) => {
+    if (sql.includes('SELECT gs.id, gs.shop_uuid')) {
+      return [[{ id: 5, plan_name: 'Gold Trial' }], []];
+    }
+    if (sql.includes('COUNT(*) AS total FROM gold_shops gs')) return [[{ total: 1 }], []];
+    if (sql.includes('COUNT(*) AS total_shops')) return [[{ total_shops: 1 }], []];
+    if (sql.includes('COUNT(*) AS expired_subscriptions')) return [[{ expired_subscriptions: 0 }], []];
+    return [{ affectedRows: 0 }, []];
+  };
+
+  try {
+    const result = await listGoldShops({ search: '', status: 'all', planId: null, page: 1, pageSize: 10 });
+    assert.equal(result.shops[0].account_plan_type, 'trial');
+    assert.equal(result.shops[0].plan_name, 'Gold Trial');
+  } finally {
+    pool.execute = originalExecute;
+  }
 });
 
 test('uses the database plan price for the selected duration', () => {

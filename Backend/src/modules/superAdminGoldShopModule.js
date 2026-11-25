@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
+const { getSubscriptionPlanType } = require('../utils/subscriptionPlanType');
 
 const DEFAULT_PLANS = [
   { name: 'Basic', monthly: 500, features: ['Shop profile', 'Core inventory'] },
@@ -547,6 +548,10 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
      LIMIT ? OFFSET ?`,
     [...values, pageSize, offset]
   );
+  const shopsWithPlanType = shops.map((shop) => ({
+    ...shop,
+    account_plan_type: getSubscriptionPlanType(shop.plan_name)
+  }));
   const [countRows] = await pool.execute(
     `SELECT COUNT(*) AS total FROM gold_shops gs ${latestSubscriptionJoin()} WHERE ${where}`,
     values
@@ -568,7 +573,7 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
   const total = Number(countRows[0]?.total || 0);
   const summary = summaryRows[0] || {};
   return {
-    shops,
+    shops: shopsWithPlanType,
     pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     summary: {
       total_shops: Number(summary.total_shops || 0),

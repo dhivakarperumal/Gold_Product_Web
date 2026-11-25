@@ -75,6 +75,40 @@ test('scopes preset revenue trends to the authenticated shop', async () => {
   assert.deepEqual(revenueQuery.values, [adminUser.user_id]);
 });
 
+test('returns the authenticated admin account plan and subscription period', async () => {
+  const originalExecute = pool.execute;
+  const queries = [];
+  pool.execute = async (query, values) => {
+    const sql = String(query).replace(/\s+/g, ' ').trim();
+    queries.push({ sql, values });
+    if (sql.includes('FROM gold_shops gs')) {
+      return [[{
+        plan_name: 'Gold Trail Plan',
+        start_date: '2026-01-01',
+        end_date: '2026-02-01'
+      }], []];
+    }
+    return dashboardQueryResult(sql);
+  };
+
+  try {
+    const data = await getDashboardData('month', null, adminUser);
+    const accountPlanQuery = queries.find(({ sql }) => sql.includes('FROM gold_shops gs'));
+
+    assert.ok(accountPlanQuery);
+    assert.match(accountPlanQuery.sql, /gs\.owner_user_id = \?/);
+    assert.deepEqual(accountPlanQuery.values, [adminUser.user_id]);
+    assert.deepEqual(data.accountPlan, {
+      plan_name: 'Gold Trail Plan',
+      start_date: '2026-01-01',
+      end_date: '2026-02-01',
+      account_plan_type: 'trial'
+    });
+  } finally {
+    pool.execute = originalExecute;
+  }
+});
+
 test('requires an authenticated shop identity before loading report data', async () => {
   const originalError = console.error;
   console.error = () => {};

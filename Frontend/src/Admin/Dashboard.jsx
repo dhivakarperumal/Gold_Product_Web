@@ -54,6 +54,14 @@ const getDashboardImageUrl = (image) => {
   return `${backendUrl}${image.startsWith("/") ? image : `/${image}`}`;
 };
 
+const formatAccountDate = (value) => {
+  if (!value) return "—";
+  const date = new Date(typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+};
+
 const DEFAULT_DASHBOARD_DATA = {
   stats: [
     {
@@ -191,6 +199,7 @@ const Dashboard = () => {
   const loanStatusCounts = data.loanStatusCounts || DEFAULT_DASHBOARD_DATA.loanStatusCounts;
   const revenueTrends = Array.isArray(dashboardData?.revenueTrends) ? dashboardData.revenueTrends : [];
   const totalLoansCount = data.totalLoansCount ?? 0;
+  const accountPlan = data.accountPlan;
   const summaryCards = [
     {
       id: "total_customers",
@@ -437,6 +446,24 @@ const Dashboard = () => {
           </div>
         </div>
       </section>
+
+      {accountPlan && (
+        <section aria-label="Account plan" className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Account plan</p>
+              <h2 className="mt-1 text-lg font-black text-slate-900">
+                <span className="capitalize">{accountPlan.account_plan_type || "—"}</span>
+                {accountPlan.plan_name ? ` · ${accountPlan.plan_name}` : ""}
+              </h2>
+            </div>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2 sm:gap-8">
+              <div><dt className="text-xs font-semibold text-slate-500">Starts</dt><dd className="mt-1 font-bold text-slate-800">{formatAccountDate(accountPlan.start_date)}</dd></div>
+              <div><dt className="text-xs font-semibold text-slate-500">Ends</dt><dd className="mt-1 font-bold text-slate-800">{formatAccountDate(accountPlan.end_date)}</dd></div>
+            </dl>
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 gap-x-2 gap-y-[20px] sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (

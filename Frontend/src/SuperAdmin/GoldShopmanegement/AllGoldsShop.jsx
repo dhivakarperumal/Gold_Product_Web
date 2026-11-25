@@ -639,6 +639,7 @@ export default function AllGoldsShop() {
                   <div className="col-span-2"><dt className="text-slate-400">Mobile</dt><dd className="mt-1 font-semibold text-slate-700">{shop.mobile || "—"}</dd></div>
                   <div><dt className="text-slate-400">City</dt><dd className="mt-1 font-semibold text-slate-700">{shop.city || "—"}</dd></div>
                   <div><dt className="text-slate-400">Plan</dt><dd className="mt-1 font-semibold text-slate-700">{shop.plan_name || "No plan"}</dd></div>
+                  <div><dt className="text-slate-400">Account type</dt><dd className="mt-1 font-semibold capitalize text-slate-700">{shop.account_plan_type || "—"}</dd></div>
                   <div className="col-span-2"><dt className="text-slate-400">Start</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.start_date)}</dd></div>
                   <div className="col-span-2"><dt className="text-slate-400">Expiry</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.subscription_expiry)}</dd></div>
                   <div><dt className="text-slate-400">Payment</dt><dd className="mt-1"><StatusBadge value={shop.payment_status || "unpaid"} /></dd></div>
@@ -680,10 +681,10 @@ export default function AllGoldsShop() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
+            <table className="w-full min-w-[1220px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
               <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
                 <tr>
-                  <th className="w-16 whitespace-nowrap rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Mobile</th><th className="px-4 py-4">City</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Start Date</th><th className="px-4 py-4">Expiry</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Approval status</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
+                  <th className="w-16 whitespace-nowrap rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Mobile</th><th className="px-4 py-4">City</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Account type</th><th className="px-4 py-4">Start Date</th><th className="px-4 py-4">Expiry</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Approval status</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -703,6 +704,7 @@ export default function AllGoldsShop() {
                       <td className="whitespace-nowrap px-4 py-4">{shop.mobile}</td>
                       <td className="whitespace-nowrap px-4 py-4"><span className="inline-flex items-center gap-1"><MapPin size={13} className="text-stone-400" />{shop.city || "—"}</span></td>
                       <td className="whitespace-nowrap px-4 py-4">{shop.plan_name || "No plan"}</td>
+                      <td className="whitespace-nowrap px-4 py-4 capitalize">{shop.account_plan_type || "—"}</td>
                       <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.start_date)}</td>
                       <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.subscription_expiry)}</td>
                       <td className="px-4 py-4"><StatusBadge value={shop.payment_status || "unpaid"} /></td>
