@@ -36,6 +36,11 @@ const exchangeItem = (overrides = {}) => ({
   credit_amount: 1,
   ...overrides
 });
+const enabledTaxSettings = (gst_rate, tax_mode = 'Tax Exclusive') => ({
+  gst_enabled: true,
+  gst_rate,
+  tax_mode
+});
 
 test('defaults GST to 0% for full-payment billing totals', () => {
   const result = normalizeBilling(billingInput());
@@ -57,12 +62,12 @@ test('requires a phone number for every bill customer', () => {
   assert.match(normalizeBilling(input).error, /customers 1 phone is required/i);
 });
 
-test('deducts exchange credit before calculating entered GST', () => {
+test('deducts exchange credit before calculating configured GST', () => {
   const result = normalizeBilling(billingInput({
     payment_type: 'EXCHANGE_GOLD',
     gst_rate: 3,
     exchanges: [exchangeItem()]
-  }), currentRates);
+  }), currentRates, enabledTaxSettings(3));
   assert.equal(result.error, undefined);
   assert.equal(result.billing.sub_total, 15000);
   assert.equal(result.billing.exchanges[0].metal_type, 'Gold');
@@ -131,11 +136,27 @@ test('rejects invalid manually entered exchange rates', () => {
   assert.match(result.error, /rate/i);
 });
 
-test('accepts a custom GST rate and calculates the GST amount and total', () => {
+test('uses the owner tax settings instead of a client-supplied GST rate', () => {
   const result = normalizeBilling(billingInput({ gst_rate: 3.33 }));
+  const configured = normalizeBilling(billingInput({ gst_rate: 100 }), null, enabledTaxSettings(3.33));
   assert.equal(result.error, undefined);
-  assert.equal(result.billing.gst_amount, 499.5);
-  assert.equal(result.billing.total_amount, 15499.5);
+  assert.equal(result.billing.gst_amount, 0);
+  assert.equal(configured.error, undefined);
+  assert.equal(configured.billing.gst_amount, 499.5);
+  assert.equal(configured.billing.total_amount, 15499.5);
+});
+
+test('calculates included GST without increasing the inclusive bill total', () => {
+  const result = normalizeBilling(
+    billingInput({ gst_rate: 99 }),
+    null,
+    enabledTaxSettings(12, 'Tax Inclusive')
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.billing.gst_amount, 1607.14);
+  assert.equal(result.billing.total_amount, 15000);
+  assert.equal(result.billing.gst_rate, 12);
+  assert.equal(result.billing.tax_mode, 'Tax Inclusive');
 });
 
 test('applies a fixed discount before exchange credit and GST', () => {
@@ -144,7 +165,7 @@ test('applies a fixed discount before exchange credit and GST', () => {
     gst_rate: 3,
     payment_type: 'EXCHANGE_GOLD',
     exchanges: [exchangeItem()]
-  }), currentRates);
+  }), currentRates, enabledTaxSettings(3));
   assert.equal(result.error, undefined);
   assert.equal(result.billing.discount_amount, 1000);
   assert.equal(result.billing.gst_amount, 360);
@@ -160,10 +181,9 @@ test('rejects discounts and exchange credits that exceed the products subtotal',
   }), currentRates).error, /cannot exceed/i);
 });
 
-test('rejects invalid GST rates', () => {
-  assert.match(normalizeBilling(billingInput({ gst_rate: -1 })).error, /GST rate/i);
-  assert.match(normalizeBilling(billingInput({ gst_rate: 101 })).error, /GST rate/i);
-  assert.match(normalizeBilling(billingInput({ gst_rate: 'not-a-number' })).error, /GST rate/i);
+test('rejects an invalid saved GST rate', () => {
+  assert.match(normalizeBilling(billingInput(), null, enabledTaxSettings(-1)).error, /saved GST rate/i);
+  assert.match(normalizeBilling(billingInput(), null, enabledTaxSettings(101)).error, /saved GST rate/i);
 });
 
 test('rejects exchange credits over subtotal and missing exchange items', () => {

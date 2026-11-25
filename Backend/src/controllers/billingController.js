@@ -9,11 +9,12 @@ const {
   updateBilling
 } = require('../modules/billingModule');
 const { findGoldRateForPurity, getCurrentGoldRates } = require('../modules/goldRateModule');
+const { getTaxSettings } = require('../modules/taxSettingsModule');
 const { parseDateRange } = require('../utils/dateRange');
 
 const PAYMENT_TYPES = new Set(['FULL_PAYMENT', 'EXCHANGE_GOLD']);
 const MAX_ITEMS = 100;
-const GST_RATE = 0;
+const DEFAULT_TAX_SETTINGS = { gst_enabled: false, gst_rate: 0, tax_mode: 'Tax Exclusive' };
 
 function normalizeText(value, field, maxLength, required = false) {
   if (typeof value !== 'string') return required ? { error: `${field} is required` } : { value: '' };
@@ -172,7 +173,7 @@ function normalizeExchangeItems(value, currentRateSet) {
   return { value: entries };
 }
 
-function normalizeBilling(body, currentRateSet = null) {
+function normalizeBilling(body, currentRateSet = null, taxSettings = DEFAULT_TAX_SETTINGS) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'Billing details are required' };
   }
@@ -206,14 +207,24 @@ function normalizeBilling(body, currentRateSet = null) {
   if (exchangeCredit > subTotal - discount.value) {
     return { error: 'Discount and exchange credit cannot exceed the purchased products subtotal' };
   }
-  const rawGstRate = body.gst_rate == null || body.gst_rate === '' ? GST_RATE : Number(body.gst_rate);
+  const rawGstRate = taxSettings.gst_enabled ? Number(taxSettings.gst_rate) : 0;
   if (!Number.isFinite(rawGstRate) || rawGstRate < 0 || rawGstRate > 100) {
-    return { error: 'GST rate must be a valid percentage between 0 and 100' };
+    return { error: 'The saved GST rate must be between 0 and 100' };
   }
   const gstRate = Math.round(rawGstRate * 100) / 100;
+  const taxMode = taxSettings.tax_mode;
+  if (!['Tax Exclusive', 'Tax Inclusive'].includes(taxMode)) {
+    return { error: 'The saved tax calculation mode is invalid' };
+  }
   const netSubtotal = subTotal - discount.value - exchangeCredit;
-  const gstAmount = Math.round(netSubtotal * gstRate) / 100;
-  const totalAmount = Math.round((netSubtotal + gstAmount) * 100) / 100;
+  const gstAmount = gstRate === 0
+    ? 0
+    : taxMode === 'Tax Inclusive'
+      ? Math.round((netSubtotal * gstRate / (100 + gstRate)) * 100) / 100
+      : Math.round(netSubtotal * gstRate) / 100;
+  const totalAmount = taxMode === 'Tax Inclusive'
+    ? netSubtotal
+    : Math.round((netSubtotal + gstAmount) * 100) / 100;
   if (subTotal > 9999999999.99 || totalAmount > 9999999999.99) {
     return { error: 'Bill total exceeds the supported limit' };
   }
@@ -228,6 +239,8 @@ function normalizeBilling(body, currentRateSet = null) {
       sub_total: subTotal,
       discount_amount: discount.value,
       gst_amount: gstAmount,
+      gst_rate: gstRate,
+      tax_mode: taxMode,
       total_amount: totalAmount
     }
   };
@@ -309,7 +322,8 @@ async function postBilling(req, res, next) {
     const currentRateSet = req.body?.payment_type === 'EXCHANGE_GOLD'
       ? await getCurrentGoldRates(req.adminUser.user_id)
       : null;
-    const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet);
+    const taxSettings = await getTaxSettings(req.adminUser.user_id);
+    const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet, taxSettings);
     if (error) return res.status(400).json({ message: error });
     return res.status(201).json(await createBilling(billing, req.adminUser.user_id));
   } catch (error) {
@@ -336,7 +350,8 @@ async function putBilling(req, res, next) {
     const currentRateSet = req.body?.payment_type === 'EXCHANGE_GOLD'
       ? await getCurrentGoldRates(req.adminUser.user_id)
       : null;
-    const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet);
+    const taxSettings = await getTaxSettings(req.adminUser.user_id);
+    const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet, taxSettings);
     if (error) return res.status(400).json({ message: error });
     billing.invoice_no = existing.invoice_no;
     const updated = await updateBilling(id, billing, req.adminUser.user_id);
