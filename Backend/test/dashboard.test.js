@@ -84,8 +84,13 @@ test('returns the authenticated admin account plan and subscription period', asy
     if (sql.includes('FROM gold_shops gs')) {
       return [[{
         plan_name: 'Gold Trail Plan',
-        start_date: '2026-01-01',
-        end_date: '2026-02-01'
+        start_date: '2026-11-25',
+        end_date: '2026-12-25',
+        trial_days: 3,
+        trial_start_date: '2026-11-25',
+        trial_end_date: '2026-11-27',
+        payment_status: 'pending',
+        database_date: '2026-11-25'
       }], []];
     }
     return dashboardQueryResult(sql);
@@ -98,12 +103,10 @@ test('returns the authenticated admin account plan and subscription period', asy
     assert.ok(accountPlanQuery);
     assert.match(accountPlanQuery.sql, /gs\.owner_user_id = \?/);
     assert.deepEqual(accountPlanQuery.values, [adminUser.user_id]);
-    assert.deepEqual(data.accountPlan, {
-      plan_name: 'Gold Trail Plan',
-      start_date: '2026-01-01',
-      end_date: '2026-02-01',
-      account_plan_type: 'trial'
-    });
+    assert.equal(data.accountPlan.plan_name, 'Gold Trail Plan');
+    assert.equal(data.accountPlan.account_plan_type, 'trial');
+    assert.equal(data.accountPlan.trial_days_remaining, 3);
+    assert.equal(data.accountPlan.account_end_date, '2026-11-27');
   } finally {
     pool.execute = originalExecute;
   }

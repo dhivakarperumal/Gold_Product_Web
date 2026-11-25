@@ -228,8 +228,19 @@ function createAccessToken(user) {
   );
 }
 
+function createSubscriptionAccessToken(user) {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET is required to issue subscription checkout access');
+  return jwt.sign(
+    { user_id: user.user_id, purpose: 'subscription_checkout' },
+    secret,
+    { expiresIn: '10m' }
+  );
+}
+
 module.exports = {
   createAccessToken,
+  createSubscriptionAccessToken,
   createUser,
   deleteUser,
   findUserForLogin,

@@ -53,6 +53,9 @@ const formatDate = (value) => {
 const hasCurrentSubscription = (shop) => shop.subscription_is_current === true
   || Number(shop.subscription_is_current) === 1;
 const approvalStatus = (shop) => shop.approval_status || (shop.approved_at ? "approved" : "pending");
+const accountPlanTypeLabel = (shop) => shop.account_plan_type === "expired"
+  ? "Trial expired"
+  : shop.account_plan_type || "—";
 
 const formatAmount = (value) =>
   Number.isFinite(Number(value)) ? `₹${Number(value).toLocaleString("en-IN")}` : "—";
@@ -201,8 +204,9 @@ function ShopDetails({ shop, loading, onConfirmPayment }) {
         {shop.current_subscription_id ? (
           <div className="grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-3">
             <div><p className="text-xs text-stone-500">Plan</p><p className="mt-1 font-semibold">{shop.plan_name}</p></div>
+            <div><p className="text-xs text-stone-500">Account type</p><p className="mt-1 font-semibold capitalize">{accountPlanTypeLabel(shop)}</p></div>
             <div><p className="text-xs text-stone-500">Duration / amount</p><p className="mt-1 font-semibold capitalize">{shop.duration} · {formatAmount(shop.subscription_amount)}</p></div>
-            <div><p className="text-xs text-stone-500">Period</p><p className="mt-1 font-semibold">{formatDate(shop.start_date)} – {formatDate(shop.end_date)}</p></div>
+            <div><p className="text-xs text-stone-500">Period</p><p className="mt-1 font-semibold">{formatDate(shop.account_start_date)} – {formatDate(shop.account_end_date)}</p></div>
             <div><p className="text-xs text-stone-500">Subscription status</p><div className="mt-1"><StatusBadge value={shop.subscription_status} /></div></div>
             <div><p className="text-xs text-stone-500">Payment status</p><div className="mt-1"><StatusBadge value={shop.payment_status} /></div></div>
           </div>
@@ -639,9 +643,9 @@ export default function AllGoldsShop() {
                   <div className="col-span-2"><dt className="text-slate-400">Mobile</dt><dd className="mt-1 font-semibold text-slate-700">{shop.mobile || "—"}</dd></div>
                   <div><dt className="text-slate-400">City</dt><dd className="mt-1 font-semibold text-slate-700">{shop.city || "—"}</dd></div>
                   <div><dt className="text-slate-400">Plan</dt><dd className="mt-1 font-semibold text-slate-700">{shop.plan_name || "No plan"}</dd></div>
-                  <div><dt className="text-slate-400">Account type</dt><dd className="mt-1 font-semibold capitalize text-slate-700">{shop.account_plan_type || "—"}</dd></div>
-                  <div className="col-span-2"><dt className="text-slate-400">Start</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.start_date)}</dd></div>
-                  <div className="col-span-2"><dt className="text-slate-400">Expiry</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.subscription_expiry)}</dd></div>
+                  <div><dt className="text-slate-400">Account type</dt><dd className="mt-1 font-semibold capitalize text-slate-700">{accountPlanTypeLabel(shop)}</dd></div>
+                  <div className="col-span-2"><dt className="text-slate-400">Start</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.account_start_date)}</dd></div>
+                  <div className="col-span-2"><dt className="text-slate-400">Expiry</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.account_end_date)}</dd></div>
                   <div><dt className="text-slate-400">Payment</dt><dd className="mt-1"><StatusBadge value={shop.payment_status || "unpaid"} /></dd></div>
                 </dl>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
@@ -704,9 +708,9 @@ export default function AllGoldsShop() {
                       <td className="whitespace-nowrap px-4 py-4">{shop.mobile}</td>
                       <td className="whitespace-nowrap px-4 py-4"><span className="inline-flex items-center gap-1"><MapPin size={13} className="text-stone-400" />{shop.city || "—"}</span></td>
                       <td className="whitespace-nowrap px-4 py-4">{shop.plan_name || "No plan"}</td>
-                      <td className="whitespace-nowrap px-4 py-4 capitalize">{shop.account_plan_type || "—"}</td>
-                      <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.start_date)}</td>
-                      <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.subscription_expiry)}</td>
+                      <td className="whitespace-nowrap px-4 py-4 capitalize">{accountPlanTypeLabel(shop)}</td>
+                      <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.account_start_date)}</td>
+                      <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.account_end_date)}</td>
                       <td className="px-4 py-4"><StatusBadge value={shop.payment_status || "unpaid"} /></td>
                       <td className="px-4 py-4"><StatusBadge value={approvalStatus(shop)} /></td>
                       <td className="px-4 py-4">

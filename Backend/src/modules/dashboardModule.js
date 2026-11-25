@@ -1,6 +1,6 @@
 const { pool } = require('../config/db');
 const { addDateRangeCondition } = require('../utils/dateRange');
-const { getSubscriptionPlanType } = require('../utils/subscriptionPlanType');
+const { getAccountPlanForOwner } = require('./shopSubscriptionModule');
 
 async function getDashboardData(range = 'month', dateRange = null, adminUser) {
   try {
@@ -8,21 +8,7 @@ async function getDashboardData(range = 'month', dateRange = null, adminUser) {
     if (!userId) {
       throw new Error('An authenticated admin user is required to load dashboard reports');
     }
-    const [accountPlanRows] = await pool.execute(`
-      SELECT sp.plan_name, sub.start_date, sub.end_date
-      FROM gold_shops gs
-      LEFT JOIN subscriptions sub
-        ON sub.id = (SELECT MAX(s2.id) FROM subscriptions s2 WHERE s2.gold_shop_id = gs.id)
-      LEFT JOIN subscription_plans sp ON sp.id = sub.plan_id
-      WHERE gs.owner_user_id = ? AND gs.deleted_at IS NULL
-      LIMIT 1
-    `, [userId]);
-    const accountPlan = accountPlanRows[0]
-      ? {
-        ...accountPlanRows[0],
-        account_plan_type: getSubscriptionPlanType(accountPlanRows[0].plan_name)
-      }
-      : null;
+    const accountPlan = await getAccountPlanForOwner(userId);
     const scopedDateFilter = (ownerColumn, ownerId, dateColumn) => {
       const conditions = [`${ownerColumn} = ?`];
       const values = [ownerId];

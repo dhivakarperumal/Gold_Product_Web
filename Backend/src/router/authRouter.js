@@ -2,6 +2,7 @@ const express = require('express');
 const {
   createManagedUser,
   changeMyPassword,
+  createSubscriptionAccess,
   getMyProfile,
   getUsers,
   login,
@@ -21,6 +22,7 @@ const router = express.Router();
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/subscription-access', createSubscriptionAccess);
 router.get('/me', requireUser, getMyProfile);
 router.put('/me', requireUser, updateMyProfile);
 router.put('/me/password', requireUser, changeMyPassword);
