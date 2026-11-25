@@ -94,15 +94,14 @@ function Login() {
 
   return (
     <AuthLayout
-      eyebrow="Administrator access"
-      title="Welcome back"
-      subtitle="Sign in to your gold shop management account."
       alternatePrompt="New gold shop?"
       alternateLabel="Register here"
       alternateTo="/register"
-      contentClassName="mx-auto max-w-md"
+      contentClassName="flex items-center justify-center"
+      fixedHeight
+      hideHeader
     >
-      <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-7">
+      <form onSubmit={handleSubmit} className="w-full space-y-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-7">
 
             {/* Email/Mobile */}
             <div>
