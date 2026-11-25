@@ -101,7 +101,11 @@ function Login() {
       fixedHeight
       hideHeader
     >
-      <form onSubmit={handleSubmit} className="w-full space-y-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-7">
+      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-md space-y-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-7">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold tracking-tight text-[#172a23]">Login</h1>
+              <p className="text-sm text-stone-600">Sign in to your account to continue.</p>
+            </div>
 
             {/* Email/Mobile */}
             <div>
