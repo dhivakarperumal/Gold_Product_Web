@@ -99,7 +99,12 @@ const pageTitles = {
   "/admin/settings/profile": "Profile",
 };
 
-const Header = ({ onMenuClick }) => {
+const Header = ({
+  onMenuClick,
+  showMenuButton = true,
+  productSearch,
+  onProductSearchChange
+}) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -199,6 +204,8 @@ const Header = ({ onMenuClick }) => {
 
   // Pre-fetch products & loans for search on mount
   useEffect(() => {
+    if (location.pathname === "/admin/tack-orders") return;
+
     const loadSearchItems = async () => {
       try {
         const [prodRes, loanRes] = await Promise.allSettled([
@@ -234,7 +241,7 @@ const Header = ({ onMenuClick }) => {
       }
     };
     loadSearchItems();
-  }, []);
+  }, [location.pathname]);
 
   // Live search filter
   const handleSearchInput = (e) => {
@@ -359,14 +366,16 @@ const Header = ({ onMenuClick }) => {
 
         {/* LEFT */}
         <div className="flex items-center gap-4 min-w-0">
-          <button
-            onClick={onMenuClick}
-            className="lg:hidden p-2 rounded-xl 
-            bg-white hover:bg-slate-50 
-            text-slate-600 border border-slate-200 shadow-sm transition-all active:scale-95"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+          {showMenuButton && (
+            <button
+              onClick={onMenuClick}
+              className="lg:hidden p-2 rounded-xl
+              bg-white hover:bg-slate-50
+              text-slate-600 border border-slate-200 shadow-sm transition-all active:scale-95"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
 
           <div className="hidden sm:flex flex-col">
             <h1 className="text-xl sm:text-2xl font-black 
@@ -383,6 +392,20 @@ const Header = ({ onMenuClick }) => {
         <div className="flex items-center gap-3">
 
           {/* SEARCH */}
+          {productSearch !== undefined && (
+            <div className="relative w-36 sm:w-56 lg:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="search"
+                value={productSearch}
+                onChange={(event) => onProductSearchChange(event.target.value)}
+                placeholder="Search products..."
+                aria-label="Search products"
+                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-[#008577] focus:ring-2 focus:ring-[#008577]/20"
+              />
+            </div>
+          )}
+          {productSearch === undefined && (
           <div className="relative flex items-center" ref={searchWrapperRef}>
             <div className={`flex items-center transition-all duration-300 overflow-visible ${showSearch ? 'w-56 sm:w-72 opacity-100 mr-2' : 'w-0 opacity-0 pointer-events-none'}`}>
               <div className="relative w-full">
@@ -456,6 +479,7 @@ const Header = ({ onMenuClick }) => {
               <Search className="w-[18px] h-[18px]" />
             </button>
           </div>
+          )}
 
           {/* LOW STOCK ALERT */}
           <div className="relative" ref={lowStockRef}>

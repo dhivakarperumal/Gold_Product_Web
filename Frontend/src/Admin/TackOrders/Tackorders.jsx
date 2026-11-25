@@ -1,17 +1,226 @@
 import { useContext, useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
-import { FiBox, FiMinus, FiPlus, FiTag, FiTrash2 } from "react-icons/fi";
+import { FiArrowLeft, FiBox, FiMinus, FiPlus, FiStar, FiTag, FiTrash2 } from "react-icons/fi";
+
+function OrderSummary({
+  cart,
+  loadingCart,
+  removeFromCart,
+  updateCartQuantity,
+  gstIncluded,
+  setGstIncluded,
+  gstRate,
+  setGstRate,
+  discountType,
+  setDiscountType,
+  discountValue,
+  setDiscountValue,
+  onNext,
+  onBack,
+  orderStep
+}) {
+  const itemCount = cart.reduce((total, item) => total + Number(item.quantity || 0), 0);
+  const subtotal = cart.reduce(
+    (total, item) => total + Number(item.total_price ?? Number(item.price || 0) * Number(item.quantity || 0)),
+    0
+  );
+  const gstPercent = Math.min(100, Math.max(0, Number(gstRate) || 0));
+  const gstAmount = gstIncluded ? subtotal * gstPercent / 100 : 0;
+  const requestedDiscount = Math.max(0, Number(discountValue) || 0);
+  const discount = Math.min(
+    subtotal,
+    discountType === "Percent" ? subtotal * Math.min(requestedDiscount, 100) / 100 : requestedDiscount
+  );
+  const total = Math.max(0, subtotal + gstAmount - discount);
+
+  return (
+    <aside className="flex min-h-0 flex-col rounded-xl bg-gradient-to-b from-[#2c160c] to-[#482817] p-2 text-white shadow-lg sm:p-5 xl:h-full">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-extrabold">Order Summary</h2>
+          <p className="mt-1 text-xs text-white/60">{itemCount} items</p>
+        </div>
+        <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold">{cart.length} products</span>
+      </div>
+
+      <div className="min-h-0 space-y-3 overflow-y-auto pr-1 xl:flex-1">
+        {loadingCart ? (
+          <p className="py-6 text-center text-sm text-white/60">Loading cart...</p>
+        ) : cart.length === 0 ? (
+          <p className="py-5 text-sm text-white/55">No products added yet.</p>
+        ) : (
+          cart.map((item) => (
+            <article key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-3">
+                {item.image ? (
+                  <img src={item.image} alt="" className="h-11 w-11 rounded-lg object-cover" loading="lazy" />
+                ) : (
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/60">
+                    <FiBox aria-hidden="true" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold">{item.name || "Product"}</p>
+                  <p className="mt-0.5 truncate text-xs text-white/55">
+                    {[item.colorName, item.size].filter(Boolean).join(" / ") || `ID: ${item.product_id}`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={`Remove ${item.name} from cart`}
+                  onClick={() => void removeFromCart(item.id)}
+                  className="rounded p-1.5 text-white/55 transition hover:bg-white/10 hover:text-white"
+                >
+                  <FiTrash2 size={15} aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label={`Decrease ${item.name} quantity`}
+                    onClick={() => void updateCartQuantity(item.id, Math.max(1, Number(item.quantity) - 1))}
+                    disabled={Number(item.quantity) <= 1}
+                    className="flex h-7 w-7 items-center justify-center rounded border border-white/20 text-white/80 disabled:opacity-40"
+                  >
+                    <FiMinus size={13} aria-hidden="true" />
+                  </button>
+                  <span className="min-w-4 text-center text-sm font-semibold">{item.quantity}</span>
+                  <button
+                    type="button"
+                    aria-label={`Increase ${item.name} quantity`}
+                    onClick={() => void updateCartQuantity(item.id, Number(item.quantity) + 1)}
+                    className="flex h-7 w-7 items-center justify-center rounded border border-white/20 text-white/80"
+                  >
+                    <FiPlus size={13} aria-hidden="true" />
+                  </button>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] text-white/50">{formatCurrency(item.price)} each</p>
+                  <p className="text-sm font-bold">
+                    {formatCurrency(item.total_price ?? Number(item.price || 0) * Number(item.quantity || 0))}
+                  </p>
+                </div>
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+
+      <div className="mt-4 shrink-0 space-y-3 border-t border-white/15 pt-4">
+        <div className="flex justify-between text-sm">
+          <span className="text-white/65">Subtotal</span>
+          <span className="font-semibold">{formatCurrency(subtotal)}</span>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-bold">GST for this order</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[true, false].map((included) => (
+              <button
+                key={String(included)}
+                type="button"
+                aria-pressed={gstIncluded === included}
+                onClick={() => setGstIncluded(included)}
+                className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${
+                  gstIncluded === included
+                    ? "border-orange-400 bg-orange-500/20 text-orange-200"
+                    : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
+                }`}
+              >
+                {included ? "Include GST" : "Exclude GST"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label className="flex items-center justify-between gap-3 text-sm">
+          <span className="text-white/65">GST rate</span>
+          <span className="flex items-center gap-2">
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={gstRate}
+              onChange={(event) => setGstRate(event.target.value)}
+              className="w-20 rounded-lg border border-white/15 bg-white/10 px-2 py-1.5 text-right font-bold text-white outline-none focus:border-orange-400"
+              aria-label="GST rate percentage"
+            />
+            <span>%</span>
+          </span>
+        </label>
+        <div className="flex justify-between gap-2 text-xs text-white/55">
+          <span>GST on subtotal (before discount)</span>
+          <span>{formatCurrency(gstAmount)}</span>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-bold">Discount</p>
+          <div className="flex gap-2">
+            <select
+              value={discountType}
+              onChange={(event) => setDiscountType(event.target.value)}
+              aria-label="Discount type"
+              className="min-w-0 flex-1 rounded-lg border border-white/15 bg-[#4b3021] px-2 py-2 text-sm text-white outline-none focus:border-orange-400"
+            >
+              <option value="Percent">Percent</option>
+              <option value="Fixed">Fixed amount</option>
+            </select>
+            <input
+              type="number"
+              min="0"
+              max={discountType === "Percent" ? "100" : undefined}
+              step="0.01"
+              value={discountValue}
+              onChange={(event) => setDiscountValue(event.target.value)}
+              aria-label={discountType === "Percent" ? "Discount percentage" : "Discount amount"}
+              className="w-24 rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-right text-sm font-bold text-white outline-none focus:border-orange-400"
+            />
+            <span className="self-center text-sm">{discountType === "Percent" ? "%" : ""}</span>
+          </div>
+        </div>
+        <div className="flex justify-between text-xs text-white/55">
+          <span>Discount applied</span>
+          <span>-{formatCurrency(discount)}</span>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-white/15 pt-3">
+          <span className="text-xs font-extrabold uppercase tracking-wider text-orange-200">Grand Total</span>
+          <span className="text-2xl font-black">{formatCurrency(total)}</span>
+        </div>
+
+        <button
+          type="button"
+          onClick={orderStep === "products" ? onNext : onBack}
+          disabled={orderStep === "products" && cart.length === 0}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {orderStep === "products" ? "Next Details" : "Back to Products"}
+          {orderStep === "products" ? <FiArrowLeft className="rotate-180" aria-hidden="true" /> : <FiArrowLeft aria-hidden="true" />}
+        </button>
+      </div>
+    </aside>
+  );
+}
 
 const TackOrders = () => {
+  const { tackOrdersSearch: search } = useOutletContext();
   const { cart, loadingCart, addToCart, removeFromCart, updateCartQuantity } = useContext(StoreContext);
   const [products, setProducts] = useState([]);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
   const [retryCount, setRetryCount] = useState(0);
-  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
+  const [selectedCategory, setSelectedCategory] = useState("All Categories");
+  const [orderStep, setOrderStep] = useState("products");
+  const [customer, setCustomer] = useState({ name: "", phone: "", email: "", address: "" });
+  const [gstIncluded, setGstIncluded] = useState(true);
+  const [gstRate, setGstRate] = useState("12");
+  const [discountType, setDiscountType] = useState("Percent");
+  const [discountValue, setDiscountValue] = useState("0");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -23,25 +232,37 @@ const TackOrders = () => {
       setError("");
 
       try {
-        const response = await api.get("/products/mine", {
-          params: { page, limit: 10, search: search.trim() }
+        const firstResponse = await api.get("/products/mine", {
+          params: { page: 1, limit: 100, search: search.trim() }
         });
-        const data = response.data;
+        const firstPage = firstResponse.data;
 
-        if (!Array.isArray(data?.products)) {
+        if (!Array.isArray(firstPage?.products)) {
           throw new TypeError("The products response must contain a products array");
         }
 
+        const allProducts = [...firstPage.products];
+        const totalPages = Math.max(1, Number(firstPage.pagination?.totalPages) || 1);
+
+        for (let requestedPage = 2; requestedPage <= totalPages; requestedPage += 1) {
+          if (!active) return;
+          const response = await api.get("/products/mine", {
+            params: { page: requestedPage, limit: 100, search: search.trim() }
+          });
+          if (!Array.isArray(response.data?.products)) {
+            throw new TypeError("A products page did not contain a products array");
+          }
+          allProducts.push(...response.data.products);
+        }
+
         if (active) {
-          setProducts(data.products);
-          setPagination(data.pagination || { total: data.products.length, totalPages: 1 });
+          setProducts(allProducts);
         }
       } catch (fetchError) {
         if (active) {
           console.error("Failed to fetch products:", fetchError);
           setError(fetchError.response?.data?.message || "Could not load products. Please try again.");
           setProducts([]);
-          setPagination({ total: 0, totalPages: 1 });
         }
       } finally {
         if (active) setLoading(false);
@@ -52,31 +273,69 @@ const TackOrders = () => {
     return () => {
       active = false;
     };
-  }, [page, retryCount, search]);
+  }, [retryCount, search]);
 
-  const totalPages = Math.max(1, Number(pagination.totalPages) || 1);
+  const categories = [...new Set(products.map((product) => product.category).filter(Boolean))].sort();
+  const visibleProducts = selectedCategory === "All Categories"
+    ? products
+    : products.filter((product) => product.category === selectedCategory);
 
   return (
-    <section className="p-4 sm:p-6">
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Products</h1>
-          <p className="mt-1 text-sm text-slate-500">{pagination.total} products</p>
+    <section className="mt-0 flex h-[90vh] min-h-0 flex-col bg-[#fff8ef] px-2 pt-4 pb-0 sm:pt-6">
+      {orderStep === "details" && (
+        <div className="mb-3">
+          <button
+            type="button"
+            onClick={() => setOrderStep("products")}
+            aria-label="Back to products"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-700 shadow-sm"
+          >
+            <FiArrowLeft aria-hidden="true" />
+          </button>
         </div>
-        <input
-          type="search"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
-          }}
-          placeholder="Search products..."
-          aria-label="Search products"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-700 sm:max-w-xs"
-        />
-      </div>
+      )}
 
-      {error ? (
+      {orderStep === "products" ? (
+      <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[190px_minmax(0,1fr)_360px] xl:items-stretch">
+        <aside className="hidden min-h-0 overflow-y-auto rounded-2xl border border-orange-100 bg-white p-3 shadow-sm xl:block">
+          <nav aria-label="Product categories" className="space-y-1">
+            {["All Categories", ...categories].map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setSelectedCategory(category)}
+                aria-pressed={selectedCategory === category}
+                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
+                  selectedCategory === category
+                    ? "bg-orange-100 text-orange-700"
+                    : "text-slate-600 hover:bg-orange-50 hover:text-orange-700"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="flex min-w-0 flex-col xl:min-h-0">
+          <nav aria-label="Product categories" className="mb-3 flex gap-2 overflow-x-auto xl:hidden">
+            {["All Categories", ...categories].map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setSelectedCategory(category)}
+                aria-pressed={selectedCategory === category}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  selectedCategory === category ? "bg-orange-500 text-white" : "bg-white text-slate-600"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </nav>
+
+          <div className="xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pr-1">
+            {error ? (
         <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
           {error}
           <button
@@ -88,11 +347,11 @@ const TackOrders = () => {
           </button>
         </div>
       ) : loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {Array.from({ length: 6 }, (_, index) => (
             <div key={index} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <div className="aspect-[4/3] animate-pulse bg-slate-100" />
-              <div className="space-y-3 p-4">
+              <div className="aspect-[4/3] animate-pulse bg-slate-100 xl:aspect-[8/5]" />
+              <div className="space-y-3 p-4 xl:p-3">
                 <div className="h-4 w-2/3 animate-pulse rounded bg-slate-100" />
                 <div className="h-3 w-1/3 animate-pulse rounded bg-slate-100" />
                 <div className="h-10 animate-pulse rounded bg-slate-100" />
@@ -100,12 +359,14 @@ const TackOrders = () => {
             </div>
           ))}
         </div>
-      ) : products.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-          {products.map((product) => {
+      ) : visibleProducts.length ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {visibleProducts.map((product) => {
             const imageUrl = getProductImageUrl(product);
             const stock = Number(product.total_stock ?? 0);
             const price = Number(product.final_selling_price ?? product.offer_price ?? product.mrp ?? 0);
+            const rating = Number(product.rating) || 0;
+            const totalReviews = Number(product.total_reviews) || 0;
             const originalPrice = Number(product.mrp ?? 0);
             const offerPrice = Number(product.offer_price ?? price);
             const discountPercent = originalPrice > offerPrice && originalPrice > 0
@@ -132,7 +393,7 @@ const TackOrders = () => {
                 key={product.id}
                 className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-amber-50 via-stone-100 to-teal-50">
+                <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-amber-50 via-stone-100 to-teal-50 xl:aspect-[8/5]">
                   {imageUrl ? (
                     <img
                       src={imageUrl}
@@ -161,32 +422,33 @@ const TackOrders = () => {
                   </span>
                 </div>
 
-                <div className="p-4">
+                <div className="p-4 xl:p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h2 className="truncate text-base font-bold text-slate-800">
                         {product.name || "Unnamed product"}
                       </h2>
-                      <p className="mt-1 text-xs text-slate-500">{product.product_code || "No product code"}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
+                        <span>{product.product_code || "No product code"}</span>
+                        <span className="inline-flex items-center gap-1 font-semibold text-slate-700" aria-label={rating > 0 ? `${rating.toFixed(1)} out of 5 stars` : "No ratings yet"}>
+                          <FiStar className="fill-amber-400 text-amber-400" aria-hidden="true" />
+                          {rating > 0 ? rating.toFixed(1) : "No ratings"}
+                          {totalReviews > 0 && <span className="font-normal text-slate-500">({totalReviews})</span>}
+                        </span>
+                      </div>
                     </div>
                     <p className="shrink-0 text-right text-base font-extrabold text-[#14534a]">
                       {formatCurrency(price)}
                     </p>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-xs">
-                    <div>
+                  <div className="mt-4 flex items-center gap-2 xl:mt-3">
+                    <div className="min-w-0 flex-1 rounded-xl bg-slate-50 p-3 text-xs xl:p-2">
                       <p className="text-slate-500">Metal / Purity</p>
                       <p className="mt-1 font-semibold text-slate-700">
                         {[product.metal_type, product.purity].filter(Boolean).join(" / ") || "Not specified"}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-slate-500">Available stock</p>
-                      <p className="mt-1 font-semibold text-slate-700">{stock}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex justify-end">
                     <button
                       type="button"
                       onClick={() => void addToCart(product)}
@@ -209,131 +471,112 @@ const TackOrders = () => {
             <FiBox aria-hidden="true" />
           </div>
           <h2 className="mt-4 text-lg font-bold text-slate-800">No products found</h2>
-          <p className="mt-1 text-sm text-slate-500">Try another search to find a product.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {selectedCategory === "All Categories" ? "Try another search to find a product." : "No products in this category."}
+          </p>
+        </div>
+            )}
+          </div>
+
+        </main>
+
+        <OrderSummary
+          cart={cart}
+          loadingCart={loadingCart}
+          removeFromCart={removeFromCart}
+          updateCartQuantity={updateCartQuantity}
+          gstIncluded={gstIncluded}
+          setGstIncluded={setGstIncluded}
+          gstRate={gstRate}
+          setGstRate={setGstRate}
+          discountType={discountType}
+          setDiscountType={setDiscountType}
+          discountValue={discountValue}
+          setDiscountValue={setDiscountValue}
+          orderStep={orderStep}
+          onNext={() => setOrderStep("details")}
+          onBack={() => setOrderStep("products")}
+        />
+      </div>
+      ) : (
+        <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <form
+            onSubmit={(event) => event.preventDefault()}
+            className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm sm:p-7"
+          >
+            <div className="mb-6">
+              <p className="text-xs font-extrabold uppercase tracking-widest text-orange-600">Step 2 of 2</p>
+              <h2 className="mt-1 text-xl font-extrabold text-slate-800">Customer Details</h2>
+              <p className="mt-1 text-sm text-slate-500">Enter the customer information for this shop order.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="text-sm font-semibold text-slate-700">
+                Customer name *
+                <input
+                  required
+                  autoComplete="name"
+                  value={customer.name}
+                  onChange={(event) => setCustomer({ ...customer, name: event.target.value })}
+                  placeholder="Enter customer name"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                Phone number *
+                <input
+                  required
+                  type="tel"
+                  autoComplete="tel"
+                  value={customer.phone}
+                  onChange={(event) => setCustomer({ ...customer, phone: event.target.value })}
+                  placeholder="Enter phone number"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
+                Email address
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={customer.email}
+                  onChange={(event) => setCustomer({ ...customer, email: event.target.value })}
+                  placeholder="Enter email address (optional)"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
+                Address
+                <textarea
+                  rows={4}
+                  autoComplete="street-address"
+                  value={customer.address}
+                  onChange={(event) => setCustomer({ ...customer, address: event.target.value })}
+                  placeholder="Enter customer address (optional)"
+                  className="mt-1 w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                />
+              </label>
+            </div>
+          </form>
+
+          <OrderSummary
+            cart={cart}
+            loadingCart={loadingCart}
+            removeFromCart={removeFromCart}
+            updateCartQuantity={updateCartQuantity}
+            gstIncluded={gstIncluded}
+            setGstIncluded={setGstIncluded}
+            gstRate={gstRate}
+            setGstRate={setGstRate}
+            discountType={discountType}
+            setDiscountType={setDiscountType}
+            discountValue={discountValue}
+            setDiscountValue={setDiscountValue}
+            orderStep={orderStep}
+            onNext={() => setOrderStep("details")}
+            onBack={() => setOrderStep("products")}
+          />
         </div>
       )}
-
-      <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
-        <span>Page {page} of {totalPages}</span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
-            disabled={page <= 1 || loading}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
-            disabled={page >= totalPages || loading}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
-      </div>
-
-      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">Tack Order Cart</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {cart.reduce((total, item) => total + Number(item.quantity || 0), 0)} items
-            </p>
-          </div>
-          <p className="text-sm font-semibold text-slate-600">
-            Total: {formatCurrency(cart.reduce(
-              (total, item) => total + Number(item.total_price ?? Number(item.price || 0) * Number(item.quantity || 0)),
-              0
-            ))}
-          </p>
-        </div>
-
-        {loadingCart ? (
-          <p className="py-8 text-center text-sm text-slate-500">Loading cart...</p>
-        ) : cart.length === 0 ? (
-          <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-            Your Tack Order Cart is empty. Add products using the plus button.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-3 py-3">Product</th>
-                  <th className="px-3 py-3">Variant</th>
-                  <th className="px-3 py-3 text-right">Price</th>
-                  <th className="px-3 py-3 text-center">Quantity</th>
-                  <th className="px-3 py-3 text-right">Subtotal</th>
-                  <th className="px-3 py-3"><span className="sr-only">Remove</span></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {cart.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-3">
-                        {item.image ? (
-                          <img src={item.image} alt="" className="h-11 w-11 rounded-lg object-cover" loading="lazy" />
-                        ) : (
-                          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                            <FiBox aria-hidden="true" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-semibold text-slate-800">{item.name || "Product"}</p>
-                          <p className="text-xs text-slate-500">ID: {item.product_id}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-slate-600">
-                      {[item.colorName, item.size].filter(Boolean).join(" / ") || "Standard"}
-                    </td>
-                    <td className="px-3 py-3 text-right">{formatCurrency(item.price)}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          aria-label={`Decrease ${item.name} quantity`}
-                          onClick={() => void updateCartQuantity(item.id, Math.max(1, Number(item.quantity) - 1))}
-                          disabled={Number(item.quantity) <= 1}
-                          className="flex h-7 w-7 items-center justify-center rounded border border-slate-200 text-slate-600 disabled:opacity-40"
-                        >
-                          <FiMinus size={14} aria-hidden="true" />
-                        </button>
-                        <span className="min-w-5 text-center font-semibold">{item.quantity}</span>
-                        <button
-                          type="button"
-                          aria-label={`Increase ${item.name} quantity`}
-                          onClick={() => void updateCartQuantity(item.id, Number(item.quantity) + 1)}
-                          className="flex h-7 w-7 items-center justify-center rounded border border-slate-200 text-slate-600"
-                        >
-                          <FiPlus size={14} aria-hidden="true" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-right font-semibold text-slate-800">
-                      {formatCurrency(item.total_price ?? Number(item.price || 0) * Number(item.quantity || 0))}
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <button
-                        type="button"
-                        aria-label={`Remove ${item.name} from cart`}
-                        onClick={() => void removeFromCart(item.id)}
-                        className="rounded p-2 text-rose-600 transition hover:bg-rose-50"
-                      >
-                        <FiTrash2 size={16} aria-hidden="true" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
     </section>
   );
 };
