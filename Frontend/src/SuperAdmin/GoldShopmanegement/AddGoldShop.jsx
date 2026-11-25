@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, CreditCard, Eye, EyeOff, FileText, KeyRound, LoaderCircle, MapPin, Store, UserRound, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, CreditCard, Eye, EyeOff, FileText, LoaderCircle, MapPin, Store, UserRound, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 
@@ -223,7 +223,7 @@ const TABS = [
   { id: "personal", label: "Personal Details", icon: UserRound },
   { id: "shop", label: "Shop Details", icon: Store },
   { id: "subscription", label: "Subscription", icon: CreditCard },
-  { id: "login", label: "Login Credential", icon: KeyRound }
+  { id: "login", label: "Review & Submit", icon: CheckCircle2 }
 ];
 
 export default function AddGoldShop({
@@ -543,8 +543,11 @@ export default function AddGoldShop({
     onSubmit(shop);
   };
 
-  const sectionClass = "rounded-2xl border border-stone-200 bg-white p-4 sm:p-5";
+  const sectionClass = registrationMode
+    ? "rounded-2xl border-0 bg-transparent p-4 sm:p-6"
+    : "rounded-2xl border border-stone-200 bg-white p-4 sm:p-5";
   const activeTabIndex = TABS.findIndex((tab) => tab.id === activeTab);
+  const ActiveTabIcon = TABS[activeTabIndex]?.icon || UserRound;
 
   return (
     <div className={registrationMode ? "h-full min-h-0 w-full" : "fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"}>
@@ -554,7 +557,7 @@ export default function AddGoldShop({
         aria-label={registrationMode ? "Gold shop registration form" : undefined}
         aria-labelledby={registrationMode ? undefined : "gold-shop-form-title"}
         className={registrationMode
-          ? "mx-auto flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
+          ? "mx-auto flex h-full min-h-0 w-full flex-col overflow-hidden"
           : "my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl sm:h-[calc(100vh-3rem)]"}
       >
         {!registrationMode && (
@@ -575,45 +578,69 @@ export default function AddGoldShop({
         )}
 
         <form noValidate onSubmit={(event) => submit(event)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className={`min-h-0 flex-1 space-y-2 overflow-y-auto ${registrationMode ? "p-3 sm:p-4" : "p-4 sm:p-6"}`}>
+          <div className={`min-h-0 flex-1 space-y-3 overflow-y-auto ${registrationMode ? "px-1 py-1 sm:px-2" : "p-4 sm:p-6"}`}>
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
-          <div className="grid grid-cols-4 gap-1 rounded-2xl bg-stone-100 p-1" role="tablist" aria-label="Gold shop form sections">
-            {TABS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                id={`gold-shop-tab-${id}`}
-                aria-selected={activeTab === id}
-                aria-controls={`gold-shop-panel-${id}`}
-                onClick={() => { setActiveTab(id); setFormError(""); }}
-                className={`inline-flex min-h-9 whitespace-normal items-center justify-center gap-0 rounded-xl px-0 py-1 text-[8px] font-bold transition sm:whitespace-nowrap sm:gap-1 sm:px-1 sm:text-[10px] lg:text-xs ${activeTab === id ? "bg-white text-amber-900 shadow-sm" : "text-stone-600 hover:bg-white/70"}`}
-              >
-                <Icon size={15} className="hidden sm:block" />{label}
-              </button>
-            ))}
+          <div className={registrationMode ? "grid grid-cols-4 gap-0" : "grid grid-cols-4 gap-1 rounded-2xl bg-stone-100 p-1"} role="tablist" aria-label="Gold shop form sections">
+            {TABS.map(({ id, label, icon: Icon }, index) => {
+              const isActive = activeTab === id;
+              const isComplete = index < activeTabIndex;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`gold-shop-tab-${id}`}
+                  aria-selected={isActive}
+                  aria-controls={`gold-shop-panel-${id}`}
+                  onClick={() => { setActiveTab(id); setFormError(""); }}
+                  className={registrationMode
+                    ? "group relative flex min-w-0 flex-col items-center gap-1.5 px-0.5 pb-1 text-center sm:gap-2"
+                    : `inline-flex min-h-9 whitespace-normal items-center justify-center gap-0 rounded-xl px-0 py-1 text-[8px] font-bold transition sm:whitespace-nowrap sm:gap-1 sm:px-1 sm:text-[10px] lg:text-xs ${isActive ? "bg-white text-amber-900 shadow-sm" : "text-stone-600 hover:bg-white/70"}`}
+                >
+                  {registrationMode && index < TABS.length - 1 && (
+                    <span aria-hidden="true" className={`absolute left-1/2 right-[-50%] top-4 h-0.5 ${index < activeTabIndex ? "bg-emerald-800" : index === activeTabIndex ? "bg-emerald-800" : "bg-stone-200"}`} />
+                  )}
+                  {registrationMode ? (
+                    <>
+                      <span className={`relative z-10 grid h-8 w-8 place-items-center rounded-full transition sm:h-10 sm:w-10 ${isActive ? "bg-emerald-900 text-white" : isComplete ? "bg-emerald-100 text-emerald-900" : "bg-stone-200 text-stone-600"}`}>
+                        <Icon size={16} className="sm:h-[18px] sm:w-[18px]" />
+                      </span>
+                      <span className={`relative z-10 whitespace-nowrap text-[9px] font-semibold sm:text-xs ${isActive || isComplete ? "text-emerald-950" : "text-stone-600"}`}>{label}</span>
+                    </>
+                  ) : (
+                    <><Icon size={15} />{label}</>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
-          <p role="alert" aria-live="polite" className={`flex h-11 items-center overflow-hidden rounded-xl border px-4 text-sm ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
+          <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
 
+          <div className={registrationMode ? "overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)]" : "contents"}>
+            {registrationMode && (
+              <div className="flex min-h-12 items-center gap-3 bg-emerald-950 px-4 py-2.5 text-white sm:px-6">
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-400 text-emerald-950"><ActiveTabIcon size={18} /></span>
+                <span className="text-sm font-semibold sm:text-base">{TABS[activeTabIndex]?.label}</span>
+              </div>
+            )}
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
-              <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>
+              {!registrationMode && <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>}
               <div className="grid gap-2 sm:grid-cols-2">
-                <Field label="Name" name="ownerName" value={form.ownerName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.ownerName} required maxLength={150} placeholder="Full name" />
+                <Field label="Owner name" name="ownerName" value={form.ownerName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.ownerName} required maxLength={150} placeholder="Full name" />
                 <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.mobile} required type="text" inputMode="numeric" maxLength={10} placeholder="9876543210" />
                 <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." />
                 <Field label="Aadhaar number" name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.aadhaarNumber} type="text" inputMode="numeric" maxLength={12} placeholder="12-digit Aadhaar number" />
               </div>
             </section>
 
-            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className="space-y-2">
+            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className={registrationMode ? "" : "space-y-2"}>
               <div className={sectionClass}>
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="font-bold text-stone-800">Shop Details</h3>
-                    <p className="mt-1 text-xs text-stone-500">The shop code is generated automatically when saved.</p>
+                    {!registrationMode && <><h3 className="font-bold text-stone-800">Shop Details</h3><p className="mt-1 text-xs text-stone-500">The shop code is generated automatically when saved.</p></>}
                   </div>
                   <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold tracking-wide text-amber-800">GOLD-XXXX</span>
                 </div>
@@ -667,7 +694,7 @@ export default function AddGoldShop({
             </section>
 
             <section id="gold-shop-panel-subscription" role="tabpanel" aria-labelledby="gold-shop-tab-subscription" hidden={activeTab !== "subscription"} className={sectionClass}>
-              <h3 className="mb-4 font-bold text-stone-800">Subscription Details</h3>
+              {!registrationMode && <h3 className="mb-4 font-bold text-stone-800">Subscription Details</h3>}
               {isEditing ? (
                 <div className="grid gap-3 text-sm sm:grid-cols-2">
                   <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Plan</p><p className="mt-1 font-semibold text-stone-800">{shopDetails?.plan_name || "No plan"}</p></div>
@@ -717,7 +744,7 @@ export default function AddGoldShop({
             </section>
 
             <section id="gold-shop-panel-login" role="tabpanel" aria-labelledby="gold-shop-tab-login" hidden={activeTab !== "login"} className={sectionClass}>
-              <h3 className="mb-4 font-bold text-stone-800">Login Credential</h3>
+              {!registrationMode && <h3 className="mb-4 font-bold text-stone-800">Login Credential</h3>}
               {isEditing ? (
                 <div className="space-y-3">
                   <p className="text-sm text-stone-600">Login credentials are not displayed or changed here.</p>
@@ -740,19 +767,24 @@ export default function AddGoldShop({
                 </div>
               )}
             </section>
+          </div>
           </fieldset>
           </div>
 
-          <footer className="flex shrink-0 justify-between gap-3 border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6">
-            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40">Previous</button>
+          <footer className={`flex shrink-0 justify-between gap-3 border-t border-stone-200 ${registrationMode ? "mx-1 rounded-b-2xl border-x border-b bg-white px-4 py-3 shadow-sm sm:mx-2 sm:px-6 sm:py-4" : "bg-[#fbfaf7] px-4 py-4 sm:px-6"}`}>
+            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-40 ${registrationMode ? "border border-amber-500 text-emerald-950" : "border border-stone-300 text-stone-700"}`}>
+              {registrationMode && <ArrowLeft size={16} />}
+              Previous
+            </button>
             {activeTabIndex === TABS.length - 1 ? (
               <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
                 {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                {isEditing ? "Save Changes" : registrationMode ? "Submit Registration" : "Save Gold Shop"}
+                {isEditing ? "Save Changes" : "Save Gold Shop"}
+                {!submitting && <ArrowRight size={17} />}
               </button>
             ) : (
-              <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="rounded-xl bg-stone-800 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
-                Save &amp; Next
+              <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 ${registrationMode ? "bg-gradient-to-r from-amber-600 to-amber-500 shadow-md shadow-amber-900/10" : "bg-stone-800"}`}>
+                Save &amp; Next <ArrowRight size={17} />
               </button>
             )}
           </footer>
