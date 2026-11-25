@@ -37,6 +37,17 @@ async function razorpayRequest(path, { method = 'GET', body } = {}) {
       throw new RazorpayClientError(502, 'Razorpay returned an unreadable response.');
     }
     if (!response.ok) {
+      const providerError = responseBody?.error || {};
+      const description = String(providerError.description || '')
+        .slice(0, 200)
+        .split(keyId).join('[redacted]')
+        .split(keySecret).join('[redacted]');
+      console.error('Razorpay API request rejected', {
+        status: response.status,
+        resource: String(path).split('/').filter(Boolean)[0] || 'unknown',
+        code: String(providerError.code || 'UNKNOWN').slice(0, 80),
+        description
+      });
       throw new RazorpayClientError(502, 'Razorpay could not process the payment request.');
     }
     return responseBody;
