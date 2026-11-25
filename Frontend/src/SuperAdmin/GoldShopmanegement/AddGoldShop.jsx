@@ -169,7 +169,7 @@ function FileField({ label, name, accept, multiple = false, files, onChange, hin
     <label className="block text-xs font-semibold text-stone-700">
       {label}
       <input
-        className="mt-1.5 block w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-amber-900"
+        className="mt-1.5 block w-full cursor-pointer rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-amber-900"
         type="file"
         name={name}
         accept={accept}
@@ -546,7 +546,7 @@ export default function AddGoldShop({
         role="dialog"
         aria-modal="true"
         aria-labelledby="gold-shop-form-title"
-        className="my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl sm:h-[calc(100vh-3rem)]"
+        className="my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl [&_a]:cursor-pointer [&_button:not(:disabled)]:cursor-pointer [&_select:not(:disabled)]:cursor-pointer sm:h-[calc(100vh-3rem)]"
       >
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-amber-100 bg-gradient-to-r from-[#13211d] to-[#26342d] px-5 py-5 text-white sm:px-7">
           <div>
@@ -694,7 +694,7 @@ export default function AddGoldShop({
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Estimated end date</p><p className="mt-1 text-sm font-semibold text-stone-800">{endDate ? formatDate(endDate) : "Select a valid start date"}</p></div>
                       <label className={labelClass}>
                         Start date<span className="ml-1 text-rose-600">*</span>
-                        <span className="relative block"><CalendarDays className="absolute right-3 top-4 h-4 w-4 text-stone-400" /><input className={`${inputClass} ${fieldErrors.startDate ? "border-rose-500" : ""}`} type="date" name="startDate" value={form.startDate} onChange={handleChange} onBlur={handleFieldBlur} aria-invalid={Boolean(fieldErrors.startDate)} /></span>
+                        <span className="relative block"><CalendarDays className="absolute right-3 top-4 h-4 w-4 text-stone-400" /><input className={`${inputClass} cursor-pointer ${fieldErrors.startDate ? "border-rose-500" : ""}`} type="date" name="startDate" value={form.startDate} onChange={handleChange} onBlur={handleFieldBlur} aria-invalid={Boolean(fieldErrors.startDate)} /></span>
                         <span className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${fieldErrors.startDate ? "text-rose-700" : "invisible"}`}>{fieldErrors.startDate || " "}</span>
                       </label>
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className={labelClass}>Approval status</p><p className="mt-1 text-sm font-semibold text-amber-800">{isEditing ? (shopDetails?.approval_status || "Pending") : "Pending"}</p></div>
