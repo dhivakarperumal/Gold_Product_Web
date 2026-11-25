@@ -15,6 +15,8 @@ async function initializeBillingModule() {
       sub_total DECIMAL(12,2) NOT NULL,
       discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
       gst_amount DECIMAL(12,2) NOT NULL,
+      gst_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+      tax_mode VARCHAR(20) NOT NULL DEFAULT 'Tax Exclusive',
       total_amount DECIMAL(12,2) NOT NULL,
       created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
@@ -25,6 +27,14 @@ async function initializeBillingModule() {
   const [userIdColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'user_id'");
   if (userIdColumns.length === 0) {
     await pool.query('ALTER TABLE billings ADD COLUMN user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER invoice_no');
+  }
+  const [gstRateColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'gst_rate'");
+  if (gstRateColumns.length === 0) {
+    await pool.query('ALTER TABLE billings ADD COLUMN gst_rate DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER gst_amount');
+  }
+  const [taxModeColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'tax_mode'");
+  if (taxModeColumns.length === 0) {
+    await pool.query("ALTER TABLE billings ADD COLUMN tax_mode VARCHAR(20) NOT NULL DEFAULT 'Tax Exclusive' AFTER gst_rate");
   }
   const [createdByColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'created_by'");
   if (createdByColumns.length === 0) {
@@ -78,7 +88,7 @@ async function listBillings(userId, dateRange = {}) {
   const where = `WHERE ${conditions.join(' AND ')}`;
   const [rows] = await pool.execute(`
     SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
-      b.sub_total, b.discount_amount, b.gst_amount, b.total_amount, b.paid_amount, b.balance_due,
+      b.sub_total, b.discount_amount, b.gst_amount, b.gst_rate, b.tax_mode, b.total_amount, b.paid_amount, b.balance_due,
       b.created_at, b.updated_at, b.created_by,
       COALESCE(NULLIF(creator.name, ''), creator.username, b.created_by) AS created_by_name,
       b.updated_by, COALESCE(NULLIF(updater.name, ''), updater.username, b.updated_by) AS updated_by_name
@@ -94,7 +104,7 @@ async function listBillings(userId, dateRange = {}) {
 async function getBillingById(id, userId) {
   const [rows] = await pool.execute(
     `SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
-       b.sub_total, b.discount_amount, b.gst_amount, b.total_amount, b.paid_amount, b.balance_due,
+       b.sub_total, b.discount_amount, b.gst_amount, b.gst_rate, b.tax_mode, b.total_amount, b.paid_amount, b.balance_due,
        b.created_at, b.updated_at, b.created_by,
        COALESCE(NULLIF(creator.name, ''), creator.username, b.created_by) AS created_by_name,
        b.updated_by, COALESCE(NULLIF(updater.name, ''), updater.username, b.updated_by) AS updated_by_name
@@ -125,8 +135,8 @@ async function createBilling(billing, userId) {
   const [result] = await pool.execute(
     `INSERT INTO billings
       (invoice_no, user_id, customers, products, exchanges, payment_type, sub_total, discount_amount,
-       gst_amount, total_amount, paid_amount, balance_due, created_by, updated_by, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, CURRENT_TIMESTAMP)`,
+       gst_amount, gst_rate, tax_mode, total_amount, paid_amount, balance_due, created_by, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, CURRENT_TIMESTAMP)`,
     [
       billing.invoice_no,
       userId,
@@ -137,6 +147,8 @@ async function createBilling(billing, userId) {
       billing.sub_total,
       billing.discount_amount,
       billing.gst_amount,
+      billing.gst_rate,
+      billing.tax_mode,
       billing.total_amount,
       billing.total_amount,
       userId,
@@ -150,7 +162,7 @@ async function updateBilling(id, billing, userId) {
   await pool.execute(
     `UPDATE billings
      SET customers = ?, products = ?, exchanges = ?, payment_type = ?,
-       sub_total = ?, discount_amount = ?, gst_amount = ?, total_amount = ?,
+       sub_total = ?, discount_amount = ?, gst_amount = ?, gst_rate = ?, tax_mode = ?, total_amount = ?,
        balance_due = GREATEST(? - paid_amount, 0), updated_by = ?
      WHERE id = ? AND user_id = ?`,
     [
@@ -161,6 +173,8 @@ async function updateBilling(id, billing, userId) {
       billing.sub_total,
       billing.discount_amount,
       billing.gst_amount,
+      billing.gst_rate,
+      billing.tax_mode,
       billing.total_amount,
       billing.total_amount,
       userId,
