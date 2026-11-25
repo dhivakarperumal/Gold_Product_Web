@@ -386,10 +386,10 @@ const AllProducts = () => {
                         /* Table View */
                         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[1900px] text-left">
+                                <table className="w-full min-w-[700px] text-left">
                                     <thead>
                                         <tr className="border-b border-white/10 bg-gradient-to-r from-[#07564B] via-[#064A41] to-[#043D37]">
-                                            {["S No", "Image", "Product Name", "SKU / Product Code", "Category", "Metal Type", "Purity", "Gross Weight (g)", "Net Gold Weight (g)", "Making Charge", "Daily Gold Rate", "Gold Value", "MRP", "Offer Type", "Offer Price / Discount", "Final Price", "Stock Status", "Last Price Updated", "Actions"].map((heading) => (
+                                            {["S No", "Image", "Product Name", "Category", "Price", "Weight (g)", "Actions"].map((heading) => (
                                                 <th key={heading} className="whitespace-nowrap px-4 py-4 text-[11px] font-bold uppercase tracking-wider text-white">{heading}</th>
                                             ))}
                                         </tr>
@@ -400,41 +400,9 @@ const AllProducts = () => {
                                                 <td className="px-4 py-3 text-xs font-semibold text-slate-500">{(currentPage - 1) * itemsPerPage + index + 1}</td>
                                                 <td className="px-4 py-3"><img src={getProductImage(product)} alt={product.name} loading="lazy" onError={(event) => { event.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name || "P")}&background=random`; }} className="h-11 w-11 rounded-lg border border-gray-100 object-cover" /></td>
                                                 <td className="max-w-[180px] px-4 py-3 text-sm font-bold text-slate-800">{product.name}</td>
-                                                <td className="px-4 py-3 text-xs font-semibold text-slate-600">{product.product_code || "—"}</td>
                                                 <td className="px-4 py-3 text-xs text-slate-600">{product.category || "—"}</td>
-                                                <td className="px-4 py-3 text-xs text-slate-600">{product.metal_type || "—"}</td>
-                                                <td className="px-4 py-3 text-xs text-slate-600">{product.purity || "—"}</td>
-                                                <td className="px-4 py-3 text-xs text-slate-600">{product.gross_weight ?? "—"}</td>
-                                                <td className="px-4 py-3 text-xs text-slate-600">{product.net_gold_weight ?? "—"}</td>
-                                                <td className="px-4 py-3 text-xs text-slate-600">{product.making_charge == null ? "—" : `${product.making_charge_type === "Percentage" ? `${product.making_charge}%` : formatMoney(product.making_charge)}`}</td>
-                                                <td className="px-4 py-3 text-xs text-slate-600">{product.gold_rate_per_gram == null ? "—" : `${formatMoney(product.gold_rate_per_gram)} / g`}</td>
-                                                <td className="px-4 py-3 text-xs font-semibold text-slate-700">{formatMoney(product.gold_value)}</td>
-                                                <td className="px-4 py-3 text-xs text-slate-500">
-                                                    {Number(product.mrp) > Number(product.final_selling_price) && <span className="line-through">{formatMoney(product.mrp)}</span>}
-                                                    {Number(product.mrp) <= Number(product.final_selling_price) && formatMoney(product.mrp)}
-                                                </td>
-                                                <td className="px-4 py-3 text-xs text-slate-600">{product.offer_type || (Number(product.offer) > 0 ? "Percentage" : "None")}</td>
-                                                <td className="px-4 py-3 text-xs text-slate-600">
-                                                    <span>{formatMoney(product.offer_price)}</span>
-                                                    {Number(product.applied_discount) > 0 && <span className="ml-1 rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-bold text-[#ff8500]">−{formatMoney(product.applied_discount)}</span>}
-                                                </td>
                                                 <td className="px-4 py-3 text-sm font-black text-[#240046]">{formatMoney(product.final_selling_price)}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold ${getStatusStyle(product.total_stock <= 0 ? "Out of Stock" : product.total_stock < 10 ? "Low Stock" : "Active")}`}>
-                                                        {product.total_stock <= 0 ? "Out of Stock" : product.total_stock < 10 ? "Low Stock" : "In Stock"}
-                                                    </span>
-                                                    <button
-                                                        onClick={() => { setCurrentProduct(product); setNewStock(product.total_stock || "0"); }}
-                                                        className="ml-2 text-xs font-semibold text-slate-500 underline decoration-dotted"
-                                                        title="Update stock quantity"
-                                                    >
-                                                        ({product.total_stock ?? 0})
-                                                    </button>
-                                                </td>
-                                                <td className="px-4 py-3 text-xs text-slate-500">
-                                                    <span>{formatDate(product.price_updated_at)}</span>
-                                                    {product.price_updated_at && <span className="mt-1 block text-[10px] font-semibold text-emerald-700">Recalculated</span>}
-                                                </td>
+                                                <td className="px-4 py-3 text-xs text-slate-600">{product.gross_weight ?? "—"}</td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center gap-2">
                                                         <Link
