@@ -3,7 +3,7 @@ import api from "../../api";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../PrivateRouter/AuthContext";
 import { toast } from "react-hot-toast";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
 import SubscriptionCheckoutModal from "../Subscription/SubscriptionCheckoutModal";
 import AuthLayout from "./AuthLayout";
 
@@ -106,21 +106,19 @@ function Login() {
 
             {/* Email/Mobile */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5 ml-1 tracking-wide">
+              <label className="mb-1.5 ml-1 block text-sm font-semibold tracking-wide text-stone-700">
                 Email / Mobile Number
               </label>
               <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 transition-colors group-focus-within:text-emerald-800">
+                  <UserRound className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <input
                   name="identifier"
                   type="text"
                   placeholder="Enter your email or mobile number"
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-amber-600 focus:ring-2 focus:ring-amber-600/15"
+                  className="w-full rounded-xl border border-stone-200 bg-[#eaf1ff] p-3.5 pl-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-emerald-800 focus:ring-2 focus:ring-emerald-800/15"
                   required
                 />
               </div>
@@ -128,27 +126,26 @@ function Login() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5 ml-1 tracking-wide">
+              <label className="mb-1.5 ml-1 block text-sm font-semibold tracking-wide text-stone-700">
                 Password
               </label>
               <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 transition-colors group-focus-within:text-emerald-800">
+                  <LockKeyhole className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   placeholder="Enter your password"
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 pr-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-amber-600 focus:ring-2 focus:ring-amber-600/15"
+                  className="w-full rounded-xl border border-stone-200 bg-[#eaf1ff] p-3.5 pl-12 pr-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-emerald-800 focus:ring-2 focus:ring-emerald-800/15"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors cursor-pointer"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 transition-colors hover:text-emerald-800"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -158,10 +155,10 @@ function Login() {
             {/* Remember & Forgot */}
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 accent-primary" />
-                <span className="text-sm text-gray-600 group-hover:text-primary transition-colors">Remember Me</span>
+                <input type="checkbox" className="h-4 w-4 rounded border-stone-300 accent-emerald-900" />
+                <span className="text-sm text-stone-600 transition-colors group-hover:text-emerald-900">Remember Me</span>
               </label>
-              <a href="#" className="text-sm font-semibold text-primary-light hover:text-primary hover:underline transition-colors">
+              <a href="#" className="text-sm font-semibold text-emerald-800 transition-colors hover:text-emerald-950 hover:underline">
                 Forgot Password?
               </a>
             </div>
@@ -169,15 +166,13 @@ function Login() {
             {/* Login Button */}
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl text-white font-semibold bg-gradient-to-r from-primary to-primary-light hover:from-primary-dark hover:to-primary transition-all flex items-center justify-center gap-2 relative overflow-hidden group shadow-lg shadow-primary/30 cursor-pointer hover:-translate-y-0.5"
+              className="group relative flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-emerald-950 to-emerald-700 py-3.5 font-semibold text-white shadow-lg shadow-emerald-900/20 transition-all hover:-translate-y-0.5 hover:from-emerald-900 hover:to-emerald-800"
             >
               <span className="relative z-10 flex items-center gap-2 tracking-wide">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+                <LockKeyhole className="h-5 w-5" aria-hidden="true" />
                 Secure Login
               </span>
-              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+              <div className="absolute inset-0 translate-y-full bg-white/20 transition-transform duration-300 group-hover:translate-y-0" />
             </button>
 
           </form>
