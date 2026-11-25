@@ -5,7 +5,7 @@ import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
-import { FiArrowLeft, FiBox, FiMinus, FiPlus, FiStar, FiTag, FiTrash2, FiUser } from "react-icons/fi";
+import { FiArrowLeft, FiBox, FiMinus, FiPlus, FiTag, FiTrash2, FiUser } from "react-icons/fi";
 
 function calculateOrderTotals(cart, gstIncluded, gstRate, discountType, discountValue) {
   const subtotal = cart.reduce(
@@ -98,7 +98,7 @@ function OrderSummary({
   const balanceDue = total - advance;
 
   return (
-    <aside className="flex min-h-0 flex-col rounded-xl bg-gradient-to-b from-[#2c160c] to-[#482817] p-2 text-white shadow-lg sm:p-5 xl:h-full">
+    <aside className="flex min-h-0 flex-col rounded-xl bg-gradient-to-b from-[#003B32] to-[#14534a] p-2 text-white shadow-lg sm:p-5 xl:h-full">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-extrabold">Order Summary</h2>
@@ -314,7 +314,6 @@ const TackOrders = () => {
   const { cart, loadingCart, addToCart, removeFromCart, updateCartQuantity, clearCart } = useContext(StoreContext);
   const [products, setProducts] = useState([]);
   const [retryCount, setRetryCount] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [orderStep, setOrderStep] = useState("products");
   const [customer, setCustomer] = useState({
     name: "",
@@ -387,11 +386,6 @@ const TackOrders = () => {
     };
   }, [retryCount, search]);
 
-  const categories = [...new Set(products.map((product) => product.category).filter(Boolean))].sort();
-  const visibleProducts = selectedCategory === "All Categories"
-    ? products
-    : products.filter((product) => product.category === selectedCategory);
-
   const handleCreateTackOrder = async (event) => {
     event.preventDefault();
     if (submitting || savedOrder) return;
@@ -448,44 +442,8 @@ const TackOrders = () => {
   return (
     <section className="mt-0 flex h-[90vh] min-h-0 flex-col bg-[#fff8ef] px-2 pt-4 pb-0 sm:pt-6">
       {orderStep === "products" ? (
-      <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[190px_minmax(0,1fr)_360px] xl:items-stretch">
-        <aside className="hidden min-h-0 overflow-y-auto rounded-2xl border border-orange-100 bg-white p-3 shadow-sm xl:block">
-          <nav aria-label="Product categories" className="space-y-1">
-            {["All Categories", ...categories].map((category) => (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setSelectedCategory(category)}
-                aria-pressed={selectedCategory === category}
-                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
-                  selectedCategory === category
-                    ? "bg-orange-100 text-orange-700"
-                    : "text-slate-600 hover:bg-orange-50 hover:text-orange-700"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </nav>
-        </aside>
-
+      <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-stretch">
         <main className="flex min-w-0 flex-col xl:min-h-0">
-          <nav aria-label="Product categories" className="mb-3 flex gap-2 overflow-x-auto xl:hidden">
-            {["All Categories", ...categories].map((category) => (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setSelectedCategory(category)}
-                aria-pressed={selectedCategory === category}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                  selectedCategory === category ? "bg-orange-500 text-white" : "bg-white text-slate-600"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </nav>
-
           <div className="xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pr-1">
             {error ? (
         <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
@@ -511,14 +469,12 @@ const TackOrders = () => {
             </div>
           ))}
         </div>
-      ) : visibleProducts.length ? (
+      ) : products.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {visibleProducts.map((product) => {
+          {products.map((product) => {
             const imageUrl = getProductImageUrl(product);
             const stock = Number(product.total_stock ?? 0);
             const price = Number(product.final_selling_price ?? product.offer_price ?? product.mrp ?? 0);
-            const rating = Number(product.rating) || 0;
-            const totalReviews = Number(product.total_reviews) || 0;
             const originalPrice = Number(product.mrp ?? 0);
             const offerPrice = Number(product.offer_price ?? price);
             const discountPercent = originalPrice > offerPrice && originalPrice > 0
@@ -582,11 +538,6 @@ const TackOrders = () => {
                       </h2>
                       <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
                         <span>{product.product_code || "No product code"}</span>
-                        <span className="inline-flex items-center gap-1 font-semibold text-slate-700" aria-label={rating > 0 ? `${rating.toFixed(1)} out of 5 stars` : "No ratings yet"}>
-                          <FiStar className="fill-amber-400 text-amber-400" aria-hidden="true" />
-                          {rating > 0 ? rating.toFixed(1) : "No ratings"}
-                          {totalReviews > 0 && <span className="font-normal text-slate-500">({totalReviews})</span>}
-                        </span>
                       </div>
                     </div>
                     <p className="shrink-0 text-right text-base font-extrabold text-[#14534a]">
@@ -624,7 +575,7 @@ const TackOrders = () => {
           </div>
           <h2 className="mt-4 text-lg font-bold text-slate-800">No products found</h2>
           <p className="mt-1 text-sm text-slate-500">
-            {selectedCategory === "All Categories" ? "Try another search to find a product." : "No products in this category."}
+            Try another search to find a product.
           </p>
         </div>
             )}
