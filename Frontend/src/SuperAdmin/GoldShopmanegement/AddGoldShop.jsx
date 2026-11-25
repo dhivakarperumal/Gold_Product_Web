@@ -231,10 +231,16 @@ export default function AddGoldShop({
   initialShop = null,
   plans = [],
   submitting = false,
+  registrationMode = false,
   onCancel,
   onSubmit
 }) {
-  const [form, setForm] = useState(() => createInitialForm(initialShop));
+  const [form, setForm] = useState(() => {
+    const initialForm = createInitialForm(initialShop);
+    return registrationMode
+      ? { ...initialForm, loginPassword: "", confirmPassword: "" }
+      : initialForm;
+  });
   const [files, setFiles] = useState({ profilePhoto: null });
   const [existingDocuments, setExistingDocuments] = useState([]);
   const [shopDetails, setShopDetails] = useState(initialShop);
@@ -551,13 +557,17 @@ export default function AddGoldShop({
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-amber-100 bg-gradient-to-r from-[#13211d] to-[#26342d] px-5 py-5 text-white sm:px-7">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-              Gold Shops Management
+              {registrationMode ? "Gold Shop Registration" : "Gold Shops Management"}
             </p>
             <h2 id="gold-shop-form-title" className="mt-1 text-xl font-bold sm:text-2xl">
-              {isEditing ? "Edit Gold Shop" : "Add New Gold Shop"}
+              {isEditing ? "Edit Gold Shop" : registrationMode ? "Register Your Gold Shop" : "Add New Gold Shop"}
             </h2>
             <p className="mt-1 text-sm text-white/65">
-              {isEditing ? "Update owner, address, shop, and document information." : "Register a shop, login, and first subscription."}
+              {isEditing
+                ? "Update owner, address, shop, and document information."
+                : registrationMode
+                  ? "Submit your shop details for review. Login access is created after approval."
+                  : "Register a shop, login, and first subscription."}
             </p>
           </div>
           <button type="button" onClick={onCancel} aria-label="Close form" className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white">
@@ -632,10 +642,12 @@ export default function AddGoldShop({
                     <textarea className={`${inputClass} min-h-24 resize-y`} name="address" value={form.address} onChange={handleChange} rows={3} placeholder="Street address" />
                     {currentLocation && <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-stone-500">{currentLocation} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="font-semibold underline">© OpenStreetMap contributors</a></span>}
                   </label>
-                  <label className={`${labelClass} sm:col-span-2`}>
-                    Admin notes
-                    <textarea className={`${inputClass} min-h-20 resize-y`} name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Internal notes about this shop" />
-                  </label>
+                  {!registrationMode && (
+                    <label className={`${labelClass} sm:col-span-2`}>
+                      Admin notes
+                      <textarea className={`${inputClass} min-h-20 resize-y`} name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Internal notes about this shop" />
+                    </label>
+                  )}
                 </div>
                 {existingDocuments.length > 0 && (
                   <div className="mt-5 border-t border-stone-100 pt-4">
@@ -721,7 +733,11 @@ export default function AddGoldShop({
                   <Field label="Username" name="loginUsername" value={form.loginUsername} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.loginUsername} required maxLength={150} placeholder="e.g. sri-golds-admin" />
                   <PasswordField label="Password" name="loginPassword" value={form.loginPassword} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.loginPassword} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} placeholder="At least 8 characters" />
                   <PasswordField label="Confirm password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.confirmPassword} visible={showConfirmPassword} onToggle={() => setShowConfirmPassword((visible) => !visible)} placeholder="Re-enter the password" />
-                  <p className="text-xs text-stone-500 sm:col-span-2">The mobile number is used as the default password and updates automatically when the number changes. You can enter a different password. Using a phone number as a password is less secure. The login account is created only after approval; passwords are stored as secure hashes.</p>
+                  <p className="text-xs text-stone-500 sm:col-span-2">
+                    {registrationMode
+                      ? "Your login account will be created only after Super Admin approval. Passwords are stored as secure hashes."
+                      : "The mobile number is used as the default password and updates automatically when the number changes. You can enter a different password. Using a phone number as a password is less secure. The login account is created only after approval; passwords are stored as secure hashes."}
+                  </p>
                 </div>
               )}
             </section>
@@ -733,7 +749,7 @@ export default function AddGoldShop({
             {activeTabIndex === TABS.length - 1 ? (
               <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
                 {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                {isEditing ? "Save Changes" : "Save Gold Shop"}
+                {isEditing ? "Save Changes" : registrationMode ? "Submit Registration" : "Save Gold Shop"}
               </button>
             ) : (
               <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="rounded-xl bg-stone-800 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">

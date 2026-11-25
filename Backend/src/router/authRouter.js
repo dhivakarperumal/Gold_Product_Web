@@ -13,12 +13,19 @@ const {
   updateMyProfile,
   updateManagedUser
 } = require('../controllers/authController');
+const {
+  getRegistrationPlans,
+  postShopRegistration
+} = require('../controllers/superAdminGoldShopController');
 const requireAdmin = require('../middleware/requireAdmin');
 const requireUser = require('../middleware/requireUser');
 const { uploadProfileImage } = require('../middleware/profileImageUpload');
+const { handleGoldShopDocumentUpload } = require('../middleware/goldShopDocumentUpload');
 
 const router = express.Router();
 
+router.get('/registration-plans', getRegistrationPlans);
+router.post('/shop-registration', handleGoldShopDocumentUpload, postShopRegistration);
 router.post('/login', login);
 router.post('/subscription-access', createSubscriptionAccess);
 router.get('/me', requireUser, getMyProfile);

@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { createHashRouter, Navigate, RouterProvider } from "react-router-dom";
+import { createHashRouter, RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./PrivateRouter/AuthContext.jsx";
 import { StoreProvider } from "./PrivateRouter/StoreContext.jsx";
 import PrivateRoute from "./PrivateRouter/PrivateRouter.jsx";
@@ -11,6 +11,7 @@ import { Toaster } from "react-hot-toast";
 import Loader from "./Components/CommenComponents/Loader.jsx";
 
 const Login = React.lazy(() => import("./Components/Auth/Login.jsx"));
+const Register = React.lazy(() => import("./Components/Auth/Register.jsx"));
 
 // Lazy Load Admin Components
 const AdminPanel = React.lazy(() => import("./Admin/AdminPanel.jsx"));
@@ -68,7 +69,7 @@ if (window.location.pathname !== "/" && !window.location.hash) {
 const router = createHashRouter([
   { path: "/", element: <Login />, errorElement: <ErrorPage /> },
   { path: "/login", element: <Login /> },
-  { path: "/register", element: <Navigate to="/login" replace /> },
+  { path: "/register", element: <Register /> },
 
    {
     path: "/superadmin",

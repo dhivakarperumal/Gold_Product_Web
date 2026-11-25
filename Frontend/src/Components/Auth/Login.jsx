@@ -1,6 +1,6 @@
 ﻿import { useState, useContext } from "react";
 import api from "../../api";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../PrivateRouter/AuthContext";
 import { toast } from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react";
@@ -236,6 +236,13 @@ function Login() {
               </span>
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             </button>
+
+            <p className="text-center text-sm text-gray-500">
+              New gold shop?{" "}
+              <Link to="/register" className="font-bold text-primary-light transition-all hover:underline">
+                Register here
+              </Link>
+            </p>
 
           </form>
         </div>
