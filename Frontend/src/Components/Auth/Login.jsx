@@ -3,17 +3,13 @@ import api from "../../api";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../PrivateRouter/AuthContext";
 import { toast } from "react-hot-toast";
-import { GoogleLogin } from "@react-oauth/google";
-import { jwtDecode } from "jwt-decode";
 import { Eye, EyeOff } from "lucide-react";
-import { Link } from "react-router-dom";
 import SubscriptionCheckoutModal from "../Subscription/SubscriptionCheckoutModal";
 
 const getPostLoginPath = (role) => {
   const normalizedRole = String(role || "").trim().toLowerCase();
   if (normalizedRole === "superadmin") return "/superadmin";
   if (normalizedRole === "admin") return "/admin";
-  if (normalizedRole === "user") return "/";
   return "/";
 };
 
@@ -95,25 +91,6 @@ function Login() {
     }
   };
 
-  const handleSuccess = async (credentialResponse) => {
-    try {
-      const decoded = jwtDecode(credentialResponse.credential);
-      const googleUser = {
-        name: decoded.name,
-        email: decoded.email,
-        picture: decoded.picture,
-        googleId: decoded.sub
-      };
-      const res = await api.post("/auth/google-login", googleUser);
-      login(res.data.user, res.data.token);
-      toast.success("Google Login Successful!");
-      navigate(getPostLoginPath(res.data.user.role));
-    } catch (error) {
-      console.error("Google Login Error:", error);
-      toast.error(error.response?.data?.message || error.message || "Google Login Failed");
-    }
-  };
-
   return (
     <div className="min-h-screen w-full font-sans flex bg-[#faf9f8] relative selection:bg-primary selection:text-white">
 
@@ -177,9 +154,9 @@ function Login() {
               </svg>
             </div>
             
-            <p className="text-xs text-yellow-700 font-bold tracking-[0.2em] uppercase mb-4">A little more sparkle, every day</p>
-            <h3 className="text-xl font-serif text-gray-800 mb-1">Welcome Back</h3>
-            <p className="text-gray-500 text-sm">Sign in to explore jewellery made for every occasion.</p>
+            <p className="text-xs text-yellow-700 font-bold tracking-[0.2em] uppercase mb-4">Gold shop management</p>
+            <h3 className="text-xl font-serif text-gray-800 mb-1">Admin Portal</h3>
+            <p className="text-gray-500 text-sm">Sign in with your admin or super admin account.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-gray-100 p-4 sm:p-5">
@@ -259,35 +236,6 @@ function Login() {
               </span>
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             </button>
-
-            {/* OR */}
-            <div className="flex items-center gap-4 my-1">
-              <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-gray-300 to-gray-300"></div>
-              <span className="text-xs text-gray-400 font-bold tracking-widest uppercase">OR</span>
-              <div className="flex-1 h-[1px] bg-gradient-to-l from-transparent via-gray-300 to-gray-300"></div>
-            </div>
-
-            {/* Google Login */}
-            <div className="flex justify-center w-full [&>div]:w-full [&>div]:flex [&>div]:justify-center hover:scale-[1.02] transition-transform">
-              <GoogleLogin
-                onSuccess={handleSuccess}
-                onError={() => console.log("Login Failed")}
-                type="standard"
-                theme="outline"
-                size="large"
-                shape="rectangular"
-                width="320"
-                logo_alignment="center"
-              />
-            </div>
-
-            {/* Register Link */}
-            <p className="text-center text-sm text-gray-500">
-              Don't have an account?{" "}
-              <Link to="/register" className="text-primary-light font-bold hover:underline transition-all">
-                Register Now
-              </Link>
-            </p>
 
           </form>
         </div>

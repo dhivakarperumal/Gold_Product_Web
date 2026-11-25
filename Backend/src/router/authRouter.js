@@ -6,7 +6,6 @@ const {
   getMyProfile,
   getUsers,
   login,
-  register,
   removeManagedUser,
   removeMyProfileImage,
   saveMyProfileImage,
@@ -20,7 +19,6 @@ const { uploadProfileImage } = require('../middleware/profileImageUpload');
 
 const router = express.Router();
 
-router.post('/register', register);
 router.post('/login', login);
 router.post('/subscription-access', createSubscriptionAccess);
 router.get('/me', requireUser, getMyProfile);

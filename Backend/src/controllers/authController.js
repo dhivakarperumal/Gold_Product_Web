@@ -19,46 +19,6 @@ const { getAccountPlanForOwner } = require('../modules/shopSubscriptionModule');
 const { isValidProfileImage, removeProfileImage } = require('../middleware/profileImageUpload');
 const { parseDateRange } = require('../utils/dateRange');
 
-const VALID_STATUSES = new Set(['active', 'inactive']);
-
-function normalizeStatus(status) {
-  if (status == null || status === '') return 'active';
-  const normalized = String(status).trim().toLowerCase();
-  if (normalized === 'active') return 'active';
-  if (normalized === 'inactive') return 'inactive';
-  return null;
-}
-
-async function register(req, res, next) {
-  const username = String(req.body.username || req.body.name || '').trim();
-  const email = String(req.body.email || '').trim().toLowerCase();
-  const phone = String(req.body.phone || '').trim();
-  const password = req.body.password;
-  const status = normalizeStatus(req.body.status);
-
-  if (!username || !email || typeof password !== 'string' || password.length < 8) {
-    return res.status(400).json({
-      message: 'Name, email, and a password of at least 8 characters are required'
-    });
-  }
-  if (username.length > 150 || email.length > 255 || phone.length > 20) {
-    return res.status(400).json({ message: 'Username, email, or phone exceeds the allowed length' });
-  }
-  if (status == null || !VALID_STATUSES.has(status)) {
-    return res.status(400).json({ message: 'Status must be active or inactive' });
-  }
-
-  try {
-    const user = await createUser({ username, email, phone, password, status });
-    return res.status(201).json({ message: 'Registration successful', user });
-  } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ message: 'Email or phone number is already registered' });
-    }
-    return next(error);
-  }
-}
-
 async function login(req, res, next) {
   const identifier = String(req.body.identifier || '').trim();
   const password = req.body.password;
@@ -70,6 +30,9 @@ async function login(req, res, next) {
     const user = await findUserForLogin(identifier);
     if (!user || !(await verifyPassword(password, user.password_hash))) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    if (!['admin', 'superadmin'].includes(String(user.role || '').toLowerCase())) {
+      return res.status(403).json({ message: 'Only admin and super admin accounts can sign in here' });
     }
     let accountPlan = null;
     if (user.role === 'admin') {
@@ -347,7 +310,7 @@ module.exports = {
   getUsers,
   getMyProfile,
   login,
-  register,
+
   removeManagedUser,
   removeMyProfileImage,
   saveMyProfileImage,

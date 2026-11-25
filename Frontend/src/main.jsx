@@ -1,9 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import App from "./App.jsx";
-import { createHashRouter, RouterProvider } from "react-router-dom";
-import { GoogleOAuthProvider } from "@react-oauth/google";
+import { createHashRouter, Navigate, RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./PrivateRouter/AuthContext.jsx";
 import { StoreProvider } from "./PrivateRouter/StoreContext.jsx";
 import PrivateRoute from "./PrivateRouter/PrivateRouter.jsx";
@@ -12,16 +10,7 @@ import { GoldRatesProvider } from "./PrivateRouter/GoldRatesContext.jsx";
 import { Toaster } from "react-hot-toast";
 import Loader from "./Components/CommenComponents/Loader.jsx";
 
-// Lazy Load Main Components
-const Home = React.lazy(() => import("./Components/Home/Home.jsx"));
-const StoreProductDetail = React.lazy(() => import("./Components/Products/ProductDetail.jsx"));
-const Explore = React.lazy(() => import("./Components/Products/Explore.jsx"));
-const AboutPage = React.lazy(() => import("./Components/Pages/AboutPage.jsx"));
-const ContactPage = React.lazy(() => import("./Components/Pages/ContactPage.jsx"));
-const PrivacyPage = React.lazy(() => import("./Components/Pages/InfoPage.jsx"));
-
 const Login = React.lazy(() => import("./Components/Auth/Login.jsx"));
-const Register = React.lazy(() => import("./Components/Auth/Register.jsx"));
 
 // Lazy Load Admin Components
 const AdminPanel = React.lazy(() => import("./Admin/AdminPanel.jsx"));
@@ -62,8 +51,6 @@ const ReceiptSettings = React.lazy(() => import("./Admin/Pages/ReceiptSettings.j
 const HomeSections = React.lazy(() => import("./Admin/Pages/HomeSections.jsx"));
 const Profile = React.lazy(() => import("./Admin/Pages/Profile.jsx"));
 const Dealers = React.lazy(() => import("./Admin/Dealers/Dealers.jsx"));
-const CustomerKyc = React.lazy(() => import("./Components/Account/CustomerKyc.jsx"));
-const UserProfile  = React.lazy(() => import("./Components/Account/UserProfile.jsx"));
 
 const AdminKyc = React.lazy(() => import("./Admin/Kyc/AdminKyc.jsx"));
 const BillingManagement = React.lazy(() => import("./Admin/Pages/BillingManagement.jsx"));
@@ -79,38 +66,9 @@ if (window.location.pathname !== "/" && !window.location.hash) {
 }
 
 const router = createHashRouter([
-  {
-    path: "/",
-    element: <App />,
-    errorElement: <ErrorPage />,
-    children: [
-      { path: "/", element: <Home /> },
-      { path: "explore", element: <Explore /> },
-      { path: "product/:id", element: <StoreProductDetail /> },
-      { path: "about", element: <AboutPage /> },
-      { path: "contactus", element: <ContactPage /> },
-      { path: "privacy-policy", element: <PrivacyPage /> },
-      {
-        path: "/account/kyc",
-        element: (
-          <PrivateRoute allowedRoles={["user"]}>
-            <CustomerKyc />
-          </PrivateRoute>
-        )
-      },
-      {
-        path: "/profile",
-        element: (
-          <PrivateRoute allowedRoles={["user", "admin", "manager", "dealer"]}>
-            <UserProfile />
-          </PrivateRoute>
-        )
-      },
-
-    ],
-  },
+  { path: "/", element: <Login />, errorElement: <ErrorPage /> },
   { path: "/login", element: <Login /> },
-  { path: "/register", element: <Register /> },
+  { path: "/register", element: <Navigate to="/login" replace /> },
 
    {
     path: "/superadmin",
@@ -198,16 +156,14 @@ const router = createHashRouter([
 ]);
 
 createRoot(document.getElementById("root")).render(
-  <GoogleOAuthProvider clientId="92181265196-n9a9p26qe601hg7lar8acq6s4f1cknq7.apps.googleusercontent.com">
-    <AuthProvider>
-      <StoreProvider>
-        <GoldRatesProvider>
-          <Toaster position="top-left" reverseOrder={false} />
-          <React.Suspense fallback={<Loader />}>
-            <RouterProvider router={router} />
-          </React.Suspense>
-        </GoldRatesProvider>
-      </StoreProvider>
-    </AuthProvider>
-  </GoogleOAuthProvider>
+  <AuthProvider>
+    <StoreProvider>
+      <GoldRatesProvider>
+        <Toaster position="top-left" reverseOrder={false} />
+        <React.Suspense fallback={<Loader />}>
+          <RouterProvider router={router} />
+        </React.Suspense>
+      </GoldRatesProvider>
+    </StoreProvider>
+  </AuthProvider>
 );
