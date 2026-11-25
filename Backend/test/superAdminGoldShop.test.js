@@ -154,7 +154,7 @@ test('validates required shop identity and normalizes contact details', () => {
   const result = validateShop({
     shopName: '  Gold House ',
     ownerName: '  A Owner ',
-    mobile: '+91 (98765) 43210',
+    mobile: '(98765) 43210',
     email: ' OWNER@EXAMPLE.COM ',
     aadhaarNumber: '123456789012',
     gstNumber: '33abcde1234f1z5',
@@ -166,7 +166,7 @@ test('validates required shop identity and normalizes contact details', () => {
   assert.equal(result.error, undefined);
   assert.equal(result.shop.shop_name, 'Gold House');
   assert.equal(result.shop.owner_name, 'A Owner');
-  assert.equal(result.shop.mobile, '+919876543210');
+  assert.equal(result.shop.mobile, '9876543210');
   assert.equal(result.shop.email, 'owner@example.com');
   assert.equal(result.shop.aadhaar_number, '123456789012');
   assert.equal(result.shop.gst_number, '33ABCDE1234F1Z5');
@@ -174,7 +174,7 @@ test('validates required shop identity and normalizes contact details', () => {
   assert.equal(validateShop({
     shopName: 'Gold House',
     ownerName: 'A Owner',
-    mobile: '+919876543210',
+    mobile: '9876543210',
     aadhaarNumber: ' 123456789012 ',
     maxBranches: 1,
     maxStaff: 1
@@ -182,7 +182,7 @@ test('validates required shop identity and normalizes contact details', () => {
   assert.equal(validateShop({
     shopName: 'Gold House',
     ownerName: 'A Owner',
-    mobile: '+919876543210',
+    mobile: '9876543210',
     aadhaarNumber: '12345678901',
     maxBranches: 1,
     maxStaff: 1
@@ -193,11 +193,18 @@ test('validates required shop identity and normalizes contact details', () => {
     mobile: '12345',
     maxBranches: 1,
     maxStaff: 1
-  }).error, 'Enter a valid mobile number');
+  }).error, 'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9');
   assert.equal(validateShop({
     shopName: 'Gold House',
     ownerName: 'A Owner',
-    mobile: '+919876543210',
+    mobile: '5123456789',
+    maxBranches: 1,
+    maxStaff: 1
+  }).error, 'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9');
+  assert.equal(validateShop({
+    shopName: 'Gold House',
+    ownerName: 'A Owner',
+    mobile: '9876543210',
     email: 'invalid-email',
     maxBranches: 1,
     maxStaff: 1
@@ -205,7 +212,7 @@ test('validates required shop identity and normalizes contact details', () => {
   assert.equal(validateShop({
     shopName: 'Gold House',
     ownerName: 'A Owner',
-    mobile: '+919876543210',
+    mobile: '9876543210',
     gstNumber: 'INVALIDGSTNUMBER',
     maxBranches: 1,
     maxStaff: 1
@@ -213,7 +220,7 @@ test('validates required shop identity and normalizes contact details', () => {
   assert.equal(validateShop({
     shopName: 'Gold House',
     ownerName: 'A Owner',
-    mobile: '+919876543210',
+    mobile: '9876543210',
     pincode: '01234A',
     maxBranches: 1,
     maxStaff: 1
@@ -223,7 +230,7 @@ test('validates required shop identity and normalizes contact details', () => {
   assert.equal(validateShop({
     shopName: 'Gold House',
     ownerName: 'A Owner',
-    mobile: '+919876543210',
+    mobile: '9876543210',
     maxBranches: 1,
     maxStaff: 1,
     status: 'suspended'
@@ -296,7 +303,7 @@ test('creates the shop admin user only after approval and preserves the submitte
     shop: {
       id: 7,
       email: 'owner@example.com',
-      mobile: '+919876543210',
+      mobile: '9876543210',
       owner_name: 'Shop Owner',
       owner_user_id: null,
       approval_status: 'pending'

@@ -33,7 +33,7 @@ const PAYMENT_METHODS = new Map([
   ['other', 'Other']
 ]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_PATTERN = /^\+?[1-9]\d{9,14}$/;
+const PHONE_PATTERN = /^[6-9]\d{9}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const SHOP_DOCUMENT_TYPES = {
   profilePhoto: 'profile_photo',
@@ -162,7 +162,9 @@ function validateShop(body, { creating = false } = {}) {
     || (notes && notes.length > 10000)) {
     return { error: 'Shop address, location, pincode, or notes exceeds the allowed length' };
   }
-  if (!PHONE_PATTERN.test(mobile)) return { error: 'Enter a valid mobile number' };
+  if (!PHONE_PATTERN.test(mobile)) {
+    return { error: 'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9' };
+  }
   if (email && (email.length > 255 || !EMAIL_PATTERN.test(email))) return { error: 'Enter a valid email address' };
   if (aadhaarNumber && !/^\d{12}$/.test(aadhaarNumber)) {
     return { error: 'Aadhaar number must contain exactly 12 digits' };

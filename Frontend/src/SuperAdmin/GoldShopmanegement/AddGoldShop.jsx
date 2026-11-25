@@ -33,12 +33,15 @@ function mobileLoginPassword(value) {
   return String(value || "").replace(/[\s()-]/g, "").trim();
 }
 
-function validateField(name, value, isRequired = false) {
+function validateField(name, value, { required = false, otherValue = "" } = {}) {
   const trimmed = String(value || "").trim();
+  if (name === "ownerName" || name === "shopName") {
+    if (!trimmed) return `${name === "ownerName" ? "Name" : "Shop name"} is required.`;
+    return trimmed.length <= 150 ? "" : `${name === "ownerName" ? "Name" : "Shop name"} must be 150 characters or fewer.`;
+  }
   if (name === "mobile") {
-    const mobile = trimmed.replace(/[\s()-]/g, "");
-    if (!mobile) return "Mobile number is required.";
-    return /^\+?[1-9]\d{9,14}$/.test(mobile) ? "" : "Enter a valid mobile number with 10–15 digits.";
+    if (!trimmed) return "Mobile number is required.";
+    return /^[6-9]\d{9}$/.test(trimmed) ? "" : "Enter a 10-digit mobile number starting with 6, 7, 8, or 9.";
   }
   if (name === "aadhaarNumber" && trimmed && !/^\d{12}$/.test(trimmed)) {
     return "Aadhaar number must contain exactly 12 digits.";
@@ -51,10 +54,31 @@ function validateField(name, value, isRequired = false) {
     return "Pincode must be a valid 6-digit Indian postal code.";
   }
   if (name === "email") {
-    if (!trimmed && isRequired) return "Email ID is required for shop login.";
+    if (!trimmed && required) return "Email ID is required for shop login.";
     if (trimmed && (trimmed.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed))) {
       return "Enter a valid email address.";
     }
+  }
+  if (name === "startDate" && required) {
+    const [year, month, day] = trimmed.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed) || date.toISOString().slice(0, 10) !== trimmed) {
+      return "Enter a valid subscription start date.";
+    }
+  }
+  if (name === "loginUsername" && required) {
+    if (!trimmed) return "Username is required.";
+    return /^[A-Za-z0-9._@+-]{3,150}$/.test(trimmed)
+      ? ""
+      : "Username must be 3 to 150 letters, numbers, or . _ @ + - characters.";
+  }
+  if (name === "loginPassword" && required) {
+    if (value.length < 8 || new TextEncoder().encode(value).length > 72) {
+      return "Password must be at least 8 characters and no more than 72 bytes.";
+    }
+  }
+  if (name === "confirmPassword" && required && value !== otherValue) {
+    return "Password and confirm password do not match.";
   }
   return "";
 }
@@ -75,7 +99,7 @@ function createInitialForm(shop) {
   return {
     shopName: shop?.shop_name || "",
     ownerName: shop?.owner_name || "",
-    mobile: shop?.mobile || "",
+    mobile: String(shop?.mobile || "").replace(/\D/g, "").slice(-10),
     email: shop?.email || "",
     loginUsername: shop?.owner_username || "",
     loginPassword: mobileLoginPassword(shop?.mobile),
@@ -151,17 +175,20 @@ function FileField({ label, name, accept, multiple = false, files, onChange, hin
   );
 }
 
-function PasswordField({ label, name, value, onChange, visible, onToggle, placeholder }) {
+function PasswordField({ label, name, value, onChange, onBlur, error, visible, onToggle, placeholder }) {
   return (
     <label className={`block ${labelClass}`}>
       {label}<span className="ml-1 text-rose-600">*</span>
       <span className="relative block">
         <input
-          className={`${inputClass} pr-11`}
+          className={`${inputClass} pr-11 ${error ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100" : ""}`}
           type={visible ? "text" : "password"}
           name={name}
           value={value}
           onChange={onChange}
+          onBlur={onBlur}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${name}-error` : undefined}
           required
           placeholder={placeholder}
           autoComplete="new-password"
@@ -176,6 +203,7 @@ function PasswordField({ label, name, value, onChange, visible, onToggle, placeh
           {visible ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </span>
+      {error && <span id={`${name}-error`} className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-rose-700">{error}</span>}
     </label>
   );
 }
@@ -244,7 +272,10 @@ export default function AddGoldShop({
   const endDate = estimatedEndDate(form.startDate, form.duration);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const { name } = event.target;
+    const value = name === "mobile"
+      ? event.target.value.replace(/\D/g, "").slice(0, 10)
+      : event.target.value;
     setForm((current) => {
       if (name !== "mobile") return { ...current, [name]: value };
 
@@ -271,7 +302,11 @@ export default function AddGoldShop({
 
   const handleFieldBlur = (event) => {
     const { name, value } = event.target;
-    const error = validateField(name, value, name === "email" && !isEditing);
+    const required = (!isEditing && ["email", "loginUsername", "loginPassword", "confirmPassword", "startDate"].includes(name));
+    const error = validateField(name, value, {
+      required,
+      otherValue: name === "confirmPassword" ? form.loginPassword : form.confirmPassword
+    });
     setFieldErrors((current) => ({ ...current, [name]: error }));
   };
 
@@ -337,33 +372,63 @@ export default function AddGoldShop({
     }
   };
 
+  const validateTabs = (tabs) => {
+    const fieldsByTab = {
+      personal: [["ownerName", true], ["mobile", true], ["aadhaarNumber", false]],
+      shop: [["shopName", true], ["gstNumber", false], ["pincode", false]],
+      login: [
+        ["email", !isEditing],
+        ["loginUsername", !isEditing],
+        ["loginPassword", !isEditing],
+        ["confirmPassword", !isEditing]
+      ]
+    };
+    const errors = {};
+    let firstInvalidTab = "";
+
+    for (const tab of tabs) {
+      for (const [name, required] of fieldsByTab[tab] || []) {
+        const error = validateField(name, form[name], {
+          required,
+          otherValue: name === "confirmPassword" ? form.loginPassword : form.confirmPassword
+        });
+        if (error) {
+          errors[name] = error;
+          if (!firstInvalidTab) firstInvalidTab = tab;
+        }
+      }
+      if (tab === "subscription" && !isEditing) {
+        const planError = !selectedPlanId ? "Select a subscription plan." : "";
+        const dateError = validateField("startDate", form.startDate, { required: true });
+        if (planError || dateError) {
+          if (!firstInvalidTab) firstInvalidTab = tab;
+          errors.planId = planError;
+          errors.startDate = dateError;
+        }
+      }
+    }
+
+    setFieldErrors(errors);
+    if (firstInvalidTab) {
+      setActiveTab(firstInvalidTab);
+      setFormError(errors.planId || errors.startDate
+        ? "Select a subscription plan and a valid start date before continuing."
+        : "Please correct the highlighted fields before continuing.");
+      return false;
+    }
+    return true;
+  };
+
   const submit = (event) => {
     event.preventDefault();
     if (shopDetailsLoading || shopDetailsError) return;
     if (activeTabIndex !== TABS.length - 1) {
+      if (!validateTabs([activeTab])) return;
       setActiveTab(TABS[activeTabIndex + 1].id);
       setFormError("");
       return;
     }
-    const fieldsToValidate = [
-      ["mobile", "personal", true],
-      ["aadhaarNumber", "personal", false],
-      ["gstNumber", "shop", false],
-      ["pincode", "shop", false],
-      ["email", "login", !isEditing]
-    ];
-    const errors = {};
-    for (const [name, tab, required] of fieldsToValidate) {
-      const error = validateField(name, form[name], required);
-      if (error) errors[name] = { message: error, tab };
-    }
-    setFieldErrors(Object.fromEntries(Object.entries(errors).map(([name, error]) => [name, error.message])));
-    const firstInvalidField = fieldsToValidate.find(([name]) => errors[name]);
-    if (firstInvalidField) {
-      setActiveTab(firstInvalidField[1]);
-      setFormError("Please correct the highlighted fields.");
-      return;
-    }
+    if (!validateTabs(["personal", "shop", "subscription", "login"])) return;
     const requiredFields = [
       ["ownerName", "personal", "Owner name is required."],
       ["shopName", "shop", "Shop name is required."]
@@ -372,26 +437,6 @@ export default function AddGoldShop({
     if (missingField) {
       setActiveTab(missingField[1]);
       setFormError(missingField[2]);
-      return;
-    }
-    if (!isEditing && (!selectedPlanId || !form.startDate)) {
-      setActiveTab("subscription");
-      setFormError("Select a subscription plan and start date.");
-      return;
-    }
-    if (!isEditing && !/^[A-Za-z0-9._@+-]{3,150}$/.test(form.loginUsername.trim())) {
-      setActiveTab("login");
-      setFormError("Username must be 3 to 150 letters, numbers, or . _ @ + - characters.");
-      return;
-    }
-    if (!isEditing && (form.loginPassword.length < 8 || new TextEncoder().encode(form.loginPassword).length > 72)) {
-      setActiveTab("login");
-      setFormError("Password must be at least 8 characters and no more than 72 bytes.");
-      return;
-    }
-    if (!isEditing && form.loginPassword !== form.confirmPassword) {
-      setActiveTab("login");
-      setFormError("Password and confirm password do not match.");
       return;
     }
     const shop = {
@@ -481,8 +526,8 @@ export default function AddGoldShop({
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
               <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Name" name="ownerName" value={form.ownerName} onChange={handleChange} required placeholder="Full name" />
-                <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.mobile} required type="tel" inputMode="tel" maxLength={20} placeholder="+919876543210" />
+                <Field label="Name" name="ownerName" value={form.ownerName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.ownerName} required maxLength={150} placeholder="Full name" />
+                <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.mobile} required type="text" inputMode="numeric" maxLength={10} placeholder="9876543210" />
                 <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." />
                 <Field label="Aadhaar number" name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.aadhaarNumber} type="text" inputMode="numeric" maxLength={12} placeholder="12-digit Aadhaar number" />
               </div>
@@ -498,7 +543,7 @@ export default function AddGoldShop({
                   <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold tracking-wide text-amber-800">GOLD-XXXX</span>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Shop name" name="shopName" value={form.shopName} onChange={handleChange} required placeholder="e.g. Sri Golds" />
+                  <Field label="Shop name" name="shopName" value={form.shopName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.shopName} required maxLength={150} placeholder="e.g. Sri Golds" />
                   <Field label="GST number" name="gstNumber" value={form.gstNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.gstNumber} maxLength={15} autoCapitalize="characters" placeholder="15-character GSTIN" />
                   <div className="grid gap-4 sm:col-span-2 lg:grid-cols-3">
                     <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="City" />
@@ -565,9 +610,10 @@ export default function AddGoldShop({
                     <div className="grid gap-4 sm:grid-cols-2">
                       <label className={labelClass}>
                         Subscription plan<span className="ml-1 text-rose-600">*</span>
-                        <select className={inputClass} name="planId" value={selectedPlanId} onChange={handleChange}>
+                        <select className={`${inputClass} ${fieldErrors.planId ? "border-rose-500" : ""}`} name="planId" value={selectedPlanId} onChange={handleChange} aria-invalid={Boolean(fieldErrors.planId)}>
                           {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.plan_name}</option>)}
                         </select>
+                        {fieldErrors.planId && <span className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-rose-700">{fieldErrors.planId}</span>}
                       </label>
                       <label className={labelClass}>
                         Duration<span className="ml-1 text-rose-600">*</span>
@@ -582,7 +628,8 @@ export default function AddGoldShop({
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Estimated end date</p><p className="mt-1 text-sm font-semibold text-stone-800">{endDate ? formatDate(endDate) : "Select a valid start date"}</p></div>
                       <label className={labelClass}>
                         Start date<span className="ml-1 text-rose-600">*</span>
-                        <span className="relative block"><CalendarDays className="absolute right-3 top-4 h-4 w-4 text-stone-400" /><input className={inputClass} type="date" name="startDate" value={form.startDate} onChange={handleChange} /></span>
+                        <span className="relative block"><CalendarDays className="absolute right-3 top-4 h-4 w-4 text-stone-400" /><input className={`${inputClass} ${fieldErrors.startDate ? "border-rose-500" : ""}`} type="date" name="startDate" value={form.startDate} onChange={handleChange} onBlur={handleFieldBlur} aria-invalid={Boolean(fieldErrors.startDate)} /></span>
+                        {fieldErrors.startDate && <span className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-rose-700">{fieldErrors.startDate}</span>}
                       </label>
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className={labelClass}>Approval status</p><p className="mt-1 text-sm font-semibold text-amber-800">{isEditing ? (shopDetails?.approval_status || "Pending") : "Pending"}</p></div>
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className="mt-1 text-sm font-semibold text-amber-800">Pending Super Admin confirmation</p></div>
@@ -605,9 +652,9 @@ export default function AddGoldShop({
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Email ID" name="email" value={form.email} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.email} required={!isEditing} type="email" maxLength={255} placeholder="owner@example.com" />
-                  <Field label="Username" name="loginUsername" value={form.loginUsername} onChange={handleChange} required placeholder="e.g. sri-golds-admin" />
-                  <PasswordField label="Password" name="loginPassword" value={form.loginPassword} onChange={handleChange} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} placeholder="At least 8 characters" />
-                  <PasswordField label="Confirm password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} visible={showConfirmPassword} onToggle={() => setShowConfirmPassword((visible) => !visible)} placeholder="Re-enter the password" />
+                  <Field label="Username" name="loginUsername" value={form.loginUsername} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.loginUsername} required maxLength={150} placeholder="e.g. sri-golds-admin" />
+                  <PasswordField label="Password" name="loginPassword" value={form.loginPassword} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.loginPassword} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} placeholder="At least 8 characters" />
+                  <PasswordField label="Confirm password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.confirmPassword} visible={showConfirmPassword} onToggle={() => setShowConfirmPassword((visible) => !visible)} placeholder="Re-enter the password" />
                   <p className="text-xs text-stone-500 sm:col-span-2">The mobile number is used as the default password and updates automatically when the number changes. You can enter a different password. Using a phone number as a password is less secure. The login account is created only after approval; passwords are stored as secure hashes.</p>
                 </div>
               )}
@@ -623,7 +670,7 @@ export default function AddGoldShop({
                 {isEditing ? "Save Changes" : "Save Gold Shop"}
               </button>
             ) : (
-              <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError)} onClick={() => { setActiveTab(TABS[activeTabIndex + 1].id); setFormError(""); }} className="rounded-xl bg-stone-800 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+              <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="rounded-xl bg-stone-800 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
                 Save &amp; Next
               </button>
             )}
