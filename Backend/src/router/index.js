@@ -20,6 +20,7 @@ const homeSectionRouter = require('./homeSectionRouter');
 const fundsRouter = require('./fundsRouter');
 const enquiryRouter = require('./enquiryRouter');
 const superAdminGoldShopRouter = require('./superAdminGoldShopRouter');
+const shopSubscriptionRouter = require('./shopSubscriptionRouter');
 
 const router = express.Router();
 
@@ -31,6 +32,7 @@ router.use('/home-sections', homeSectionRouter);
 router.use('/funds', fundsRouter);
 router.use('/enquiries', enquiryRouter);
 router.use('/super-admin', superAdminGoldShopRouter);
+router.use('/subscriptions', shopSubscriptionRouter);
 router.use('/auth', authRouter);
 router.use('/categories', categoryRouter);
 router.use('/metals', metalRouter);

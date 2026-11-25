@@ -1,5 +1,6 @@
 const {
   createAccessToken,
+  createSubscriptionAccessToken,
   createUser,
   deleteUser,
   findUserForLogin,
@@ -14,6 +15,7 @@ const {
   updateUser,
   verifyPassword
 } = require('../modules/authModule');
+const { getAccountPlanForOwner } = require('../modules/shopSubscriptionModule');
 const { isValidProfileImage, removeProfileImage } = require('../middleware/profileImageUpload');
 const { parseDateRange } = require('../utils/dateRange');
 
@@ -69,12 +71,56 @@ async function login(req, res, next) {
     if (!user || !(await verifyPassword(password, user.password_hash))) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+    let accountPlan = null;
+    if (user.role === 'admin') {
+      accountPlan = await getAccountPlanForOwner(user.user_id);
+      if (['expired', 'pending'].includes(accountPlan?.account_plan_type)) {
+        const expiredTrial = accountPlan.account_plan_type === 'expired';
+        return res.status(403).json({
+          code: expiredTrial ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_REQUIRED',
+          message: expiredTrial
+            ? 'Your free trial has ended. Subscribe to continue using this shop account.'
+            : 'A paid subscription is required to use this shop account.',
+          accountPlan
+        });
+      }
+    }
     if (user.status !== 'Active') {
       return res.status(403).json({ message: 'This account is inactive' });
     }
 
     const { password_hash: passwordHash, ...publicUser } = user;
     return res.json({ user: publicUser, token: createAccessToken(user) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function createSubscriptionAccess(req, res, next) {
+  const identifier = String(req.body.identifier || '').trim();
+  const password = req.body.password;
+  if (!identifier || typeof password !== 'string') {
+    return res.status(400).json({ message: 'Email, phone, or username and password are required' });
+  }
+  try {
+    const user = await findUserForLogin(identifier);
+    if (!user || !(await verifyPassword(password, user.password_hash))) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    if (user.role !== 'admin') {
+      return res.status(403).json({ message: 'Subscription checkout is only available to active shop admin accounts.' });
+    }
+    const accountPlan = await getAccountPlanForOwner(user.user_id);
+    if (!['expired', 'pending'].includes(accountPlan?.account_plan_type)) {
+      return res.status(409).json({ message: 'This account does not require subscription checkout access.' });
+    }
+    if (user.status !== 'Active' && user.status !== 'Inactive') {
+      return res.status(403).json({ message: 'Subscription checkout is only available to active shop admin accounts.' });
+    }
+    return res.json({
+      checkoutToken: createSubscriptionAccessToken(user),
+      accountPlan
+    });
   } catch (error) {
     return next(error);
   }
@@ -297,6 +343,7 @@ async function removeManagedUser(req, res, next) {
 module.exports = {
   createManagedUser,
   changeMyPassword,
+  createSubscriptionAccess,
   getUsers,
   getMyProfile,
   login,

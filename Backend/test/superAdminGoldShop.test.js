@@ -4,12 +4,16 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../src/config/db');
 const {
   calculateEndDate,
+  calculateTrialEndDate,
   createGoldShop,
+  expireSubscriptions,
   getPlanPrice,
   isValidDate,
   approveGoldShop,
+  listGoldShops,
   rejectGoldShop
 } = require('../src/modules/superAdminGoldShopModule');
+const { getSubscriptionAccountPlan } = require('../src/utils/subscriptionPlanType');
 const {
   validateShop,
   validateLoginCredentials,
@@ -30,6 +34,109 @@ test('rejects invalid subscription dates without throwing', () => {
   assert.equal(isValidDate('9999-99-99'), false);
   assert.equal(validateSubscription({ planId: 1, duration: 'monthly', startDate: '9999-99-99' }).error,
     'Enter a valid subscription start date');
+});
+
+test('calculates the trial period and account status from assigned trial days', () => {
+  assert.equal(calculateTrialEndDate('2026-11-25', 3), '2026-11-27');
+  assert.equal(calculateTrialEndDate('2026-11-25', 5), '2026-11-29');
+  const subscription = {
+    plan_name: 'Basic',
+    start_date: '2026-11-25',
+    end_date: '2026-12-25',
+    trial_days: 3,
+    trial_start_date: '2026-11-25',
+    trial_end_date: '2026-11-27',
+    payment_status: 'pending'
+  };
+  assert.deepEqual(
+    {
+      type: getSubscriptionAccountPlan({ ...subscription, database_date: '2026-11-25' }).account_plan_type,
+      remaining: getSubscriptionAccountPlan({ ...subscription, database_date: '2026-11-25' }).trial_days_remaining
+    },
+    { type: 'trial', remaining: 3 }
+  );
+  assert.equal(getSubscriptionAccountPlan({ ...subscription, database_date: '2026-11-27' }).trial_days_remaining, 1);
+  assert.equal(getSubscriptionAccountPlan({ ...subscription, database_date: '2026-11-28' }).account_plan_type, 'expired');
+  assert.equal(getSubscriptionAccountPlan({
+    ...subscription,
+    payment_status: 'paid',
+    database_date: '2026-11-26'
+  }).account_plan_type, 'trial');
+  assert.equal(getSubscriptionAccountPlan({
+    ...subscription,
+    payment_status: 'paid',
+    database_date: '2026-11-28'
+  }).account_plan_type, 'live');
+  assert.equal(getSubscriptionAccountPlan({
+    ...subscription,
+    payment_status: 'paid',
+    database_date: '2026-11-28'
+  }).account_end_date, '2026-12-25');
+  assert.equal(getSubscriptionAccountPlan({
+    ...subscription,
+    trial_days: 0,
+    database_date: '2026-11-28'
+  }).account_plan_type, 'pending');
+  assert.equal(getSubscriptionAccountPlan({
+    ...subscription,
+    payment_status: 'paid',
+    trial_days: 0,
+    database_date: '2026-11-28'
+  }).account_plan_type, 'live');
+});
+
+test('includes account plan type with each listed gold shop', async () => {
+  const originalExecute = pool.execute;
+  pool.execute = async (sql) => {
+    if (sql.includes('SELECT gs.id, gs.shop_uuid')) {
+      return [[{
+        id: 5,
+        plan_name: 'Basic',
+        trial_days: 3,
+        trial_start_date: '2026-11-25',
+        trial_end_date: '2026-11-27',
+        start_date: '2026-11-25',
+        end_date: '2026-12-25',
+        payment_status: 'paid',
+        database_date: '2026-11-25'
+      }], []];
+    }
+    if (sql.includes('COUNT(*) AS total FROM gold_shops gs')) return [[{ total: 1 }], []];
+    if (sql.includes('COUNT(*) AS total_shops')) return [[{ total_shops: 1 }], []];
+    if (sql.includes('COUNT(*) AS expired_subscriptions')) return [[{ expired_subscriptions: 0 }], []];
+    return [{ affectedRows: 0 }, []];
+  };
+
+  try {
+    const result = await listGoldShops({ search: '', status: 'all', planId: null, page: 1, pageSize: 10 });
+    assert.equal(result.shops[0].account_plan_type, 'trial');
+    assert.equal(result.shops[0].account_end_date, '2026-11-27');
+  } finally {
+    pool.execute = originalExecute;
+  }
+});
+
+test('keeps shops and admin accounts active during their unpaid trial dates', async () => {
+  const originalExecute = pool.execute;
+  const queries = [];
+  pool.execute = async (sql) => {
+    queries.push(String(sql).replace(/\s+/g, ' '));
+    return [[], []];
+  };
+
+  try {
+    await expireSubscriptions();
+    const deactivationQueries = queries.filter((sql) => sql.includes('SET s.status = \'inactive\'')
+      || sql.includes('SET u.status = \'inactive\''));
+    assert.equal(deactivationQueries.length, 2);
+    for (const query of deactivationQueries) {
+      assert.match(query, /trial_days > 0/);
+      assert.match(query, /trial_start_date <= CURRENT_DATE\(\)/);
+      assert.match(query, /trial_end_date >= CURRENT_DATE\(\)/);
+    }
+  } finally {
+    pool.execute = originalExecute;
+  }
 });
 
 test('uses the database plan price for the selected duration', () => {

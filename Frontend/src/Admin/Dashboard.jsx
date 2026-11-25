@@ -5,7 +5,8 @@ import useGoldRates from "../PrivateRouter/useGoldRates";
 import api from "../api";
 import DateRangeFilter from "./Components/DateRangeFilter";
 import { formatCurrency } from "../utils/currency";
-import { Toaster } from "react-hot-toast";
+import { toast, Toaster } from "react-hot-toast";
+import SubscriptionCheckoutModal from "../Components/Subscription/SubscriptionCheckoutModal";
 import { useNavigate } from "react-router-dom";
 import {
   FiUsers,
@@ -52,6 +53,14 @@ const getDashboardImageUrl = (image) => {
   if (!image) return "/images/categories/necklacecat.png";
   if (/^(https?:|data:|blob:|\/images\/)/i.test(image)) return image;
   return `${backendUrl}${image.startsWith("/") ? image : `/${image}`}`;
+};
+
+const formatAccountDate = (value) => {
+  if (!value) return "—";
+  const date = new Date(typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 };
 
 const DEFAULT_DASHBOARD_DATA = {
@@ -147,6 +156,10 @@ const Dashboard = () => {
   const { current: currentGoldRates, loading: goldRatesLoading } = useGoldRates();
   const [dateRange, setDateRange] = useState({ preset: "all", startDate: "", endDate: "" });
   const [metricsError, setMetricsError] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [assistanceSubmitting, setAssistanceSubmitting] = useState(false);
+  const [assistanceRequested, setAssistanceRequested] = useState(false);
+  const [dismissedTrialEndDate, setDismissedTrialEndDate] = useState("");
   const metricsLoading = !dashboardData?.stats && !metricsError;
 
   const fetchDashboardData = useCallback(async () => {
@@ -191,6 +204,27 @@ const Dashboard = () => {
   const loanStatusCounts = data.loanStatusCounts || DEFAULT_DASHBOARD_DATA.loanStatusCounts;
   const revenueTrends = Array.isArray(dashboardData?.revenueTrends) ? dashboardData.revenueTrends : [];
   const totalLoansCount = data.totalLoansCount ?? 0;
+  const accountPlan = data.accountPlan;
+  const showTrialWarning = Boolean(accountPlan?.trial_active)
+    && String(accountPlan.payment_status || "").toLowerCase() !== "paid"
+    && Number(accountPlan.trial_days_remaining) < 3
+    && dismissedTrialEndDate !== accountPlan.trial_end_date
+    && !checkoutOpen;
+
+  const askSuperAdminForSubscription = async () => {
+    if (assistanceSubmitting || assistanceRequested) return;
+    setAssistanceSubmitting(true);
+    try {
+      const { data: response } = await api.post("/subscriptions/requests", {});
+      setAssistanceRequested(true);
+      toast.success(response.message || "Your request was sent to the Super Admin.");
+    } catch (error) {
+      console.error("Could not request subscription assistance:", error);
+      toast.error(error.response?.data?.message || "Could not send your request.");
+    } finally {
+      setAssistanceSubmitting(false);
+    }
+  };
   const summaryCards = [
     {
       id: "total_customers",
@@ -437,6 +471,65 @@ const Dashboard = () => {
           </div>
         </div>
       </section>
+
+      {accountPlan && (
+        <section aria-label="Account plan" className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Account plan</p>
+              <h2 className="mt-1 text-lg font-black text-slate-900">
+                <span className="capitalize">{accountPlan.account_plan_type || "—"}</span>
+                {accountPlan.plan_name ? ` · ${accountPlan.plan_name}` : ""}
+              </h2>
+            </div>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2 sm:gap-8">
+              <div><dt className="text-xs font-semibold text-slate-500">Starts</dt><dd className="mt-1 font-bold text-slate-800">{formatAccountDate(accountPlan.account_start_date)}</dd></div>
+              <div><dt className="text-xs font-semibold text-slate-500">Ends</dt><dd className="mt-1 font-bold text-slate-800">{formatAccountDate(accountPlan.account_end_date)}</dd></div>
+            </dl>
+          </div>
+        </section>
+      )}
+
+      {showTrialWarning && (
+        <div className="fixed inset-0 z-[145] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <section role="alertdialog" aria-modal="true" aria-labelledby="trial-expiry-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800"><FiAlertTriangle /></span>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-700">Trial ending soon</p>
+                <h2 id="trial-expiry-title" className="mt-1 text-xl font-black text-slate-900">
+                  {accountPlan.trial_days_remaining} {Number(accountPlan.trial_days_remaining) === 1 ? "day" : "days"} remaining
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  Your {accountPlan.plan_name} trial ends {formatAccountDate(accountPlan.trial_end_date)}. Subscribe before then to keep using your shop account.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <button type="button" disabled={assistanceSubmitting || assistanceRequested} onClick={askSuperAdminForSubscription} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 disabled:opacity-50">
+                {assistanceSubmitting ? "Sending…" : assistanceRequested ? "Request sent" : "Ask Super Admin"}
+              </button>
+              <button type="button" onClick={() => setCheckoutOpen(true)} className="rounded-xl bg-[#00796B] px-4 py-3 text-sm font-bold text-white">
+                Subscribe now
+              </button>
+            </div>
+            <button type="button" onClick={() => setDismissedTrialEndDate(accountPlan.trial_end_date)} className="mt-3 w-full rounded-xl px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50">
+              Remind me later
+            </button>
+          </section>
+        </div>
+      )}
+
+      {checkoutOpen && (
+        <SubscriptionCheckoutModal
+          onClose={() => setCheckoutOpen(false)}
+          onPaymentComplete={async () => {
+            setCheckoutOpen(false);
+            setDismissedTrialEndDate(accountPlan?.trial_end_date || "");
+            await fetchDashboardData();
+          }}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-x-2 gap-y-[20px] sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (

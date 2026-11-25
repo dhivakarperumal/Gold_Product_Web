@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
+const { getSubscriptionAccountPlan } = require('../utils/subscriptionPlanType');
 
 const DEFAULT_PLANS = [
   { name: 'Basic', monthly: 500, features: ['Shop profile', 'Core inventory'] },
@@ -316,6 +317,9 @@ async function initializeSuperAdminGoldShopModule() {
       amount DECIMAL(10, 2) NOT NULL,
       start_date DATE NOT NULL,
       end_date DATE NOT NULL,
+      trial_days INT UNSIGNED NOT NULL DEFAULT 0,
+      trial_start_date DATE NULL,
+      trial_end_date DATE NULL,
       payment_status ENUM('paid', 'pending', 'unpaid') NOT NULL DEFAULT 'pending',
       subscription_status ENUM('active', 'pending', 'expired', 'suspended') NOT NULL DEFAULT 'pending',
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -332,11 +336,27 @@ async function initializeSuperAdminGoldShopModule() {
       CONSTRAINT fk_subscriptions_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
+  const [subscriptionColumns] = await pool.execute(
+    `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscriptions'
+       AND COLUMN_NAME IN ('trial_days', 'trial_start_date', 'trial_end_date')`
+  );
+  const existingSubscriptionColumns = new Set(subscriptionColumns.map((column) => column.COLUMN_NAME));
+  for (const [column, definition] of [
+    ['trial_days', 'INT UNSIGNED NOT NULL DEFAULT 0'],
+    ['trial_start_date', 'DATE NULL'],
+    ['trial_end_date', 'DATE NULL']
+  ]) {
+    if (!existingSubscriptionColumns.has(column)) {
+      await pool.query(`ALTER TABLE subscriptions ADD COLUMN ${column} ${definition}`);
+    }
+  }
   await pool.query(`
     CREATE TABLE IF NOT EXISTS payments (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       gold_shop_id INT UNSIGNED NOT NULL,
       subscription_id INT UNSIGNED NOT NULL,
+      razorpay_order_id VARCHAR(64) NULL,
       transaction_id VARCHAR(120) NULL,
       amount DECIMAL(10, 2) NOT NULL,
       payment_method VARCHAR(50) NULL,
@@ -348,12 +368,51 @@ async function initializeSuperAdminGoldShopModule() {
       updated_by INT UNSIGNED NULL,
       PRIMARY KEY (id),
       UNIQUE KEY uq_payments_transaction_id (transaction_id),
+      UNIQUE KEY uq_payments_razorpay_order_id (razorpay_order_id),
       KEY idx_payments_shop (gold_shop_id, created_at),
       KEY idx_payments_subscription (subscription_id),
       CONSTRAINT fk_payments_shop FOREIGN KEY (gold_shop_id) REFERENCES gold_shops(id) ON DELETE RESTRICT,
       CONSTRAINT fk_payments_subscription FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE RESTRICT,
       CONSTRAINT fk_payments_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
       CONSTRAINT fk_payments_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB
+  `);
+  const [paymentColumns] = await pool.execute(
+    `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payments'
+       AND COLUMN_NAME = 'razorpay_order_id'`
+  );
+  if (!paymentColumns.length) {
+    await pool.query('ALTER TABLE payments ADD COLUMN razorpay_order_id VARCHAR(64) NULL');
+  }
+  const [razorpayOrderIndexes] = await pool.execute(
+    `SELECT INDEX_NAME FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payments'
+       AND INDEX_NAME = 'uq_payments_razorpay_order_id'`
+  );
+  if (!razorpayOrderIndexes.length) {
+    await pool.query('ALTER TABLE payments ADD UNIQUE KEY uq_payments_razorpay_order_id (razorpay_order_id)');
+  }
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS gold_shop_subscription_orders (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      gold_shop_id INT UNSIGNED NOT NULL,
+      plan_id INT UNSIGNED NOT NULL,
+      duration ENUM('monthly', 'quarterly', 'half_yearly', 'yearly') NOT NULL,
+      amount DECIMAL(10, 2) NOT NULL,
+      razorpay_order_id VARCHAR(64) NOT NULL,
+      razorpay_payment_id VARCHAR(64) NULL,
+      order_status ENUM('created', 'paid') NOT NULL DEFAULT 'created',
+      created_by INT UNSIGNED NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      paid_at DATETIME NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_gold_shop_subscription_order (razorpay_order_id),
+      UNIQUE KEY uq_gold_shop_subscription_payment (razorpay_payment_id),
+      KEY idx_gold_shop_subscription_orders_shop (gold_shop_id, id),
+      CONSTRAINT fk_gold_shop_subscription_orders_shop FOREIGN KEY (gold_shop_id) REFERENCES gold_shops(id) ON DELETE RESTRICT,
+      CONSTRAINT fk_gold_shop_subscription_orders_plan FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE RESTRICT,
+      CONSTRAINT fk_gold_shop_subscription_orders_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
   await pool.query(`
@@ -431,9 +490,12 @@ async function expireSubscriptions() {
        WHERE s.deleted_at IS NULL AND s.status = 'active'
          AND NOT EXISTS (
            SELECT 1 FROM subscriptions sub
-           WHERE sub.gold_shop_id = s.id AND sub.subscription_status = 'active'
-             AND sub.payment_status = 'paid'
-             AND sub.end_date > CURRENT_DATE()
+         WHERE sub.gold_shop_id = s.id AND sub.subscription_status = 'active'
+           AND (
+             (sub.payment_status = 'paid' AND sub.end_date > CURRENT_DATE())
+             OR (sub.trial_days > 0 AND sub.payment_status IN ('pending', 'unpaid')
+               AND sub.trial_start_date <= CURRENT_DATE() AND sub.trial_end_date >= CURRENT_DATE())
+           )
          )`
     );
     await pool.execute(
@@ -442,9 +504,12 @@ async function expireSubscriptions() {
        WHERE s.deleted_at IS NULL AND s.status = 'active'
          AND NOT EXISTS (
            SELECT 1 FROM subscriptions sub
-           WHERE sub.gold_shop_id = s.id AND sub.subscription_status = 'active'
-             AND sub.payment_status = 'paid'
-             AND sub.end_date > CURRENT_DATE()
+         WHERE sub.gold_shop_id = s.id AND sub.subscription_status = 'active'
+           AND (
+             (sub.payment_status = 'paid' AND sub.end_date > CURRENT_DATE())
+             OR (sub.trial_days > 0 AND sub.payment_status IN ('pending', 'unpaid')
+               AND sub.trial_start_date <= CURRENT_DATE() AND sub.trial_end_date >= CURRENT_DATE())
+           )
          )`
     );
     await pool.execute(
@@ -459,8 +524,11 @@ async function expireSubscriptions() {
              AND NOT EXISTS (
                SELECT 1 FROM subscriptions sub
                WHERE sub.gold_shop_id = gs.id AND sub.subscription_status = 'active'
-                 AND sub.payment_status = 'paid'
-                 AND sub.end_date > CURRENT_DATE()
+                 AND (
+                   (sub.payment_status = 'paid' AND sub.end_date > CURRENT_DATE())
+                   OR (sub.trial_days > 0 AND sub.payment_status IN ('pending', 'unpaid')
+                     AND sub.trial_start_date <= CURRENT_DATE() AND sub.trial_end_date >= CURRENT_DATE())
+                 )
              )
          )
          AND NOT EXISTS (
@@ -469,8 +537,11 @@ async function expireSubscriptions() {
            JOIN subscriptions active_sub ON active_sub.gold_shop_id = active_shop.id
            WHERE active_shop.owner_user_id = u.user_id AND active_shop.deleted_at IS NULL
              AND active_shop.status = 'active' AND active_sub.subscription_status = 'active'
-             AND active_sub.payment_status = 'paid'
-             AND active_sub.end_date > CURRENT_DATE()
+             AND (
+               (active_sub.payment_status = 'paid' AND active_sub.end_date > CURRENT_DATE())
+               OR (active_sub.trial_days > 0 AND active_sub.payment_status IN ('pending', 'unpaid')
+                 AND active_sub.trial_start_date <= CURRENT_DATE() AND active_sub.trial_end_date >= CURRENT_DATE())
+             )
          )`
     );
   })();
@@ -537,7 +608,9 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
     `SELECT gs.id, gs.shop_uuid, gs.shop_code, gs.shop_name, gs.owner_name, gs.mobile,
             gs.email, gs.city, gs.state, gs.status, gs.approval_status, gs.max_branches, gs.max_staff,
             gs.approved_at, gs.created_at, sub.id AS subscription_id, sub.duration, sub.amount,
-            sub.start_date, sub.end_date AS subscription_expiry,
+            sub.start_date, sub.end_date, sub.end_date AS subscription_expiry,
+            sub.trial_days, sub.trial_start_date, sub.trial_end_date,
+            DATE_FORMAT(CURRENT_DATE(), '%Y-%m-%d') AS database_date,
             sub.payment_status, sub.subscription_status, sub.plan_id, sp.plan_name,
             (sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()) AS subscription_is_current
      FROM gold_shops gs
@@ -547,6 +620,10 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
      LIMIT ? OFFSET ?`,
     [...values, pageSize, offset]
   );
+  const shopsWithPlanType = shops.map((shop) => ({
+    ...shop,
+    ...getSubscriptionAccountPlan(shop)
+  }));
   const [countRows] = await pool.execute(
     `SELECT COUNT(*) AS total FROM gold_shops gs ${latestSubscriptionJoin()} WHERE ${where}`,
     values
@@ -568,7 +645,7 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
   const total = Number(countRows[0]?.total || 0);
   const summary = summaryRows[0] || {};
   return {
-    shops,
+    shops: shopsWithPlanType,
     pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     summary: {
       total_shops: Number(summary.total_shops || 0),
@@ -584,6 +661,7 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
 async function getSubscriptionPlans() {
   const [plans] = await pool.execute(
     `SELECT id, plan_name, monthly_price, quarterly_price, half_yearly_price, yearly_price,
+            free_trial_days,
             max_branches, max_staff, features, status
      FROM subscription_plans WHERE status = 'active' ORDER BY id`
   );
@@ -605,6 +683,8 @@ async function getGoldShopDetails(id) {
             creator.username AS created_by_name, updater.username AS updated_by_name,
             sub.id AS current_subscription_id, sub.plan_id, sp.plan_name, sub.duration,
             sub.amount AS subscription_amount, sub.start_date, sub.end_date,
+            sub.trial_days, sub.trial_start_date, sub.trial_end_date,
+            DATE_FORMAT(CURRENT_DATE(), '%Y-%m-%d') AS database_date,
             sub.payment_status, sub.subscription_status,
             (sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()) AS subscription_is_current
      FROM gold_shops gs
@@ -646,7 +726,15 @@ async function getGoldShopDetails(id) {
      FROM gold_shop_documents WHERE gold_shop_id = ? ORDER BY id`,
     [id]
   );
-  return { ...shops[0], subscriptions, payments, activity, documents };
+  return {
+    ...shops[0],
+    ...getSubscriptionAccountPlan(shops[0]),
+    ...getSubscriptionAccountPlan(shops[0]),
+    subscriptions,
+    payments,
+    activity,
+    documents
+  };
 }
 
 async function insertGoldShopDocuments(connection, shopId, documents, actorId) {
@@ -710,7 +798,7 @@ async function createGoldShop(input, actorId, documents = [], actorUserId = acto
       );
     }
 
-    await insertSubscription(connection, shopId, input.subscription, actorId);
+    await insertSubscription(connection, shopId, input.subscription, actorId, true);
     await insertGoldShopDocuments(connection, shopId, documents, actorId);
     await logActivity(connection, shopId, actorId, 'shop.created', {
       shop_code: shopCode,
@@ -733,9 +821,23 @@ async function createGoldShop(input, actorId, documents = [], actorUserId = acto
   }
 }
 
-async function insertSubscription(connection, shopId, input, actorId) {
+function calculateTrialEndDate(startDate, trialDays) {
+  if (!Number.isSafeInteger(trialDays) || trialDays < 1) return null;
+  const parts = dateParts(startDate);
+  if (!parts) throw new GoldShopError(400, 'Subscription trial start date is invalid');
+  const [year, month, day] = parts;
+  const end = new Date(Date.UTC(year, month - 1, day + trialDays - 1));
+  if (!Number.isFinite(end.getTime()) || end.getUTCFullYear() > 9999) {
+    throw new GoldShopError(409, 'The subscription trial period is too long');
+  }
+  const result = end.toISOString().slice(0, 10);
+  return result;
+}
+
+async function insertSubscription(connection, shopId, input, actorId, applyPlanTrial = false) {
   const [plans] = await connection.execute(
-    `SELECT id, plan_name, monthly_price, quarterly_price, half_yearly_price, yearly_price
+    `SELECT id, plan_name, monthly_price, quarterly_price, half_yearly_price, yearly_price,
+            free_trial_days
      FROM subscription_plans WHERE id = ? AND status = 'active' FOR UPDATE`,
     [input.plan_id]
   );
@@ -743,12 +845,17 @@ async function insertSubscription(connection, shopId, input, actorId) {
   if (!plan) throw new GoldShopError(400, 'Select an active subscription plan');
   const amount = getPlanPrice(plan, input.duration);
   const endDate = calculateEndDate(input.start_date, input.duration);
+  const trialDays = applyPlanTrial ? Number(plan.free_trial_days || 0) : 0;
+  const trialEndDate = trialDays ? calculateTrialEndDate(input.start_date, trialDays) : null;
   const [subscriptionResult] = await connection.execute(
     `INSERT INTO subscriptions
        (gold_shop_id, plan_id, duration, amount, start_date, end_date,
+        trial_days, trial_start_date, trial_end_date,
         payment_status, subscription_status, created_by, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending', 'pending', ?, ?)`,
-    [shopId, plan.id, input.duration, amount, input.start_date, endDate, actorId, actorId]
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+    [shopId, plan.id, input.duration, amount, input.start_date, endDate,
+      trialDays, trialDays ? input.start_date : null, trialEndDate,
+      trialDays ? 'active' : 'pending', actorId, actorId]
   );
   await connection.execute(
     `INSERT INTO payments
@@ -760,7 +867,9 @@ async function insertSubscription(connection, shopId, input, actorId) {
     plan_id: plan.id,
     duration: input.duration,
     amount,
-    end_date: endDate
+    end_date: endDate,
+    trial_days: trialDays,
+    trial_end_date: trialEndDate
   });
 }
 
@@ -1144,7 +1253,9 @@ module.exports = {
   addSubscription,
   confirmGoldShopPayment,
   calculateEndDate,
+  calculateTrialEndDate,
   createGoldShop,
+  expireSubscriptions,
   getGoldShopDocument,
   getGoldShopDetails,
   getPlanPrice,

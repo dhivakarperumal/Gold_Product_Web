@@ -75,6 +75,43 @@ test('scopes preset revenue trends to the authenticated shop', async () => {
   assert.deepEqual(revenueQuery.values, [adminUser.user_id]);
 });
 
+test('returns the authenticated admin account plan and subscription period', async () => {
+  const originalExecute = pool.execute;
+  const queries = [];
+  pool.execute = async (query, values) => {
+    const sql = String(query).replace(/\s+/g, ' ').trim();
+    queries.push({ sql, values });
+    if (sql.includes('FROM gold_shops gs')) {
+      return [[{
+        plan_name: 'Gold Trail Plan',
+        start_date: '2026-11-25',
+        end_date: '2026-12-25',
+        trial_days: 3,
+        trial_start_date: '2026-11-25',
+        trial_end_date: '2026-11-27',
+        payment_status: 'pending',
+        database_date: '2026-11-25'
+      }], []];
+    }
+    return dashboardQueryResult(sql);
+  };
+
+  try {
+    const data = await getDashboardData('month', null, adminUser);
+    const accountPlanQuery = queries.find(({ sql }) => sql.includes('FROM gold_shops gs'));
+
+    assert.ok(accountPlanQuery);
+    assert.match(accountPlanQuery.sql, /gs\.owner_user_id = \?/);
+    assert.deepEqual(accountPlanQuery.values, [adminUser.user_id]);
+    assert.equal(data.accountPlan.plan_name, 'Gold Trail Plan');
+    assert.equal(data.accountPlan.account_plan_type, 'trial');
+    assert.equal(data.accountPlan.trial_days_remaining, 3);
+    assert.equal(data.accountPlan.account_end_date, '2026-11-27');
+  } finally {
+    pool.execute = originalExecute;
+  }
+});
+
 test('requires an authenticated shop identity before loading report data', async () => {
   const originalError = console.error;
   console.error = () => {};

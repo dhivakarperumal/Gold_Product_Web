@@ -1,5 +1,6 @@
 const { pool } = require('../config/db');
 const { addDateRangeCondition } = require('../utils/dateRange');
+const { getAccountPlanForOwner } = require('./shopSubscriptionModule');
 
 async function getDashboardData(range = 'month', dateRange = null, adminUser) {
   try {
@@ -7,6 +8,7 @@ async function getDashboardData(range = 'month', dateRange = null, adminUser) {
     if (!userId) {
       throw new Error('An authenticated admin user is required to load dashboard reports');
     }
+    const accountPlan = await getAccountPlanForOwner(userId);
     const scopedDateFilter = (ownerColumn, ownerId, dateColumn) => {
       const conditions = [`${ownerColumn} = ?`];
       const values = [ownerId];
@@ -319,7 +321,8 @@ async function getDashboardData(range = 'month', dateRange = null, adminUser) {
       recentLoans: formattedRecentLoans.slice(0, 5),
       topProducts: formattedTopProducts.slice(0, 5),
       revenueTrends,
-      goldRates: goldRateRows
+      goldRates: goldRateRows,
+      accountPlan
     };
   } catch (error) {
     console.error("Dashboard Module Error:", error);

@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { getUserByUserId } = require('../modules/authModule');
+const { getAccountPlanForOwner } = require('../modules/shopSubscriptionModule');
 
 async function requireAdmin(req, res, next) {
   const authorization = req.get('authorization') || '';
@@ -30,6 +31,17 @@ async function requireAdmin(req, res, next) {
     }
     if (!['admin', 'superadmin'].includes(user.role)) {
       return res.status(403).json({ message: 'Administrator access is required' });
+    }
+    if (user.role === 'admin') {
+      const accountPlan = await getAccountPlanForOwner(user.user_id);
+      if (['expired', 'pending'].includes(accountPlan?.account_plan_type)) {
+        return res.status(403).json({
+          code: accountPlan.account_plan_type === 'expired' ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_REQUIRED',
+          message: accountPlan.account_plan_type === 'expired'
+            ? 'Your free trial has ended. Subscribe to continue using this shop account.'
+            : 'A paid subscription is required to use this shop account.'
+        });
+      }
     }
 
     req.adminUser = user;
