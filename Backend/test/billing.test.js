@@ -3,6 +3,7 @@ const test = require('node:test');
 const { mapSelectedProducts, normalizeBilling } = require('../src/controllers/billingController');
 const { pool } = require('../src/config/db');
 const { getBillingById, listBillings } = require('../src/modules/billingModule');
+const { getTackOrderById } = require('../src/modules/tackOrderModule');
 
 const billingInput = (overrides = {}) => ({
   customers: [{
@@ -151,6 +152,38 @@ test('applies a fixed discount before exchange credit and GST', () => {
   assert.equal(result.billing.total_amount, 12360);
 });
 
+test('preserves tack-order quantity and custom net weight in billing totals', () => {
+  const result = normalizeBilling(billingInput({
+    products: [{
+      product_id: 12,
+      product_name: 'Custom chain',
+      category: 'Chain',
+      purity: '22K',
+      net_gold_weight: 50.172,
+      quantity: 2,
+      price: 55.19
+    }]
+  }));
+  assert.equal(result.error, undefined);
+  assert.equal(result.billing.products[0].net_gold_weight, 50.172);
+  assert.equal(result.billing.products[0].quantity, 2);
+  assert.equal(result.billing.products[0].total_price, 110.38);
+  assert.equal(result.billing.sub_total, 110.38);
+});
+
+test('rejects invalid billing quantities', () => {
+  const result = normalizeBilling(billingInput({
+    products: [{
+      product_name: 'Gold chain',
+      category: 'Chain',
+      purity: '22K',
+      price: 10000,
+      quantity: 0
+    }]
+  }));
+  assert.match(result.error, /quantity must be between 1 and 10000/i);
+});
+
 test('rejects discounts and exchange credits that exceed the products subtotal', () => {
   assert.match(normalizeBilling(billingInput({ discount_amount: 15001 })).error, /discount/i);
   assert.match(normalizeBilling(billingInput({
@@ -199,6 +232,7 @@ test('uses catalog details and catalog price instead of client-submitted product
   assert.deepEqual(selected, {
     products: [{
       product_id: 12,
+      quantity: 1,
       product_name: 'Catalog necklace',
       category: 'Necklace',
       purity: '22K',
@@ -255,5 +289,21 @@ test('only returns a bill when it belongs to the authenticated user', async () =
     pool.execute = originalExecute;
   }
   assert.match(capturedQuery.query, /WHERE b\.id = \? AND b\.user_id = \?/);
+  assert.deepEqual(capturedQuery.values, [42, 'shop-user-1']);
+});
+
+test('only returns a tack order when it belongs to the authenticated user', async () => {
+  const originalExecute = pool.execute;
+  let capturedQuery;
+  pool.execute = async (query, values) => {
+    capturedQuery = { query, values };
+    return [[], []];
+  };
+  try {
+    assert.equal(await getTackOrderById(42, 'shop-user-1'), null);
+  } finally {
+    pool.execute = originalExecute;
+  }
+  assert.match(capturedQuery.query, /WHERE id = \? AND user_id = \?/);
   assert.deepEqual(capturedQuery.values, [42, 'shop-user-1']);
 });

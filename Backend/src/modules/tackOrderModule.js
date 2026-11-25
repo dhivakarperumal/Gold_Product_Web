@@ -80,8 +80,20 @@ async function listTackOrders(userId) {
   return rows;
 }
 
+async function getTackOrderById(id, userId) {
+  const [rows] = await pool.execute(
+    `SELECT id, order_no, customer, items, sub_total, gst_included, gst_rate, gst_amount,
+       discount_amount, total_amount
+     FROM tack_orders
+     WHERE id = ? AND user_id = ?`,
+    [id, userId]
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   createTackOrder,
+  getTackOrderById,
   getTackOrderProductsByIds,
   initializeTackOrderModule,
   listTackOrders

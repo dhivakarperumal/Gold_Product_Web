@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiCalendar, FiChevronDown, FiChevronRight, FiCreditCard, FiDollarSign, FiEdit2, FiEye, FiGrid, FiImage, FiList, FiPlus, FiPrinter, FiRepeat, FiSave, FiSearch, FiTrash2, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import api from "../../api";
@@ -20,6 +21,7 @@ const EMPTY_PRODUCT = {
   making_charge: null,
   rate_per_gram: null,
   rate_unit: "gram",
+  quantity: 1,
   price: ""
 };
 const EMPTY_EXCHANGE = { product_name: "", category: "", category_is_other: false, metal_type: "Gold", purity: "22K", weight: "", wastage_weight: "" };
@@ -426,6 +428,8 @@ function CatalogProductFields({ product, catalogProducts, loading, onSelect, sel
 }
 
 export default function BillingManagement() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [bills, setBills] = useState([]);
   const [dateRange, setDateRange] = useState({ preset: "all", startDate: "", endDate: "" });
   const [loading, setLoading] = useState(true);
@@ -435,8 +439,11 @@ export default function BillingManagement() {
   const [catalogProductDetails, setCatalogProductDetails] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showForm, setShowForm] = useState(() => new URLSearchParams(window.location.search).get("new") === "1");
+  const [showForm, setShowForm] = useState(() => Boolean(location.state?.tackOrderToBill)
+    || new URLSearchParams(window.location.search).get("new") === "1");
   const [editingBillId, setEditingBillId] = useState(null);
+  const [tackOrderSourceId, setTackOrderSourceId] = useState(null);
+  const [tackOrderSourceNo, setTackOrderSourceNo] = useState("");
   const [viewingBill, setViewingBill] = useState(null);
   const [billPayment, setBillPayment] = useState(null);
   const [billSearch, setBillSearch] = useState("");
@@ -528,6 +535,46 @@ export default function BillingManagement() {
   useEffect(() => { loadBills(); }, [loadBills]);
   useEffect(() => { loadCatalogProducts(); }, [loadCatalogProducts]);
   useEffect(() => {
+    const order = location.state?.tackOrderToBill;
+    if (!order) return;
+
+    const customer = order.customer || {};
+    const address = [
+      customer.address,
+      [customer.city, customer.district, customer.state, customer.pincode].filter(Boolean).join(", ")
+    ].filter(Boolean).join(", ");
+    const taxableSubtotal = Math.max(0, Number(order.sub_total || 0) - Number(order.discount_amount || 0));
+    const prefilledGstRate = order.gst_included && taxableSubtotal > 0
+      ? Math.round((Number(order.gst_amount || 0) / taxableSubtotal) * 10000) / 100
+      : 0;
+
+    setTackOrderSourceId(String(order.id));
+    setTackOrderSourceNo(order.order_no || "");
+    setCustomers([{
+      name: customer.name || "",
+      phone: customer.phone || "",
+      email: customer.email || "",
+      address
+    }]);
+    setProducts((Array.isArray(order.items) ? order.items : []).map((item) => ({
+      ...EMPTY_PRODUCT,
+      product_id: String(item.product_id || ""),
+      product_name: item.product_name || "Product",
+      category: item.category || "Tack Order",
+      purity: item.purity || "",
+      net_gold_weight: item.net_gold_weight ?? null,
+      quantity: Number(item.quantity) || 1,
+      price: String(item.price ?? 0)
+    })));
+    setProductToAdd({ ...EMPTY_PRODUCT });
+    setPaymentType("FULL_PAYMENT");
+    setGstRateInput(String(prefilledGstRate));
+    setDiscountInput(Number(order.discount_amount) > 0 ? String(order.discount_amount) : "");
+    setExchanges([]);
+    setShowForm(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
+  useEffect(() => {
     let active = true;
     api.get("/categories")
       .then((response) => {
@@ -542,7 +589,10 @@ export default function BillingManagement() {
   }, []);
 
   const subtotal = useMemo(
-    () => products.reduce((sum, product) => sum + (Number(product.price) || 0), 0),
+    () => products.reduce(
+      (sum, product) => sum + (Number(product.price) || 0) * (Number(product.quantity) || 1),
+      0
+    ),
     [products]
   );
   const exchangeCredit = useMemo(
@@ -617,12 +667,13 @@ export default function BillingManagement() {
         category: product.category,
         purity: product.purity,
         makingCharge: formatMakingCharge(product),
+        quantity: Number(product.quantity) || 1,
         weight: null,
         wastageWeight: null,
-        netWeight: null,
+        netWeight: product.net_gold_weight,
         rate: product.rate_per_gram,
         rateUnit: product.rate_unit || "gram",
-        amount: Number(product.price) || 0,
+        amount: (Number(product.price) || 0) * (Number(product.quantity) || 1),
         isExchange: false
       })),
       ...billExchanges.map((exchange) => ({
@@ -630,6 +681,7 @@ export default function BillingManagement() {
         category: exchange.category,
         purity: `${exchange.metal_type || ""} ${exchange.purity || ""}`.trim(),
         makingCharge: "—",
+        quantity: 1,
         weight: exchange.weight,
         wastageWeight: exchange.wastage_weight,
         netWeight: exchange.net_weight,
@@ -643,6 +695,7 @@ export default function BillingManagement() {
       <tr>
         <td>${index + 1}</td>
         <td class="${item.isExchange ? "exchange" : ""}">${escapeHtml(item.name || "—")}</td>
+        <td>${item.quantity}</td>
         <td>${escapeHtml(item.category || "—")}</td>
         <td>${escapeHtml(item.purity || "—")}</td>
         <td>${escapeHtml(item.makingCharge)}</td>
@@ -755,8 +808,8 @@ export default function BillingManagement() {
           <div class="customers">${customerDetails || "<p>No customer details</p>"}</div>
           <h2>Items</h2>
           <table>
-            <thead><tr><th>S.No.</th><th>Item</th><th>Category</th><th>Purity</th><th>Making Charge</th><th>Weight</th><th>Wastage</th><th>Net Weight</th><th class="amount">Rate</th><th class="amount">Amount</th></tr></thead>
-            <tbody>${rows || '<tr><td colspan="10">No items</td></tr>'}</tbody>
+            <thead><tr><th>S.No.</th><th>Item</th><th>Qty</th><th>Category</th><th>Purity</th><th>Making Charge</th><th>Weight</th><th>Wastage</th><th>Net Weight</th><th class="amount">Rate</th><th class="amount">Amount</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="11">No items</td></tr>'}</tbody>
           </table>
           <div class="totals">
             <div class="total-row"><span>Sub-Total</span><span>${currency(bill.sub_total)}</span></div>
@@ -795,6 +848,8 @@ export default function BillingManagement() {
 
   const resetForm = () => {
     setEditingBillId(null);
+    setTackOrderSourceId(null);
+    setTackOrderSourceNo("");
     setCustomers([{ ...EMPTY_CUSTOMER }]);
     setProducts([]);
     setProductToAdd({ ...EMPTY_PRODUCT });
@@ -820,8 +875,11 @@ export default function BillingManagement() {
     setCustomers(billCustomers.length ? billCustomers : [{ ...EMPTY_CUSTOMER }]);
     setProducts(billProducts.map((product) => ({
       ...product,
-      product_id: String(product.product_id || "")
+      product_id: String(product.product_id || ""),
+      quantity: Number(product.quantity) || 1
     })));
+    setTackOrderSourceId(null);
+    setTackOrderSourceNo("");
     setProductToAdd({ ...EMPTY_PRODUCT });
     setExchanges(billExchanges.map((exchange) => ({
       ...EMPTY_EXCHANGE,
@@ -910,6 +968,7 @@ export default function BillingManagement() {
       making_charge: selected.making_charge ?? null,
       rate_per_gram: selected.gold_rate_per_gram ?? null,
       rate_unit: selected.rate_unit || "gram",
+      quantity: 1,
       price
     }, metalRates, currentGoldRates));
   };
@@ -974,6 +1033,7 @@ export default function BillingManagement() {
       const billingPayload = {
         customers,
         products: products.map((product) => ({ product_id: Number(product.product_id) })),
+        ...(tackOrderSourceId ? { tack_order_id: tackOrderSourceId } : {}),
         exchanges: paymentType === "EXCHANGE_GOLD"
           ? exchanges.map((exchange) => ({
             product_name: `${exchange.metal_type || "Gold"} ${exchange.purity || ""} exchange item`.trim(),
@@ -1211,6 +1271,11 @@ export default function BillingManagement() {
               <h1 className="mt-1 text-2xl font-extrabold text-slate-900">{editingBillId ? "Edit Bill" : "New Bill"}</h1>
             </div>
           </header>
+          {tackOrderSourceId && (
+            <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+              Prefilled from Tack Order {tackOrderSourceNo}. Review the details before saving.
+            </p>
+          )}
 
           <div className="grid items-start gap-5 lg:grid-cols-2">
             <section className="space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -1241,7 +1306,7 @@ export default function BillingManagement() {
             </section>
 
             <div className="space-y-4">
-              <section className="flex min-h-[300px] flex-col space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
+              {!tackOrderSourceId && <section className="flex min-h-[300px] flex-col space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
                 <div>
                   <h2 className="font-bold text-slate-900">Add Product</h2>
                   <p className="text-xs text-slate-500">Choose a catalog product, then add it to this bill.</p>
@@ -1258,7 +1323,7 @@ export default function BillingManagement() {
                     <FiPlus /> Add Product
                   </button>
                 </div>
-              </section>
+              </section>}
 
             </div>
           </div>
@@ -1266,23 +1331,25 @@ export default function BillingManagement() {
           <section className="w-full space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
             <div>
               <h2 className="font-bold text-slate-900">Products in Bill</h2>
-              <p className="text-xs text-slate-500">Products you add will appear in this table.</p>
+              <p className="text-xs text-slate-500">{tackOrderSourceId ? "Product quantities and weights are taken from the saved tack order." : "Products you add will appear in this table."}</p>
             </div>
             {products.length === 0 ? (
               <p className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No products have been added to this bill.</p>
             ) : (
               <div className="w-full overflow-x-auto rounded-lg border border-slate-200">
-                <table className="w-full min-w-[900px] border-collapse text-left">
+                <table className="w-full min-w-[980px] border-collapse text-left">
                   <thead className="bg-gradient-to-r from-[#07564B] via-[#064A41] to-[#043D37] text-xs uppercase tracking-wide text-white">
                     <tr>
                       <th className="px-4 py-3 font-semibold">Product</th>
                       <th className="px-4 py-3 font-semibold">Category</th>
                       <th className="px-4 py-3 font-semibold">Purity</th>
+                      <th className="px-4 py-3 text-right font-semibold">Qty</th>
                       <th className="px-4 py-3 text-right font-semibold">Making Charge</th>
                       <th className="px-4 py-3 text-right font-semibold">Net Weight</th>
                       <th className="px-4 py-3 text-right font-semibold">Gram Rate</th>
-                      <th className="px-4 py-3 font-semibold">Unit Price</th>
-                      <th className="px-4 py-3 text-right font-semibold">Action</th>
+                      <th className="px-4 py-3 text-right font-semibold">Unit Price</th>
+                      <th className="px-4 py-3 text-right font-semibold">Total</th>
+                      {!tackOrderSourceId && <th className="px-4 py-3 text-right font-semibold">Action</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1309,13 +1376,15 @@ export default function BillingManagement() {
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-700">{product.category || "—"}</td>
                         <td className="px-4 py-3 text-sm text-slate-700">{product.purity || "—"}</td>
+                        <td className="px-4 py-3 text-right text-sm text-slate-700">{Number(product.quantity) || 1}</td>
                         <td className="px-4 py-3 text-right text-sm text-slate-700">{formatMakingCharge(product)}</td>
                         <td className="px-4 py-3 text-right text-sm text-slate-700">{product.net_gold_weight == null ? "—" : formatWeight(product.net_gold_weight, "g")}</td>
                         <td className="px-4 py-3 text-right text-sm text-slate-700">{product.rate_per_gram == null ? "—" : `${currency(product.rate_per_gram)} / ${product.rate_unit || "gram"}`}</td>
                         <td className="px-4 py-3 text-sm font-semibold text-slate-800">{currency(product.price)}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right text-sm font-semibold text-slate-800">{currency((Number(product.price) || 0) * (Number(product.quantity) || 1))}</td>
+                        {!tackOrderSourceId && <td className="px-4 py-3 text-right">
                           <button type="button" onClick={() => setProducts((rows) => rows.filter((_, rowIndex) => rowIndex !== index))} className="rounded-md p-2 text-rose-500 hover:bg-rose-50" aria-label={`Remove product ${index + 1}`}><FiTrash2 /></button>
-                        </td>
+                        </td>}
                       </tr>
                       );
                     })}
@@ -1448,6 +1517,7 @@ export default function BillingManagement() {
                   <tr>
                     <th className="px-3 py-2">S.No.</th>
                     <th className="px-3 py-2">Item</th>
+                    <th className="px-3 py-2 text-right">Qty</th>
                     <th className="px-3 py-2">Category</th>
                     <th className="px-3 py-2">Purity</th>
                     <th className="px-3 py-2 text-right">Making Charge</th>
@@ -1481,14 +1551,15 @@ export default function BillingManagement() {
                             <span>{product.product_name}</span>
                           </div>
                         </td>
+                        <td className="px-3 py-2 text-right">{Number(product.quantity) || 1}</td>
                         <td className="px-3 py-2">{product.category || "—"}</td>
                         <td className="px-3 py-2">{product.purity || "—"}</td>
                         <td className="px-3 py-2 text-right">{formatMakingCharge(product)}</td>
                         <td className="px-3 py-2 text-right">—</td>
                         <td className="px-3 py-2 text-right">—</td>
-                        <td className="px-3 py-2 text-right">—</td>
+                        <td className="px-3 py-2 text-right">{product.net_gold_weight == null ? "—" : formatWeight(product.net_gold_weight, "g")}</td>
                         <td className="px-3 py-2 text-right">{product.rate_per_gram == null ? "—" : `${currency(product.rate_per_gram)} / ${product.rate_unit || "gram"}`}</td>
-                        <td className="px-3 py-2 text-right">{currency(product.price)}</td>
+                        <td className="px-3 py-2 text-right">{currency((Number(product.price) || 0) * (Number(product.quantity) || 1))}</td>
                       </tr>
                     );
                   })}
@@ -1496,6 +1567,7 @@ export default function BillingManagement() {
                     <tr key={`view-exchange-${index}`} className="text-rose-700">
                       <td className="px-3 py-2 text-slate-500">{decodeArray(viewingBill.products).length + index + 1}</td>
                       <td className="px-3 py-2">{exchange.product_name || "Exchange item"}</td>
+                      <td className="px-3 py-2 text-right">1</td>
                       <td className="px-3 py-2">{exchange.category || "—"}</td>
                       <td className="px-3 py-2">{exchange.metal_type} {exchange.purity}</td>
                       <td className="px-3 py-2 text-right">—</td>

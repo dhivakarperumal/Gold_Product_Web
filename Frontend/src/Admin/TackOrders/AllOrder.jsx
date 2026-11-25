@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiBox, FiCalendar, FiChevronRight, FiGrid, FiList, FiMapPin, FiPhone, FiPlus, FiRefreshCw, FiSearch, FiUser, FiUsers } from "react-icons/fi";
+import { FiBox, FiCalendar, FiChevronRight, FiFileText, FiGrid, FiList, FiMapPin, FiPhone, FiPlus, FiRefreshCw, FiSearch, FiUser, FiUsers } from "react-icons/fi";
 import { FaCoins, FaGem, FaRupeeSign } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import api from "../../api";
@@ -347,9 +347,20 @@ export default function AllTackOrders() {
                       <p className="text-xs font-bold uppercase tracking-wider text-orange-600">Tack order</p>
                       <h2 className="mt-0.5 text-lg font-black text-slate-800">{order.order_no}</h2>
                     </div>
-                    <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
-                      <FiCalendar aria-hidden="true" />
-                      {formatOrderDate(order.created_at)}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
+                        <FiCalendar aria-hidden="true" />
+                        {formatOrderDate(order.created_at)}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/admin/billings", { state: { tackOrderToBill: order } })}
+                        aria-label={`Create a bill from tack order ${order.order_no}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#00695C] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#008577]"
+                      >
+                        <FiFileText aria-hidden="true" />
+                        Bill
+                      </button>
                     </div>
                   </header>
 

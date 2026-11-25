@@ -9,6 +9,7 @@ const {
   updateBilling
 } = require('../modules/billingModule');
 const { findGoldRateForPurity, getCurrentGoldRates } = require('../modules/goldRateModule');
+const { getTackOrderById } = require('../modules/tackOrderModule');
 const { parseDateRange } = require('../utils/dateRange');
 
 const PAYMENT_TYPES = new Set(['FULL_PAYMENT', 'EXCHANGE_GOLD']);
@@ -109,7 +110,27 @@ function normalizeItems(value, field, withCredit = false) {
     } else {
       const price = normalizeMoney(item.price, `${field} ${index + 1} price`);
       if (price.error) return { error: price.error };
+      const quantity = Number(item.quantity ?? 1);
+      if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 10000) {
+        return { error: `${field} ${index + 1} quantity must be between 1 and 10000` };
+      }
+      if (item.product_id != null) {
+        const productId = Number(item.product_id);
+        if (!Number.isSafeInteger(productId) || productId < 1) {
+          return { error: `${field} ${index + 1} must be selected from the catalog` };
+        }
+        entry.product_id = productId;
+      }
+      if (item.net_gold_weight != null) {
+        const netWeight = normalizeWeight(item.net_gold_weight, `${field} ${index + 1} net weight`);
+        if (netWeight.error || netWeight.value <= 0) {
+          return { error: netWeight.error || `${field} ${index + 1} net weight must be greater than zero` };
+        }
+        entry.net_gold_weight = netWeight.value;
+      }
+      entry.quantity = quantity;
       entry.price = price.value;
+      entry.total_price = Math.round((price.value * quantity + Number.EPSILON) * 100) / 100;
     }
     entries.push(entry);
   }
@@ -198,7 +219,7 @@ function normalizeBilling(body, currentRateSet = null) {
     exchanges = normalizedExchanges.value;
   }
 
-  const subTotal = Math.round(products.value.reduce((sum, product) => sum + product.price, 0) * 100) / 100;
+  const subTotal = Math.round(products.value.reduce((sum, product) => sum + product.total_price, 0) * 100) / 100;
   const discount = normalizeMoney(body.discount_amount, 'Discount amount', false);
   if (discount.error) return discount;
   if (discount.value > subTotal) return { error: 'Discount cannot exceed the products subtotal' };
@@ -259,6 +280,7 @@ function mapSelectedProducts(rawProducts, catalogProducts) {
         : Number(catalogProduct.mrp || 0);
     products.push({
       product_id: productId,
+      quantity: Number(rawProducts[index].quantity ?? 1),
       product_name: catalogProduct.name,
       category: catalogProduct.category,
       purity: catalogProduct.purity || '',
@@ -304,8 +326,33 @@ async function getBillings(req, res, next) {
 
 async function postBilling(req, res, next) {
   try {
-    const { products, error: productsError } = await resolveSelectedProducts(req.body?.products, req.adminUser.user_id);
-    if (productsError) return res.status(400).json({ message: productsError });
+    let products;
+    if (req.body?.tack_order_id != null && req.body.tack_order_id !== '') {
+      const tackOrderId = validBillingId(req.body.tack_order_id);
+      if (!tackOrderId) return res.status(400).json({ message: 'Invalid tack order ID' });
+      const tackOrder = await getTackOrderById(tackOrderId, req.adminUser.user_id);
+      if (!tackOrder) return res.status(404).json({ message: 'Tack order not found' });
+      const orderItems = typeof tackOrder.items === 'string' ? JSON.parse(tackOrder.items) : tackOrder.items;
+      if (!Array.isArray(orderItems) || orderItems.length < 1 || orderItems.length > MAX_ITEMS) {
+        return res.status(400).json({ message: 'The tack order does not contain valid products' });
+      }
+      if (orderItems.some((item) => !item || typeof item !== 'object' || Array.isArray(item))) {
+        return res.status(400).json({ message: 'The tack order contains invalid product details' });
+      }
+      products = orderItems.map((item) => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        category: item.category || 'Tack Order',
+        purity: item.purity || '',
+        quantity: item.quantity,
+        net_gold_weight: item.net_gold_weight,
+        price: item.price
+      }));
+    } else {
+      const resolved = await resolveSelectedProducts(req.body?.products, req.adminUser.user_id);
+      if (resolved.error) return res.status(400).json({ message: resolved.error });
+      products = resolved.products;
+    }
     const currentRateSet = req.body?.payment_type === 'EXCHANGE_GOLD'
       ? await getCurrentGoldRates(req.adminUser.user_id)
       : null;
