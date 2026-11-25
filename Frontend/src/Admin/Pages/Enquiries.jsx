@@ -327,7 +327,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
   };
 
   const deleteEnquiry = async (enquiry) => {
-    if (!window.confirm(`Delete enquiry #ENQ${String(enquiry.id).padStart(3, "0")}?`)) return;
+    if (!window.confirm(`Delete enquiry ${enquiry.enquiry_code}?`)) return;
     try {
       await api.delete(`/enquiries/admin/${enquiry.id}`);
       toast.success("Enquiry deleted.");
@@ -516,7 +516,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
 
     <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
       <div className="flex flex-col gap-2.5 border-b border-slate-100 p-3 lg:flex-row lg:items-center">
-        <label className="relative min-w-0 flex-1 lg:max-w-sm"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><span className="sr-only">Search enquiries</span><input value={search} onChange={(event) => { setPage(1); setSearch(event.target.value); }} placeholder="Search by name, phone, email, product..." className="min-h-9 w-full rounded-lg border border-slate-200 pl-9 pr-3 text-xs outline-none focus:border-[#008577]" /></label>
+        <label className="relative min-w-0 flex-1 lg:max-w-sm"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><span className="sr-only">Search enquiries</span><input value={search} onChange={(event) => { setPage(1); setSearch(event.target.value); }} placeholder="Search by code, name, phone, email, product..." className="min-h-9 w-full rounded-lg border border-slate-200 pl-9 pr-3 text-xs outline-none focus:border-[#008577]" /></label>
         <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
           <select aria-label="Filter by status" value={statusFilter} onChange={(event) => { setPage(1); setStatusFilter(event.target.value); }} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs text-slate-700"><option value="">All Status</option>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select>
           <select aria-label="Filter by product" value={productFilter} onChange={(event) => { setPage(1); setProductFilter(event.target.value); }} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs text-slate-700"><option value="">All Products</option>{categories.map((category) => <option key={category.id || category.catId || category.name} value={category.name}>{category.name}</option>)}</select>
@@ -538,7 +538,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
                 ? <tr><td colSpan="9" className="p-10 text-center text-sm text-slate-500">No enquiries found. Add one to get started.</td></tr>
                 : enquiries.map((enquiry, index) => <tr key={enquiry.id} className="hover:bg-slate-50/70">
                   <td className="px-4 py-3 text-xs font-medium tabular-nums text-slate-500">{(page - 1) * pagination.limit + index + 1}</td>
-                  <td className="px-3 py-2.5"><div className="flex items-center gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-fuchsia-100 text-xs font-bold text-fuchsia-700">{enquiry.customer_name?.slice(0, 1)?.toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-[11px] text-slate-800">{enquiry.customer_name}</strong><a href={`tel:${enquiry.phone}`} className="block text-[10px] text-slate-500 hover:text-emerald-700">{enquiry.phone}</a><span className="block max-w-32 truncate text-[10px] text-slate-400">{enquiry.email || "No email"}</span></span></div></td>
+                  <td className="px-3 py-2.5"><div className="flex items-center gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-fuchsia-100 text-xs font-bold text-fuchsia-700">{enquiry.customer_name?.slice(0, 1)?.toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-[11px] text-slate-800">{enquiry.customer_name}</strong><span className="block text-[10px] font-semibold text-[#00796B]">{enquiry.enquiry_code}</span><a href={`tel:${enquiry.phone}`} className="block text-[10px] text-slate-500 hover:text-emerald-700">{enquiry.phone}</a><span className="block max-w-32 truncate text-[10px] text-slate-400">{enquiry.email || "No email"}</span></span></div></td>
                   <td className="max-w-40 px-3 py-2.5">{enquiry.message && enquiry.message !== enquiry.enquiry_type && <p className="line-clamp-2 text-[11px] text-slate-700">{enquiry.message}</p>}<span className="text-[10px] font-semibold text-slate-500">{enquiry.enquiry_type}</span></td>
                   <td className="px-3 py-2.5"><div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><Package size={16} /></span><span><strong className="block max-w-32 truncate text-[11px] text-slate-800">{enquiry.product_name || enquiry.product_category || enquiry.enquiry_type}</strong><span className="block text-[10px] text-slate-400">{enquiry.purity ? `${enquiry.metal_type || "Metal"} · ${purityLabelForEnquiry(enquiry)}` : enquiry.product_category || "Product inquiry"}</span>{enquiry.daily_rate != null && <span className="block text-[10px] font-semibold text-emerald-700">₹{Number(enquiry.daily_rate).toLocaleString("en-IN")} / {enquiry.rate_unit || "gram"}</span>}</span></div></td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-[10px] text-slate-600">{dateTime(enquiry.created_at)}</td>
@@ -569,7 +569,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
                       <a href={`tel:${enquiry.phone}`} className="block text-xs text-slate-500 hover:text-emerald-700">{enquiry.phone}</a>
                     </div>
                   </div>
-                  <span className="shrink-0 text-[10px] font-bold text-slate-500">#ENQ{String(enquiry.id).padStart(3, "0")}</span>
+                  <span className="shrink-0 text-[10px] font-bold text-slate-500">{enquiry.enquiry_code}</span>
                 </div>
                 <div className="mt-3 border-t border-slate-100 pt-3">
                   <div className="flex items-start gap-2">
@@ -613,7 +613,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
 
     {selected && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="enquiry-dialog-title" className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3"><div><p className="text-[10px] font-bold uppercase tracking-wide text-[#00796B]">#ENQ{String(selected.id).padStart(3, "0")}</p><h2 id="enquiry-dialog-title" className="mt-1 text-lg font-black text-slate-900">{selected.customer_name}</h2></div><button type="button" aria-label="Close details" onClick={() => setSelected(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={18} /></button></div>
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3"><div><p className="text-[10px] font-bold uppercase tracking-wide text-[#00796B]">{selected.enquiry_code}</p><h2 id="enquiry-dialog-title" className="mt-1 text-lg font-black text-slate-900">{selected.customer_name}</h2></div><button type="button" aria-label="Close details" onClick={() => setSelected(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={18} /></button></div>
         <div className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
           <p className="flex items-center gap-2"><Phone size={14} className="text-slate-400" />{selected.phone}</p>
           <p className="flex items-center gap-2"><Mail size={14} className="text-slate-400" />{selected.email || "No email"}</p>

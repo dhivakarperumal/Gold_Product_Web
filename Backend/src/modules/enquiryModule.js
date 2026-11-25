@@ -4,6 +4,7 @@ async function initializeEnquiryModule() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS enquiries (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      enquiry_code VARCHAR(30) NOT NULL,
       customer_name VARCHAR(150) NOT NULL,
       phone VARCHAR(32) NOT NULL,
       alternate_phone VARCHAR(32) NULL,
@@ -33,6 +34,7 @@ async function initializeEnquiryModule() {
       whatsapp_confirmation TINYINT(1) NOT NULL DEFAULT 0,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_enquiries_creator_code (created_by, enquiry_code),
       INDEX idx_enquiries_status_created (status, created_at),
       INDEX idx_enquiries_phone (phone),
       INDEX idx_enquiries_product (product_id),
@@ -41,15 +43,68 @@ async function initializeEnquiryModule() {
   `);
   const [columns] = await pool.query('SHOW COLUMNS FROM enquiries');
   const existingColumns = new Set(columns.map((column) => column.Field));
+  if (!existingColumns.has('enquiry_code')) {
+    await pool.query('ALTER TABLE enquiries ADD COLUMN enquiry_code VARCHAR(30) NULL AFTER id');
+  }
   if (!existingColumns.has('created_by')) {
     await pool.query('ALTER TABLE enquiries ADD COLUMN created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER assigned_to');
   }
   if (!existingColumns.has('updated_by')) {
     await pool.query('ALTER TABLE enquiries ADD COLUMN updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER created_by');
   }
+  await ensureEnquiryCodeUniquePerCreator();
   const [indexes] = await pool.query("SHOW INDEX FROM enquiries WHERE Key_name = 'idx_enquiries_created_by_created'");
   if (!indexes.length) {
     await pool.query('CREATE INDEX idx_enquiries_created_by_created ON enquiries (created_by, created_at)');
+  }
+}
+
+async function ensureEnquiryCodeUniquePerCreator() {
+  const [indexRows] = await pool.execute(
+    `SELECT INDEX_NAME, COLUMN_NAME, SEQ_IN_INDEX, NON_UNIQUE
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'enquiries'
+     ORDER BY INDEX_NAME, SEQ_IN_INDEX`
+  );
+  const indexes = new Map();
+  for (const row of indexRows) {
+    if (!indexes.has(row.INDEX_NAME)) {
+      indexes.set(row.INDEX_NAME, { nonUnique: Number(row.NON_UNIQUE), columns: [] });
+    }
+    indexes.get(row.INDEX_NAME).columns.push(row.COLUMN_NAME);
+  }
+
+  for (const [name, index] of indexes) {
+    if (index.nonUnique === 0 && index.columns.length === 1 && index.columns[0] === 'enquiry_code') {
+      const escapedName = String(name).replace(/`/g, '``');
+      await pool.query(`ALTER TABLE enquiries DROP INDEX \`${escapedName}\``);
+    }
+  }
+
+  const hasCreatorCodeUniqueKey = Array.from(indexes.values()).some((index) =>
+    index.nonUnique === 0
+      && index.columns.length === 2
+      && index.columns[0] === 'created_by'
+      && index.columns[1] === 'enquiry_code'
+  );
+  if (!hasCreatorCodeUniqueKey) {
+    const [enquiries] = await pool.execute(
+      'SELECT id, created_by FROM enquiries ORDER BY created_by, created_at, id'
+    );
+    const nextCodeByCreator = new Map();
+    for (const enquiry of enquiries) {
+      const creator = enquiry.created_by === null ? null : String(enquiry.created_by);
+      const nextCode = (nextCodeByCreator.get(creator) || 0) + 1;
+      nextCodeByCreator.set(creator, nextCode);
+      await pool.execute(
+        'UPDATE enquiries SET enquiry_code = ? WHERE id = ?',
+        [`ENQ-${String(nextCode).padStart(6, '0')}`, enquiry.id]
+      );
+    }
+    await pool.query('ALTER TABLE enquiries MODIFY COLUMN enquiry_code VARCHAR(30) NOT NULL');
+    await pool.query(
+      'ALTER TABLE enquiries ADD UNIQUE KEY uq_enquiries_creator_code (created_by, enquiry_code)'
+    );
   }
 }
 
@@ -61,9 +116,9 @@ async function listEnquiries({ search, status, product, startDate, endDate, page
     values.push(ownerUserId);
   }
   if (search) {
-    conditions.push('(e.customer_name LIKE ? OR e.phone LIKE ? OR e.email LIKE ? OR e.product_name LIKE ? OR e.message LIKE ?)');
+    conditions.push('(e.enquiry_code LIKE ? OR e.customer_name LIKE ? OR e.phone LIKE ? OR e.email LIKE ? OR e.product_name LIKE ? OR e.message LIKE ?)');
     const term = `%${search}%`;
-    values.push(term, term, term, term, term);
+    values.push(term, term, term, term, term, term);
   }
   if (status) {
     conditions.push('e.status = ?');
@@ -113,21 +168,67 @@ async function listEnquiries({ search, status, product, startDate, endDate, page
 }
 
 async function createEnquiry(enquiry, createdByUserId) {
-  const fields = [
+  const connection = await pool.getConnection();
+  let publicCodeLockAcquired = false;
+  let enquiryId;
+  try {
+    await connection.beginTransaction();
+    if (createdByUserId) {
+    await connection.execute(
+      'SELECT user_id FROM users WHERE user_id = ? FOR UPDATE',
+      [createdByUserId]
+    );
+    } else {
+    const [[lock]] = await connection.query(
+      "SELECT GET_LOCK('enquiries_public_code_sequence', 10) AS acquired"
+    );
+    if (Number(lock.acquired) !== 1) {
+      const error = new Error('Could not acquire the enquiry code sequence lock');
+      error.code = 'ENQUIRY_CODE_LOCK_TIMEOUT';
+      throw error;
+    }
+    publicCodeLockAcquired = true;
+    }
+    const sequenceQuery = createdByUserId
+    ? `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(enquiry_code, '-', -1) AS UNSIGNED)), 0) AS max_code
+       FROM enquiries WHERE created_by = ? AND enquiry_code REGEXP '^ENQ-[0-9]+$'`
+    : `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(enquiry_code, '-', -1) AS UNSIGNED)), 0) AS max_code
+       FROM enquiries WHERE created_by IS NULL AND enquiry_code REGEXP '^ENQ-[0-9]+$'`;
+    const [enquirySequences] = await connection.execute(
+    sequenceQuery,
+    createdByUserId ? [createdByUserId] : []
+    );
+    const enquiryCode = `ENQ-${String(Number(enquirySequences[0]?.max_code || 0) + 1).padStart(6, '0')}`;
+    const fields = [
+    'enquiry_code',
     'customer_name', 'phone', 'alternate_phone', 'email', 'address', 'city', 'state', 'pincode',
     'enquiry_type', 'product_category', 'product_id', 'product_name', 'purity', 'quantity', 'weight',
     'approx_budget', 'preferred_design', 'message', 'status', 'follow_up_date', 'follow_up_time',
     'assigned_to', 'source', 'priority', 'whatsapp_confirmation', 'created_by', 'updated_by'
-  ];
-  const [result] = await pool.execute(
+    ];
+    const [result] = await connection.execute(
     `INSERT INTO enquiries (${fields.join(', ')}) VALUES (${fields.map(() => '?').join(', ')})`,
-    fields.map((field) => (
-      field === 'created_by' || field === 'updated_by'
-        ? createdByUserId ?? null
-        : enquiry[field] ?? null
-    ))
-  );
-  return getEnquiry(result.insertId, createdByUserId);
+    fields.map((field) => {
+      if (field === 'enquiry_code') return enquiryCode;
+      if (field === 'created_by' || field === 'updated_by') return createdByUserId ?? null;
+      return enquiry[field] ?? null;
+    })
+    );
+    enquiryId = result.insertId;
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    try {
+    if (publicCodeLockAcquired) {
+      await connection.query("SELECT RELEASE_LOCK('enquiries_public_code_sequence')");
+    }
+    } finally {
+    connection.release();
+    }
+  }
+  return getEnquiry(enquiryId, createdByUserId);
 }
 
 async function getEnquiry(id, ownerUserId) {
