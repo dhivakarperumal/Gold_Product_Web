@@ -547,7 +547,7 @@ export default function AddGoldShop({
   const activeTabIndex = TABS.findIndex((tab) => tab.id === activeTab);
 
   return (
-    <div className={registrationMode ? "w-full" : "fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"}>
+    <div className={registrationMode ? "h-full min-h-0 w-full" : "fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"}>
       <section
         role={registrationMode ? "region" : "dialog"}
         aria-modal={registrationMode ? undefined : "true"}
