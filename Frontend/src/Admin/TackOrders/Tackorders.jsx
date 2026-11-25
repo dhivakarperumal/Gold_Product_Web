@@ -27,6 +27,45 @@ function calculateOrderTotals(cart, gstIncluded, gstRate, discountType, discount
   };
 }
 
+const INDIAN_STATES_AND_UTS = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry"
+];
+
 function OrderSummary({
   cart,
   loadingCart,
@@ -277,7 +316,16 @@ const TackOrders = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [orderStep, setOrderStep] = useState("products");
-  const [customer, setCustomer] = useState({ name: "", phone: "", email: "", address: "" });
+  const [customer, setCustomer] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    city: "",
+    district: "",
+    state: "",
+    pincode: "",
+    address: ""
+  });
   const [gstIncluded, setGstIncluded] = useState(true);
   const [gstRate, setGstRate] = useState("12");
   const [discountType, setDiscountType] = useState("Percent");
@@ -376,7 +424,16 @@ const TackOrders = () => {
       }
 
       toast.success(`Tack order ${data.order_no} added.`);
-      setCustomer({ name: "", phone: "", email: "", address: "" });
+      setCustomer({
+        name: "",
+        phone: "",
+        email: "",
+        city: "",
+        district: "",
+        state: "",
+        pincode: "",
+        address: ""
+      });
       setAdvanceAmount("");
       setDiscountValue("0");
       setOrderStep("products");
@@ -599,7 +656,7 @@ const TackOrders = () => {
           <form
             id="tack-order-form"
             onSubmit={handleCreateTackOrder}
-            className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm sm:p-7"
+            className="mx-auto w-full max-w-4xl rounded-2xl border border-orange-100 bg-white p-5 shadow-sm sm:p-7"
           >
             <div className="mb-6">
               <h2 className="mt-1 text-xl font-extrabold text-slate-800">Customer Details</h2>
@@ -634,7 +691,7 @@ const TackOrders = () => {
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
                 />
               </label>
-              <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
+              <label className="text-sm font-semibold text-slate-700">
                 Email address
                 <input
                   type="email"
@@ -645,7 +702,54 @@ const TackOrders = () => {
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
                 />
               </label>
-              <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
+              <label className="text-sm font-semibold text-slate-700">
+                City
+                <input
+                  autoComplete="address-level2"
+                  value={customer.city}
+                  onChange={(event) => setCustomer({ ...customer, city: event.target.value })}
+                  placeholder="Enter city"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                District
+                <input
+                  value={customer.district}
+                  onChange={(event) => setCustomer({ ...customer, district: event.target.value })}
+                  placeholder="Enter district"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                State
+                <select
+                  autoComplete="address-level1"
+                  value={customer.state}
+                  onChange={(event) => setCustomer({ ...customer, state: event.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                >
+                  <option value="">Select state</option>
+                  {INDIAN_STATES_AND_UTS.map((state) => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                PIN code
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  value={customer.pincode}
+                  onChange={(event) => setCustomer({ ...customer, pincode: event.target.value })}
+                  placeholder="6-digit PIN code"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
                 Address
                 <textarea
                   rows={4}

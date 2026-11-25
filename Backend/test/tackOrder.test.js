@@ -20,6 +20,10 @@ const orderInput = (overrides = {}) => ({
     name: 'A Customer',
     phone: '9876543210',
     email: 'a@example.com',
+    city: 'Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600001',
     address: '12 Gold Street'
   },
   items: [{
@@ -39,6 +43,16 @@ const orderInput = (overrides = {}) => ({
 test('normalizes tack-order items and calculates total, advance, and balance from catalog prices', () => {
   const result = normalizeTackOrder(orderInput(), [product]);
   assert.equal(result.error, undefined);
+  assert.deepEqual(result.tackOrder.customer, {
+    name: 'A Customer',
+    phone: '9876543210',
+    email: 'a@example.com',
+    city: 'Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600001',
+    address: '12 Gold Street'
+  });
   assert.deepEqual(result.tackOrder.items[0], {
     product_id: 12,
     product_name: 'Gold chain',
@@ -72,6 +86,12 @@ test('rejects invalid quantities, inactive products, and advances above the tota
   assert.match(
     normalizeTackOrder(orderInput({ advance_amount: 999 }), [product]).error,
     /advance amount cannot exceed/i
+  );
+  assert.match(
+    normalizeTackOrder(orderInput({
+      customer: { ...orderInput().customer, pincode: '123' }
+    }), [product]).error,
+    /PIN code must contain 6 digits/i
   );
 });
 

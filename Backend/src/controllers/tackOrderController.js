@@ -30,12 +30,19 @@ function normalizeTackOrder(body, catalogProducts) {
     name: normalizeText(rawCustomer.name, 'Customer name', 150, true),
     phone: normalizeText(rawCustomer.phone, 'Customer phone', 32, true),
     email: normalizeText(rawCustomer.email, 'Customer email', 254),
+    city: normalizeText(rawCustomer.city, 'Customer city', 100),
+    district: normalizeText(rawCustomer.district, 'Customer district', 100),
+    state: normalizeText(rawCustomer.state, 'Customer state', 100),
+    pincode: normalizeText(rawCustomer.pincode, 'Customer PIN code', 6),
     address: normalizeText(rawCustomer.address, 'Customer address', 500)
   };
   const customerError = Object.values(customer).find((field) => field.error)?.error;
   if (customerError) return { error: customerError };
   if (customer.email.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.value)) {
     return { error: 'Customer email is invalid' };
+  }
+  if (customer.pincode.value && !/^\d{6}$/.test(customer.pincode.value)) {
+    return { error: 'Customer PIN code must contain 6 digits' };
   }
   const normalizedCustomer = Object.fromEntries(
     Object.entries(customer).map(([field, result]) => [field, result.value])
