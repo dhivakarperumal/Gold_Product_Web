@@ -157,6 +157,27 @@ test('allows a paid account to sign in normally', async () => {
   assert.equal(res.body.token, 'admin-token');
 });
 
+test('rejects customer accounts from the admin login', async () => {
+  state.user = { ...state.user, role: 'user', status: 'Active' };
+  const res = createResponse();
+
+  await login({ body: { identifier: 'customer@example.com', password: 'password' } }, res, assert.ifError);
+
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body.message, /admin and super admin/i);
+  assert.equal(res.body.token, undefined);
+});
+
+test('allows super admin accounts to sign in without a shop subscription', async () => {
+  state.user = { ...state.user, role: 'superadmin', status: 'Active' };
+  const res = createResponse();
+
+  await login({ body: { identifier: 'superadmin@example.com', password: 'password' } }, res, assert.ifError);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.token, 'admin-token');
+});
+
 test.after(() => {
   Object.assign(authModule, originalAuthMethods);
   shopSubscriptionModule.getAccountPlanForOwner = originalGetAccountPlanForOwner;

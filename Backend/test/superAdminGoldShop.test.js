@@ -21,6 +21,23 @@ const {
   validateDocumentConsent,
   validateSubscription
 } = require('../src/controllers/superAdminGoldShopController');
+const goldShopModule = require('../src/modules/superAdminGoldShopModule');
+const { postShopRegistration } = require('../src/controllers/superAdminGoldShopController');
+
+function createResponse() {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return this;
+    }
+  };
+}
 
 test('calculates subscription expiry with month-end clamping', () => {
   assert.equal(calculateEndDate('2024-01-31', 'monthly'), '2024-02-29');
@@ -250,6 +267,45 @@ test('validates custom shop admin credentials', () => {
     'Password must be at least 8 characters and no more than 72 bytes');
   assert.equal(validateLoginCredentials({ username: 'shop.owner', password: 'secure-password' }, null).error,
     'An email address is required for the Shop Admin login');
+});
+
+test('public shop registration creates a pending application without an admin actor', async () => {
+  const originalCreateGoldShop = goldShopModule.createGoldShop;
+  let createdShop;
+  goldShopModule.createGoldShop = async (input, actorId, documents, actorUserId) => {
+    createdShop = { input, actorId, documents, actorUserId };
+  };
+  const res = createResponse();
+
+  try {
+    await postShopRegistration({
+      body: {
+        payload: JSON.stringify({
+          shopName: 'Gold House',
+          ownerName: 'A Owner',
+          mobile: '9876543210',
+          email: 'owner@example.com',
+          maxBranches: 99,
+          maxStaff: 99,
+          notes: 'should not be stored',
+          credentials: { username: 'gold.owner', password: 'secure-password' },
+          subscription: { planId: 1, duration: 'monthly', startDate: '2026-11-25' }
+        })
+      },
+      files: {}
+    }, res, assert.ifError);
+
+    assert.equal(res.statusCode, 201);
+    assert.equal(createdShop.actorId, null);
+    assert.equal(createdShop.actorUserId, null);
+    assert.equal(createdShop.input.status, 'pending');
+    assert.equal(createdShop.input.max_branches, 1);
+    assert.equal(createdShop.input.max_staff, 1);
+    assert.equal(createdShop.input.notes, null);
+    assert.match(res.body.message, /Super Admin approval/);
+  } finally {
+    goldShopModule.createGoldShop = originalCreateGoldShop;
+  }
 });
 
 test('requires owner authorization for uploaded identity and business documents', () => {

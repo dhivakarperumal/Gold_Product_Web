@@ -1,4 +1,5 @@
 const path = require('node:path');
+const goldShopModule = require('../modules/superAdminGoldShopModule');
 const {
   GoldShopError,
   approveGoldShop,
@@ -242,6 +243,24 @@ async function getPlans(req, res, next) {
   }
 }
 
+async function getRegistrationPlans(req, res, next) {
+  try {
+    const plans = await getSubscriptionPlans();
+    return res.json({
+      plans: plans.map((plan) => ({
+        id: plan.id,
+        plan_name: plan.plan_name,
+        monthly_price: plan.monthly_price,
+        quarterly_price: plan.quarterly_price,
+        half_yearly_price: plan.half_yearly_price,
+        yearly_price: plan.yearly_price
+      }))
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function getGoldShop(req, res, next) {
   if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
   try {
@@ -289,6 +308,61 @@ async function postGoldShop(req, res, next) {
       document_consent: body.documentConsent === true
     }, req.adminUser.id, documents, req.adminUser.user_id);
     return res.status(201).json({ message: 'Gold shop created; payment is pending Super Admin confirmation', shop: created });
+  } catch (error) {
+    await cleanupUploadedDocuments(req, error);
+    return handleError(error, res, next);
+  }
+}
+
+async function postShopRegistration(req, res, next) {
+  const body = getRequestPayload(req);
+  if (!body) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: 'Shop form data is invalid' });
+  }
+
+  const { shop, error } = validateShop({
+    ...body,
+    maxBranches: 1,
+    maxStaff: 1,
+    notes: null,
+    status: 'pending'
+  }, { creating: true });
+  if (error) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: error });
+  }
+  const { credentials, error: credentialsError } = validateLoginCredentials(body.credentials, shop.email);
+  if (!credentials || credentialsError) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: credentialsError || 'Shop login credentials are required' });
+  }
+  const { subscription, error: subscriptionError } = validateSubscription(body.subscription || {});
+  if (subscriptionError) {
+    await cleanupUploadedDocuments(req);
+    return res.status(400).json({ message: subscriptionError });
+  }
+
+  try {
+    const documents = prepareUploadedDocuments(req.files);
+    if (documents.some((document) => document.document_type !== 'profile_photo')) {
+      await cleanupUploadedDocuments(req);
+      return res.status(400).json({ message: 'Only a profile photo can be uploaded during registration' });
+    }
+    const { error: consentError } = validateDocumentConsent(body, documents);
+    if (consentError) {
+      await cleanupUploadedDocuments(req);
+      return res.status(400).json({ message: consentError });
+    }
+    await goldShopModule.createGoldShop({
+      ...shop,
+      credentials,
+      subscription,
+      document_consent: false
+    }, null, documents, null);
+    return res.status(201).json({
+      message: 'Registration submitted for Super Admin approval. Login access will be available after approval.'
+    });
   } catch (error) {
     await cleanupUploadedDocuments(req, error);
     return handleError(error, res, next);
@@ -458,8 +532,10 @@ module.exports = {
   getGoldShopPayments,
   getGoldShops,
   getPlans,
+  getRegistrationPlans,
   patchGoldShopStatus,
   postGoldShop,
+  postShopRegistration,
   rejectShop,
   postSubscription,
   postConfirmShopPayment,
