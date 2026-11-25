@@ -18,7 +18,7 @@ export default function AuthLayout({
   if (splitLayout) {
     return (
       <main className="min-h-screen bg-white lg:h-screen lg:overflow-hidden">
-        <div className="flex min-h-screen w-full overflow-hidden bg-white lg:h-full lg:min-h-0">
+        <div className="flex min-h-screen w-full bg-white lg:h-full lg:min-h-0 lg:overflow-hidden">
           <aside className={`relative hidden min-h-full flex-none flex-col justify-between overflow-hidden bg-[#063d2c] p-10 text-white lg:flex xl:p-14 ${wideFormPanel ? "lg:w-[39%]" : "lg:w-[62%]"}`}>
             <img
               src="/images/loginbanner.png"
@@ -101,7 +101,7 @@ export default function AuthLayout({
               </header>
             )}
 
-            <div className={`w-full flex-1 ${contentClassName}`}>{children}</div>
+            <div className={`w-full flex-1 lg:min-h-0 lg:overflow-hidden ${contentClassName}`}>{children}</div>
 
             <footer className="flex shrink-0 items-center justify-center gap-2 pt-5 text-center text-[11px] text-stone-500">
               <ShieldCheck size={17} className="shrink-0 text-emerald-800" />

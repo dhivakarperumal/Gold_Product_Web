@@ -585,14 +585,14 @@ export default function AddGoldShop({
   );
 
   return (
-    <div className={registrationMode ? "h-full min-h-0 w-full" : "fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"}>
+    <div className={registrationMode ? "w-full lg:h-full lg:min-h-0" : "fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"}>
       <section
         role={registrationMode ? "region" : "dialog"}
         aria-modal={registrationMode ? undefined : "true"}
         aria-label={registrationMode ? "Gold shop registration form" : undefined}
         aria-labelledby={registrationMode ? undefined : "gold-shop-form-title"}
         className={registrationMode
-          ? "mx-auto flex h-full min-h-0 w-full flex-col overflow-hidden"
+          ? "mx-auto flex w-full flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
           : "my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl sm:h-[calc(100vh-3rem)]"}
       >
         {!registrationMode && (
@@ -612,9 +612,9 @@ export default function AddGoldShop({
           </header>
         )}
 
-        <form noValidate onSubmit={(event) => submit(event)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <form noValidate onSubmit={(event) => submit(event)} className={`flex flex-1 flex-col ${registrationMode ? "lg:min-h-0 lg:overflow-hidden" : "min-h-0 overflow-hidden"}`}>
           {registrationMode && <div className="shrink-0 px-1 pb-1 pt-2 sm:px-2">{tabNavigation}</div>}
-          <div className={`min-h-0 flex-1 space-y-3 overflow-y-auto ${registrationMode ? "px-1 py-1 sm:px-2" : "p-4 sm:p-6"}`}>
+          <div className={`space-y-3 ${registrationMode ? "px-1 py-1 sm:px-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"}`}>
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
