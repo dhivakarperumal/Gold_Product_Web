@@ -1,6 +1,7 @@
 const {
   createTackOrder,
-  getTackOrderProductsByIds
+  getTackOrderProductsByIds,
+  listTackOrders
 } = require('../modules/tackOrderModule');
 
 const MAX_ITEMS = 100;
@@ -168,4 +169,12 @@ async function postTackOrder(req, res, next) {
   }
 }
 
-module.exports = { normalizeTackOrder, postTackOrder };
+async function getTackOrders(req, res, next) {
+  try {
+    return res.json(await listTackOrders(req.adminUser.user_id));
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { getTackOrders, normalizeTackOrder, postTackOrder };

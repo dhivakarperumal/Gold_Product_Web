@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { normalizeTackOrder } = require('../src/controllers/tackOrderController');
-const { getTackOrderProductsByIds } = require('../src/modules/tackOrderModule');
+const { getTackOrderProductsByIds, listTackOrders } = require('../src/modules/tackOrderModule');
 const { pool } = require('../src/config/db');
 
 const product = {
@@ -109,4 +109,22 @@ test('only resolves products owned by the authenticated shop', async () => {
   }
   assert.match(capturedQuery.query, /WHERE id IN \(\?\) AND created_by = \?/);
   assert.deepEqual(capturedQuery.values, [12, 'shop-user-1']);
+});
+
+test('lists only tack orders owned by the authenticated shop', async () => {
+  const originalExecute = pool.execute;
+  let capturedQuery;
+  pool.execute = async (query, values) => {
+    capturedQuery = { query, values };
+    return [[{ id: 1, order_no: 'TACK-20261125-AB12CD34' }], []];
+  };
+  try {
+    const orders = await listTackOrders('shop-user-1');
+    assert.equal(orders[0].order_no, 'TACK-20261125-AB12CD34');
+  } finally {
+    pool.execute = originalExecute;
+  }
+  assert.match(capturedQuery.query, /WHERE user_id = \?/);
+  assert.match(capturedQuery.query, /ORDER BY created_at DESC, id DESC/);
+  assert.deepEqual(capturedQuery.values, ['shop-user-1']);
 });

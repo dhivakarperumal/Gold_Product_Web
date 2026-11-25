@@ -61,6 +61,8 @@ const pageTitles = {
   "/admin/products/stock/add": "Add Stock",
   "/admin/products": "Inventory",
   "/admin/billings": "Billing",
+  "/admin/tack-orders": "Tack Orders",
+  "/admin/tackAllOrders": "All Tack Orders",
   "/admin/kyc": "KYC Review",
   "/admin/loans/customermanagement": "Customer Management",
   "/admin/loans/customers": "Customer Management",
@@ -376,7 +378,20 @@ const Header = ({
               <Menu className="w-6 h-6" />
             </button>
           )}
-
+          {location.pathname === "/admin/tack-orders" && (
+            <button
+              type="button"
+              onClick={() => navigate("/admin")}
+              aria-label="Go to admin dashboard"
+              className="shrink-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#008577]"
+            >
+              <img
+                src="/images/logo.png"
+                alt=""
+                className="h-10 w-10 rounded-xl bg-white object-contain p-1"
+              />
+            </button>
+          )}
           <div className="hidden sm:flex flex-col">
             <h1 className="text-xl sm:text-2xl font-black 
               text-slate-800 tracking-tight truncate leading-none">

@@ -5,7 +5,7 @@ import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
-import { FiArrowLeft, FiBox, FiMinus, FiPlus, FiStar, FiTag, FiTrash2 } from "react-icons/fi";
+import { FiArrowLeft, FiBox, FiMinus, FiPlus, FiStar, FiTag, FiTrash2, FiUser } from "react-icons/fi";
 
 function calculateOrderTotals(cart, gstIncluded, gstRate, discountType, discountValue) {
   const subtotal = cart.reduce(
@@ -172,7 +172,7 @@ function OrderSummary({
         )}
       </div>
 
-      <div className="mt-4 shrink-0 space-y-3 border-t border-white/15 pt-4">
+      <div className="mt-4 shrink-0 space-y-2 border-t border-white/15 pt-4">
         {orderStep === "details" && (
           <>
             <div className="flex justify-between text-sm">
@@ -652,15 +652,21 @@ const TackOrders = () => {
         />
       </div>
       ) : (
-        <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
           <form
             id="tack-order-form"
             onSubmit={handleCreateTackOrder}
-            className="mx-auto w-full max-w-4xl rounded-2xl border border-orange-100 bg-white p-5 shadow-sm sm:p-7"
+            className="mx-auto w-full max-w-4xl self-start rounded-2xl border border-orange-100 bg-white p-5 shadow-sm sm:p-7"
           >
-            <div className="mb-6">
-              <h2 className="mt-1 text-xl font-extrabold text-slate-800">Customer Details</h2>
-              <p className="mt-1 text-sm text-slate-500">Enter the customer information for this shop order.</p>
+            <div className="mb-6 flex items-center gap-3 border-b border-orange-100 pb-5">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
+                <FiUser aria-hidden="true" size={20} />
+              </span>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-orange-600">Order details</p>
+                <h2 className="mt-0.5 text-xl font-extrabold text-slate-800">Customer Details</h2>
+                <p className="mt-0.5 text-sm text-slate-500">Enter the customer information for this shop order.</p>
+              </div>
             </div>
             {savedOrder && (
               <p role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
