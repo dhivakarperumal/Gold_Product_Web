@@ -73,7 +73,7 @@ export default function AuthLayout({
             </div>
           </aside>
 
-          <section className={`flex w-full min-w-0 flex-col bg-white px-5 py-5 sm:px-8 sm:py-7 lg:-ml-[4%] lg:h-full lg:min-h-0 lg:flex-none lg:rounded-l-[5rem] lg:px-10 lg:py-8 xl:px-14 ${wideFormPanel ? "lg:w-[65%]" : "lg:w-[42%]"}`}>
+          <section className={`flex w-full min-w-0 flex-col bg-white lg:-ml-[4%] lg:h-full lg:min-h-0 lg:flex-none lg:rounded-l-[5rem] ${wideFormPanel ? "px-6 py-4 sm:px-12 sm:py-5 lg:px-14 lg:py-5 xl:px-16 lg:w-[65%]" : "px-5 py-5 sm:px-8 sm:py-7 lg:px-10 lg:py-8 xl:px-14 lg:w-[42%]"}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 lg:hidden">
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#063d2c] text-amber-300">
@@ -89,15 +89,15 @@ export default function AuthLayout({
               </div>
             </div>
 
-            <div className="mt-4 flex justify-center lg:mt-2">
-              <img src="/images/logo.png" alt="Sri Golds" className="h-20 w-48 object-contain sm:h-24 sm:w-56" />
+            <div className={`flex justify-center ${wideFormPanel ? "mt-2 lg:mt-1" : "mt-4 lg:mt-2"}`}>
+              <img src="/images/logo.png" alt="Sri Golds" className={wideFormPanel ? "h-14 w-36 object-contain sm:h-16 sm:w-40" : "h-20 w-48 object-contain sm:h-24 sm:w-56"} />
             </div>
 
             {!hideHeader && (
-              <header className="mb-5 mt-3 shrink-0 text-center">
+              <header className={`shrink-0 text-center ${wideFormPanel ? "mb-3 mt-2" : "mb-5 mt-3"}`}>
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-800">{eyebrow}</p>
-                <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#172a23] sm:text-3xl">{title}</h1>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-stone-600">{subtitle}</p>
+                <h1 className={`mt-2 font-bold tracking-tight text-[#172a23] ${wideFormPanel ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"}`}>{title}</h1>
+                <p className={`mx-auto max-w-md text-sm text-stone-600 ${wideFormPanel ? "mt-1 leading-5" : "mt-2 leading-6"}`}>{subtitle}</p>
               </header>
             )}
 
