@@ -199,7 +199,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
 
   useEffect(() => {
     let active = true;
-    api.get("/categories")
+    api.get(isPublicEnquiry ? "/categories" : "/categories/manage")
       .then((response) => {
         if (!Array.isArray(response.data)) throw new Error("The server returned an invalid category list.");
         const availableCategories = response.data.filter((category) => category.status === "Active");
@@ -213,18 +213,19 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
         toast.error(error.response?.data?.message || error.message || "Could not load product categories.");
       });
     return () => { active = false; };
-  }, []);
+  }, [isPublicEnquiry]);
 
   useEffect(() => {
     let active = true;
     const loadProducts = async () => {
       try {
-        const firstResponse = await api.get("/products/mine", { params: { page: 1, limit: 100, status: "Active" } });
+        const productsEndpoint = isPublicEnquiry ? "/products" : "/products/mine";
+        const firstResponse = await api.get(productsEndpoint, { params: { page: 1, limit: 100, status: "Active" } });
         const firstPage = firstResponse.data;
         if (!Array.isArray(firstPage.products)) throw new Error("The server returned an invalid product list.");
         const pages = Array.from({ length: Math.max(0, (firstPage.pagination?.totalPages || 1) - 1) }, (_, index) => index + 2);
         const additionalPages = await Promise.all(pages.map((pageNumber) =>
-          api.get("/products/mine", { params: { page: pageNumber, limit: 100, status: "Active" } })
+          api.get(productsEndpoint, { params: { page: pageNumber, limit: 100, status: "Active" } })
         ));
         if (active) setProducts([
           ...firstPage.products,
@@ -237,7 +238,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
     };
     void loadProducts();
     return () => { active = false; };
-  }, []);
+  }, [isPublicEnquiry]);
 
   const categoryProducts = products.filter((product) =>
     product.status === "Active"
