@@ -24,6 +24,35 @@ function amountInPaise(amount) {
   return paise;
 }
 
+function addCalendarDay(dateValue) {
+  const date = new Date(`${dateValue}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) {
+    throw new ShopSubscriptionError(409, 'The trial end date is invalid.');
+  }
+  date.setUTCDate(date.getUTCDate() + 1);
+  if (date.getUTCFullYear() > 9999) {
+    throw new ShopSubscriptionError(409, 'The trial period is too long.');
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+function calculatePaidSubscriptionPeriod(today, activeTrialEndDate, duration) {
+  const trialEndDate = activeTrialEndDate && activeTrialEndDate >= today
+    ? activeTrialEndDate
+    : null;
+  const trialDays = trialEndDate
+    ? Math.floor((Date.parse(`${trialEndDate}T00:00:00.000Z`) - Date.parse(`${today}T00:00:00.000Z`)) / 86400000) + 1
+    : 0;
+  const startDate = trialEndDate ? addCalendarDay(trialEndDate) : today;
+  return {
+    startDate,
+    endDate: calculateEndDate(startDate, duration),
+    trialDays,
+    trialStartDate: trialEndDate ? today : null,
+    trialEndDate
+  };
+}
+
 async function getAccountPlanForOwner(userId) {
   const [rows] = await pool.execute(
     `SELECT sub.id AS subscription_id, sp.plan_name, sub.duration, sub.amount,
@@ -166,16 +195,29 @@ async function completeSubscriptionOrder(orderId, payment, ownerUserId = null) {
     const [dateRows] = await connection.execute(
       "SELECT DATE_FORMAT(CURRENT_DATE(), '%Y-%m-%d') AS today"
     );
-    const startDate = dateRows[0]?.today;
-    const endDate = calculateEndDate(startDate, order.duration);
+    const [activeTrials] = await connection.execute(
+      `SELECT DATE_FORMAT(trial_end_date, '%Y-%m-%d') AS trial_end_date
+       FROM subscriptions
+       WHERE gold_shop_id = ? AND subscription_status = 'active'
+         AND trial_days > 0
+         AND trial_start_date <= CURRENT_DATE() AND trial_end_date >= CURRENT_DATE()
+       ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+      [order.gold_shop_id]
+    );
+    const period = calculatePaidSubscriptionPeriod(
+      dateRows[0]?.today,
+      activeTrials[0]?.trial_end_date,
+      order.duration
+    );
     const [subscriptionResult] = await connection.execute(
       `INSERT INTO subscriptions
          (gold_shop_id, plan_id, duration, amount, start_date, end_date,
           trial_days, trial_start_date, trial_end_date, payment_status,
           subscription_status, created_by, updated_by)
-       VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL, 'paid', 'active', ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', 'active', ?, ?)`,
       [order.gold_shop_id, order.plan_id, order.duration, order.amount,
-        startDate, endDate, order.created_by, order.created_by]
+        period.startDate, period.endDate, period.trialDays,
+        period.trialStartDate, period.trialEndDate, order.created_by, order.created_by]
     );
     await connection.execute(
       `INSERT INTO payments
@@ -208,6 +250,8 @@ async function completeSubscriptionOrder(orderId, payment, ownerUserId = null) {
         plan_id: order.plan_id,
         duration: order.duration,
         amount: Number(order.amount),
+        start_date: period.startDate,
+        end_date: period.endDate,
         subscription_id: subscriptionResult.insertId
       })]
     );
@@ -215,8 +259,8 @@ async function completeSubscriptionOrder(orderId, payment, ownerUserId = null) {
     return {
       alreadyPaid: false,
       subscriptionId: subscriptionResult.insertId,
-      startDate,
-      endDate
+      startDate: period.startDate,
+      endDate: period.endDate
     };
   } catch (error) {
     await connection.rollback();
@@ -282,6 +326,7 @@ async function requestSubscriptionAssistance(user) {
 
 module.exports = {
   ShopSubscriptionError,
+  calculatePaidSubscriptionPeriod,
   completeSubscriptionOrder,
   createSubscriptionOrder,
   getAccountPlanForOwner,
