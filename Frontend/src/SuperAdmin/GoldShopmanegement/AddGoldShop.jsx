@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, CreditCard, Eye, EyeOff, FileText, LoaderCircle, MapPin, Store, UserRound, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, CreditCard, Eye, EyeOff, FileText, LoaderCircle, MapPin, Store, UploadCloud, UserRound, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 
@@ -163,21 +163,30 @@ function Field({
   );
 }
 
-function FileField({ label, name, accept, multiple = false, files, onChange, hint }) {
+function FileField({ label, name, accept, multiple = false, files, onChange, hint, registrationMode = false }) {
   const selectedFiles = Array.isArray(files) ? files : files ? [files] : [];
   return (
     <label className="block text-xs font-semibold text-stone-700">
       {label}
-      <input
-        className="mt-1.5 block w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-amber-900"
-        type="file"
-        name={name}
-        accept={accept}
-        multiple={multiple}
-        onChange={onChange}
-      />
-      <span className="mt-1 block text-[11px] font-normal text-stone-500">{hint}</span>
-      {selectedFiles.length > 0 && (
+      {registrationMode ? (
+        <span className="relative mt-1.5 flex min-h-[76px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-amber-200 bg-[#fffdf8] px-3 py-2 text-center text-emerald-900 transition hover:bg-amber-50">
+          <input className="absolute inset-0 h-full w-full cursor-pointer opacity-0" type="file" name={name} accept={accept} multiple={multiple} onChange={onChange} />
+          <UploadCloud size={23} aria-hidden="true" />
+          <span className="mt-0.5 text-sm font-semibold">Choose File</span>
+          <span className="text-[11px] font-normal text-stone-500">{selectedFiles.length ? selectedFiles.map((file) => file.name).join(", ") : "No file chosen"}</span>
+        </span>
+      ) : (
+        <input
+          className="mt-1.5 block w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-amber-900"
+          type="file"
+          name={name}
+          accept={accept}
+          multiple={multiple}
+          onChange={onChange}
+        />
+      )}
+      {!registrationMode && <span className="mt-1 block text-[11px] font-normal text-stone-500">{hint}</span>}
+      {!registrationMode && selectedFiles.length > 0 && (
         <span className="mt-1 block truncate text-[11px] font-medium text-emerald-700">
           {selectedFiles.map((file) => file.name).join(", ")}
         </span>
@@ -619,7 +628,7 @@ export default function AddGoldShop({
 
           <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
 
-          <div className={registrationMode ? "overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)]" : "contents"}>
+          <div className={registrationMode ? "overflow-hidden rounded-2xl border border-b-0 border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)]" : "contents"}>
             {registrationMode && (
               <div className="flex min-h-12 items-center gap-3 bg-emerald-950 px-4 py-2.5 text-white sm:px-6">
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-400 text-emerald-950"><ActiveTabIcon size={18} /></span>
@@ -631,7 +640,7 @@ export default function AddGoldShop({
               <div className="grid gap-2 sm:grid-cols-2">
                 <Field label="Owner name" name="ownerName" value={form.ownerName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.ownerName} required maxLength={150} placeholder="Full name" />
                 <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.mobile} required type="text" inputMode="numeric" maxLength={10} placeholder="9876543210" />
-                <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." />
+                <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." registrationMode={registrationMode} />
                 <Field label="Aadhaar number" name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.aadhaarNumber} type="text" inputMode="numeric" maxLength={12} placeholder="12-digit Aadhaar number" />
               </div>
             </section>
