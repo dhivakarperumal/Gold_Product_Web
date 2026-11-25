@@ -33,6 +33,32 @@ function mobileLoginPassword(value) {
   return String(value || "").replace(/[\s()-]/g, "").trim();
 }
 
+function validateField(name, value, isRequired = false) {
+  const trimmed = String(value || "").trim();
+  if (name === "mobile") {
+    const mobile = trimmed.replace(/[\s()-]/g, "");
+    if (!mobile) return "Mobile number is required.";
+    return /^\+?[1-9]\d{9,14}$/.test(mobile) ? "" : "Enter a valid mobile number with 10–15 digits.";
+  }
+  if (name === "aadhaarNumber" && trimmed && !/^\d{12}$/.test(trimmed)) {
+    return "Aadhaar number must contain exactly 12 digits.";
+  }
+  if (name === "gstNumber" && trimmed
+    && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i.test(trimmed)) {
+    return "Enter a valid 15-character GSTIN.";
+  }
+  if (name === "pincode" && trimmed && !/^[1-9]\d{5}$/.test(trimmed)) {
+    return "Pincode must be a valid 6-digit Indian postal code.";
+  }
+  if (name === "email") {
+    if (!trimmed && isRequired) return "Email ID is required for shop login.";
+    if (trimmed && (trimmed.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed))) {
+      return "Enter a valid email address.";
+    }
+  }
+  return "";
+}
+
 function estimatedEndDate(startDate, duration) {
   const months = { monthly: 1, quarterly: 3, half_yearly: 6, yearly: 12 }[duration];
   if (!months || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return "";
@@ -73,23 +99,31 @@ function createInitialForm(shop) {
 const inputClass = "mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-100";
 const labelClass = "text-xs font-semibold uppercase tracking-wide text-stone-600";
 
-function Field({ label, name, value, onChange, required, type = "text", placeholder, min, max, maxLength, inputMode }) {
+function Field({
+  label, name, value, onChange, onBlur, error, required, type = "text", placeholder,
+  min, max, maxLength, inputMode, autoCapitalize
+}) {
   return (
     <label className={labelClass}>
       {label}{required && <span className="ml-1 text-rose-600">*</span>}
       <input
-        className={inputClass}
+        className={`${inputClass} ${error ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100" : ""}`}
         type={type}
         name={name}
         value={value}
         onChange={onChange}
+        onBlur={onBlur}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${name}-error` : undefined}
         required={required}
         placeholder={placeholder}
         min={min}
         max={max}
         maxLength={maxLength}
         inputMode={inputMode}
+        autoCapitalize={autoCapitalize}
       />
+      {error && <span id={`${name}-error`} className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-rose-700">{error}</span>}
     </label>
   );
 }
@@ -173,6 +207,7 @@ export default function AddGoldShop({
   const [fetchingLocation, setFetchingLocation] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
   const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const isEditing = mode === "edit";
 
   useEffect(() => {
@@ -225,7 +260,19 @@ export default function AddGoldShop({
           : current.confirmPassword
       };
     });
+    setFieldErrors((current) => {
+      if (!current[name]) return current;
+      const next = { ...current };
+      delete next[name];
+      return next;
+    });
     setFormError("");
+  };
+
+  const handleFieldBlur = (event) => {
+    const { name, value } = event.target;
+    const error = validateField(name, value, name === "email" && !isEditing);
+    setFieldErrors((current) => ({ ...current, [name]: error }));
   };
 
   const handleFileChange = (name, event) => {
@@ -298,25 +345,33 @@ export default function AddGoldShop({
       setFormError("");
       return;
     }
+    const fieldsToValidate = [
+      ["mobile", "personal", true],
+      ["aadhaarNumber", "personal", false],
+      ["gstNumber", "shop", false],
+      ["pincode", "shop", false],
+      ["email", "login", !isEditing]
+    ];
+    const errors = {};
+    for (const [name, tab, required] of fieldsToValidate) {
+      const error = validateField(name, form[name], required);
+      if (error) errors[name] = { message: error, tab };
+    }
+    setFieldErrors(Object.fromEntries(Object.entries(errors).map(([name, error]) => [name, error.message])));
+    const firstInvalidField = fieldsToValidate.find(([name]) => errors[name]);
+    if (firstInvalidField) {
+      setActiveTab(firstInvalidField[1]);
+      setFormError("Please correct the highlighted fields.");
+      return;
+    }
     const requiredFields = [
       ["ownerName", "personal", "Owner name is required."],
-      ["mobile", "personal", "Mobile number is required."],
       ["shopName", "shop", "Shop name is required."]
     ];
     const missingField = requiredFields.find(([name]) => !String(form[name] || "").trim());
     if (missingField) {
       setActiveTab(missingField[1]);
       setFormError(missingField[2]);
-      return;
-    }
-    if (!isEditing && !form.email.trim()) {
-      setActiveTab("login");
-      setFormError("Email ID is required for shop login.");
-      return;
-    }
-    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      setActiveTab("login");
-      setFormError("Enter a valid login email ID.");
       return;
     }
     if (!isEditing && (!selectedPlanId || !form.startDate)) {
@@ -337,11 +392,6 @@ export default function AddGoldShop({
     if (!isEditing && form.loginPassword !== form.confirmPassword) {
       setActiveTab("login");
       setFormError("Password and confirm password do not match.");
-      return;
-    }
-    if (form.aadhaarNumber && !/^\d{12}$/.test(form.aadhaarNumber.trim())) {
-      setActiveTab("personal");
-      setFormError("Aadhaar number must contain exactly 12 digits.");
       return;
     }
     const shop = {
@@ -432,9 +482,9 @@ export default function AddGoldShop({
               <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Owner name" name="ownerName" value={form.ownerName} onChange={handleChange} required placeholder="Full name" />
-                <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} required type="tel" placeholder="+919876543210" />
+                <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.mobile} required type="tel" inputMode="tel" maxLength={20} placeholder="+919876543210" />
                 <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." />
-                <Field label="Aadhaar number" name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} type="text" inputMode="numeric" maxLength={12} placeholder="12-digit Aadhaar number" />
+                <Field label="Aadhaar number" name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.aadhaarNumber} type="text" inputMode="numeric" maxLength={12} placeholder="12-digit Aadhaar number" />
               </div>
             </section>
 
@@ -449,7 +499,7 @@ export default function AddGoldShop({
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Shop name" name="shopName" value={form.shopName} onChange={handleChange} required placeholder="e.g. Sri Golds" />
-                  <Field label="GST number" name="gstNumber" value={form.gstNumber} onChange={handleChange} placeholder="15-character GSTIN" />
+                  <Field label="GST number" name="gstNumber" value={form.gstNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.gstNumber} maxLength={15} autoCapitalize="characters" placeholder="15-character GSTIN" />
                   <div className="grid gap-4 sm:col-span-2 lg:grid-cols-3">
                     <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="City" />
                     <label className={labelClass}>
@@ -459,7 +509,7 @@ export default function AddGoldShop({
                         {INDIAN_STATES_AND_UTS.map((state) => <option key={state} value={state}>{state}</option>)}
                       </select>
                     </label>
-                    <Field label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} placeholder="Postal code" />
+                    <Field label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.pincode} inputMode="numeric" maxLength={6} placeholder="6-digit pincode" />
                   </div>
                   <label className={`${labelClass} sm:col-span-2`}>
                     <span className="flex flex-wrap items-center justify-between gap-2">
@@ -554,7 +604,7 @@ export default function AddGoldShop({
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Email ID" name="email" value={form.email} onChange={handleChange} required type="email" placeholder="owner@example.com" />
+                  <Field label="Email ID" name="email" value={form.email} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.email} required={!isEditing} type="email" maxLength={255} placeholder="owner@example.com" />
                   <Field label="Username" name="loginUsername" value={form.loginUsername} onChange={handleChange} required placeholder="e.g. sri-golds-admin" />
                   <PasswordField label="Password" name="loginPassword" value={form.loginPassword} onChange={handleChange} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} placeholder="At least 8 characters" />
                   <PasswordField label="Confirm password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} visible={showConfirmPassword} onToggle={() => setShowConfirmPassword((visible) => !visible)} placeholder="Re-enter the password" />

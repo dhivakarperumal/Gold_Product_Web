@@ -156,6 +156,9 @@ test('validates required shop identity and normalizes contact details', () => {
     ownerName: '  A Owner ',
     mobile: '+91 (98765) 43210',
     email: ' OWNER@EXAMPLE.COM ',
+    aadhaarNumber: '123456789012',
+    gstNumber: '33abcde1234f1z5',
+    pincode: '600001',
     maxBranches: '2',
     maxStaff: '5'
   }, { creating: true });
@@ -165,6 +168,9 @@ test('validates required shop identity and normalizes contact details', () => {
   assert.equal(result.shop.owner_name, 'A Owner');
   assert.equal(result.shop.mobile, '+919876543210');
   assert.equal(result.shop.email, 'owner@example.com');
+  assert.equal(result.shop.aadhaar_number, '123456789012');
+  assert.equal(result.shop.gst_number, '33ABCDE1234F1Z5');
+  assert.equal(result.shop.pincode, '600001');
   assert.equal(validateShop({
     shopName: 'Gold House',
     ownerName: 'A Owner',
@@ -181,6 +187,37 @@ test('validates required shop identity and normalizes contact details', () => {
     maxBranches: 1,
     maxStaff: 1
   }).error, 'Aadhaar number must contain exactly 12 digits');
+  assert.equal(validateShop({
+    shopName: 'Gold House',
+    ownerName: 'A Owner',
+    mobile: '12345',
+    maxBranches: 1,
+    maxStaff: 1
+  }).error, 'Enter a valid mobile number');
+  assert.equal(validateShop({
+    shopName: 'Gold House',
+    ownerName: 'A Owner',
+    mobile: '+919876543210',
+    email: 'invalid-email',
+    maxBranches: 1,
+    maxStaff: 1
+  }).error, 'Enter a valid email address');
+  assert.equal(validateShop({
+    shopName: 'Gold House',
+    ownerName: 'A Owner',
+    mobile: '+919876543210',
+    gstNumber: 'INVALIDGSTNUMBER',
+    maxBranches: 1,
+    maxStaff: 1
+  }).error, 'Enter a valid 15-character GSTIN');
+  assert.equal(validateShop({
+    shopName: 'Gold House',
+    ownerName: 'A Owner',
+    mobile: '+919876543210',
+    pincode: '01234A',
+    maxBranches: 1,
+    maxStaff: 1
+  }).error, 'Pincode must be a valid 6-digit Indian postal code');
   assert.equal(validateShop({ maxBranches: 1, maxStaff: 1 }).error,
     'Shop name, owner name, and mobile number are required');
   assert.equal(validateShop({
