@@ -29,7 +29,10 @@ async function getTackOrderProductsByIds(productIds, userId) {
   if (productIds.length === 0) return [];
   const placeholders = productIds.map(() => '?').join(', ');
   const [rows] = await pool.execute(
-    `SELECT id, name, category, purity, final_selling_price, offer_price, mrp, status
+    `SELECT id, name, category, purity, net_gold_weight, gold_rate_per_gram,
+       making_charge_type, making_charge, wastage_type, wastage, stone_charges,
+       other_charges, gst_rate, price_includes_gst, offer_type, offer,
+       fixed_discount_amount, final_selling_price, offer_price, mrp, status
      FROM products
      WHERE id IN (${placeholders}) AND created_by = ?`,
     [...productIds, userId]

@@ -72,6 +72,76 @@ test('normalizes tack-order items and calculates total, advance, and balance fro
   assert.equal(result.tackOrder.balance_due, 160);
 });
 
+test('recalculates the unit price and stores the entered net weight', () => {
+  const pricedProduct = {
+    ...product,
+    net_gold_weight: 2,
+    gold_rate_per_gram: 100,
+    making_charge_type: 'Fixed',
+    making_charge: 10,
+    wastage_type: 'Percentage',
+    wastage: 0,
+    stone_charges: 5,
+    other_charges: 2,
+    gst_rate: 0,
+    price_includes_gst: false,
+    offer_type: 'None',
+    offer: 0,
+    fixed_discount_amount: 0
+  };
+  const result = normalizeTackOrder(orderInput({
+    items: [{
+      product_id: 12,
+      quantity: 2,
+      variant_color: 'Yellow',
+      variant_size: 'Free Size',
+      net_gold_weight: 3
+    }],
+    discount_value: 0,
+    advance_amount: 0
+  }), [pricedProduct]);
+
+  assert.equal(result.error, undefined);
+  assert.equal(result.tackOrder.items[0].net_gold_weight, 3);
+  assert.equal(result.tackOrder.items[0].price, 317);
+  assert.equal(result.tackOrder.items[0].total_price, 634);
+  assert.equal(result.tackOrder.sub_total, 634);
+});
+
+test('rejects invalid custom weight precision and scales price when no gold rate is available', () => {
+  const pricedProduct = {
+    ...product,
+    net_gold_weight: 2,
+    gold_rate_per_gram: 100,
+    making_charge_type: 'Fixed',
+    making_charge: 0,
+    wastage_type: 'Fixed',
+    wastage: 0,
+    stone_charges: 0,
+    other_charges: 0,
+    gst_rate: 0,
+    price_includes_gst: false,
+    offer_type: 'None',
+    offer: 0,
+    fixed_discount_amount: 0
+  };
+  const customWeightOrder = (netGoldWeight) => orderInput({
+    items: [{ product_id: 12, quantity: 1, net_gold_weight: netGoldWeight }],
+    advance_amount: 0
+  });
+
+  assert.match(
+    normalizeTackOrder(customWeightOrder(2.1234), [pricedProduct]).error,
+    /at most 3 decimal places/i
+  );
+  const result = normalizeTackOrder(
+    customWeightOrder(3),
+    [{ ...pricedProduct, gold_rate_per_gram: null }]
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.tackOrder.items[0].price, 150);
+});
+
 test('rejects invalid quantities, inactive products, and advances above the total', () => {
   assert.match(
     normalizeTackOrder(orderInput({

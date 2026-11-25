@@ -69,6 +69,13 @@ function formatOrderDate(value) {
     : date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function formatWeight(value) {
+  const weight = Number(value);
+  return value == null || value === "" || !Number.isFinite(weight)
+    ? ""
+    : `${weight.toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`;
+}
+
 function getOrderDateKey(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -381,6 +388,11 @@ export default function AllTackOrders() {
                                   ? ` · ${[item.variant_color, item.variant_size].filter(Boolean).join(" / ")}`
                                   : ""}
                               </p>
+                              {formatWeight(item.net_gold_weight) && (
+                                <p className="mt-1 text-xs font-medium text-emerald-700">
+                                  Net weight: {formatWeight(item.net_gold_weight)}
+                                </p>
+                              )}
                             </div>
                             <p className="shrink-0 text-sm font-bold text-slate-700">{formatCurrency(item.total_price)}</p>
                           </div>

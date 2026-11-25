@@ -48,7 +48,12 @@ async function listCartItems(userId) {
   const [rows] = await pool.execute(
     `SELECT c.id, c.product_id, c.variant_color AS colorName, c.variant_size AS size,
        c.image, c.price, c.quantity, p.name, p.images AS product_images,
-       p.variants, p.total_stock, p.net_gold_weight, (c.price * c.quantity) AS total_price
+       p.variants, p.total_stock, p.net_gold_weight, p.gold_rate_per_gram,
+       p.making_charge_type, p.making_charge, p.wastage_type, p.wastage,
+       p.stone_charges, p.other_charges, p.gst_rate, p.price_includes_gst,
+       p.offer_type, p.offer, p.fixed_discount_amount,
+       p.final_selling_price, p.offer_price, p.mrp,
+       (c.price * c.quantity) AS total_price
      FROM cart_items c JOIN products p ON p.id = c.product_id
      WHERE c.user_id = ? ORDER BY c.created_at DESC, c.id DESC`,
     [userId]

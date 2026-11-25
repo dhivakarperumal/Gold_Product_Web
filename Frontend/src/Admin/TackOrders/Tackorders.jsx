@@ -3,6 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
+import { calculatePriceForNetWeight } from "../../utils/productPricing";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
 import { FiArrowLeft, FiBox, FiMinus, FiPlus, FiTag, FiTrash2, FiUser } from "react-icons/fi";
@@ -78,6 +79,7 @@ function OrderSummary({
   loadingCart,
   removeFromCart,
   updateCartQuantity,
+  onNetWeightChange,
   gstIncluded,
   setGstIncluded,
   gstRate,
@@ -94,6 +96,7 @@ function OrderSummary({
   orderStep
 }) {
   const itemCount = cart.reduce((total, item) => total + Number(item.quantity || 0), 0);
+  const hasInvalidNetWeight = cart.some((item) => item.netWeightError);
   const { subtotal, gstAmount, discount, total } = calculateOrderTotals(
     cart,
     gstIncluded,
@@ -135,10 +138,26 @@ function OrderSummary({
                   <p className="mt-0.5 truncate text-xs text-white/55">
                     {[item.colorName, item.size].filter(Boolean).join(" / ") || `ID: ${item.product_id}`}
                   </p>
-                  {formatWeight(item.net_gold_weight) && (
-                    <p className="mt-1 text-[11px] text-white/65">
-                      Net weight: {formatWeight(item.net_gold_weight)}
-                    </p>
+                  {item.canEditNetWeight && (
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <label htmlFor={`net-weight-${item.id}`} className="text-[11px] text-white/65">
+                        Net weight
+                      </label>
+                      <input
+                        id={`net-weight-${item.id}`}
+                        type="number"
+                        min="0.001"
+                        max="999999999.999"
+                        step="0.001"
+                        inputMode="decimal"
+                        value={item.netWeightInput}
+                        onChange={(event) => onNetWeightChange(item.id, event.target.value)}
+                        aria-label={`Net weight in grams for ${item.name}`}
+                        aria-invalid={Boolean(item.netWeightError)}
+                        className="w-20 rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-xs font-semibold text-white outline-none focus:border-orange-400"
+                      />
+                      <span className="text-[11px] text-white/65">g</span>
+                    </div>
                   )}
                 </div>
                 <button
@@ -150,6 +169,9 @@ function OrderSummary({
                   <FiTrash2 size={15} aria-hidden="true" />
                 </button>
               </div>
+              {item.netWeightError && (
+                <p role="alert" className="mt-1 text-[11px] text-orange-200">{item.netWeightError}</p>
+              )}
 
               <div className="mt-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -299,7 +321,7 @@ function OrderSummary({
           <button
             type="button"
             onClick={onNext}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || hasInvalidNetWeight}
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Next Details
@@ -309,7 +331,7 @@ function OrderSummary({
           <button
             type="submit"
             form="tack-order-form"
-            disabled={submitting || Boolean(savedOrder) || cart.length === 0}
+            disabled={submitting || Boolean(savedOrder) || cart.length === 0 || hasInvalidNetWeight}
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Adding Tack Order..." : "Add Tack Order"}
@@ -341,6 +363,7 @@ const TackOrders = () => {
   const [gstRate, setGstRate] = useState("12");
   const [discountType, setDiscountType] = useState("Percent");
   const [discountValue, setDiscountValue] = useState("0");
+  const [netWeightEdits, setNetWeightEdits] = useState({});
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -398,20 +421,68 @@ const TackOrders = () => {
     };
   }, [retryCount, search]);
 
+  const productsById = new Map(products.map((product) => [String(product.id), product]));
+  const pricedCart = cart.map((item) => {
+    const catalogProduct = productsById.get(String(item.product_id));
+    const pricingItem = {
+      ...(catalogProduct || {}),
+      ...item,
+      net_gold_weight: item.net_gold_weight ?? catalogProduct?.net_gold_weight
+    };
+    const originalWeight = Number(pricingItem.net_gold_weight);
+    const canEditNetWeight = pricingItem.net_gold_weight != null
+      && pricingItem.net_gold_weight !== ""
+      && Number.isFinite(originalWeight)
+      && originalWeight > 0;
+    if (!canEditNetWeight) return { ...item, canEditNetWeight: false, netWeightError: "" };
+
+    const hasOverride = Object.prototype.hasOwnProperty.call(netWeightEdits, item.id);
+    const netWeightInput = hasOverride ? netWeightEdits[item.id] : String(pricingItem.net_gold_weight);
+    const weight = Number(netWeightInput);
+    const validWeight = netWeightInput !== ""
+      && Number.isFinite(weight)
+      && weight > 0
+      && weight <= 999999999.999
+      && Math.abs(weight - Math.round(weight * 1000) / 1000) <= 0.0000001;
+    const priceResult = validWeight
+      ? calculatePriceForNetWeight(pricingItem, weight)
+      : { price: null, error: "Enter a positive weight with up to 3 decimal places." };
+    const price = priceResult.price ?? Number(item.price || 0);
+
+    return {
+      ...item,
+      canEditNetWeight: true,
+      netWeightInput,
+      netWeightError: priceResult.error,
+      net_gold_weight: validWeight ? weight : item.net_gold_weight,
+      price,
+      total_price: price * Number(item.quantity || 0)
+    };
+  });
+  const hasInvalidNetWeight = pricedCart.some((item) => item.netWeightError);
+  const handleNetWeightChange = (cartItemId, value) => {
+    setNetWeightEdits((current) => ({ ...current, [cartItemId]: value }));
+  };
+
   const handleCreateTackOrder = async (event) => {
     event.preventDefault();
     if (submitting || savedOrder) return;
+    if (hasInvalidNetWeight) {
+      toast.error("Correct the net weight before creating this tack order.");
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const { total } = calculateOrderTotals(cart, gstIncluded, gstRate, discountType, discountValue);
+      const { total } = calculateOrderTotals(pricedCart, gstIncluded, gstRate, discountType, discountValue);
       const { data } = await api.post("/tack-orders", {
         customer,
-        items: cart.map((item) => ({
+        items: pricedCart.map((item) => ({
           product_id: Number(item.product_id),
           quantity: Number(item.quantity),
           variant_color: item.variant_color ?? item.colorName ?? "",
-          variant_size: item.variant_size ?? item.size ?? ""
+          variant_size: item.variant_size ?? item.size ?? "",
+          ...(item.canEditNetWeight ? { net_gold_weight: Number(item.net_gold_weight) } : {})
         })),
         gst_included: gstIncluded,
         gst_rate: Number(gstRate),
@@ -442,6 +513,7 @@ const TackOrders = () => {
       });
       setAdvanceAmount("");
       setDiscountValue("0");
+      setNetWeightEdits({});
       setOrderStep("products");
     } catch (submitError) {
       console.error("Failed to create tack order:", submitError);
@@ -603,10 +675,11 @@ const TackOrders = () => {
         </main>
 
         <OrderSummary
-          cart={cart}
+          cart={pricedCart}
           loadingCart={loadingCart}
           removeFromCart={removeFromCart}
           updateCartQuantity={updateCartQuantity}
+          onNetWeightChange={handleNetWeightChange}
           gstIncluded={gstIncluded}
           setGstIncluded={setGstIncluded}
           gstRate={gstRate}
@@ -750,10 +823,11 @@ const TackOrders = () => {
           </form>
 
           <OrderSummary
-            cart={cart}
+            cart={pricedCart}
             loadingCart={loadingCart}
             removeFromCart={removeFromCart}
             updateCartQuantity={updateCartQuantity}
+            onNetWeightChange={handleNetWeightChange}
             gstIncluded={gstIncluded}
             setGstIncluded={setGstIncluded}
             gstRate={gstRate}

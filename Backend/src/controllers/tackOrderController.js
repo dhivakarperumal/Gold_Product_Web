@@ -3,9 +3,11 @@ const {
   getTackOrderProductsByIds,
   listTackOrders
 } = require('../modules/tackOrderModule');
+const { calculateProductPricing } = require('../services/productPricing');
 
 const MAX_ITEMS = 100;
 const MAX_AMOUNT = 9999999999.99;
+const MAX_WEIGHT = 999999999.999;
 
 function roundMoney(value) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -71,16 +73,47 @@ function normalizeTackOrder(body, catalogProducts) {
     const variantColor = normalizeText(rawItem.variant_color, `Product ${index + 1} color`, 100);
     const variantSize = normalizeText(rawItem.variant_size, `Product ${index + 1} size`, 100);
     if (variantColor.error || variantSize.error) return { error: variantColor.error || variantSize.error };
-    const rawPrice = Number(product.final_selling_price) > 0
+    let rawPrice = Number(product.final_selling_price) > 0
       ? Number(product.final_selling_price)
       : Number(product.offer_price) > 0
         ? Number(product.offer_price)
         : Number(product.mrp || 0);
+    let netGoldWeight;
+    const hasNetGoldWeight = rawItem && Object.prototype.hasOwnProperty.call(rawItem, 'net_gold_weight');
+    if (hasNetGoldWeight) {
+      const requestedWeight = Number(rawItem.net_gold_weight);
+      const roundedWeight = Math.round((requestedWeight + Number.EPSILON) * 1000) / 1000;
+      if (!Number.isFinite(requestedWeight) || requestedWeight <= 0 || requestedWeight > MAX_WEIGHT
+        || Math.abs(requestedWeight - roundedWeight) > 0.0000001) {
+        return { error: `Product ${index + 1} net weight must be positive and have at most 3 decimal places` };
+      }
+      netGoldWeight = roundedWeight;
+
+      if (netGoldWeight !== Number(product.net_gold_weight)) {
+        const goldRate = Number(product.gold_rate_per_gram);
+        if (Number.isFinite(goldRate) && goldRate > 0) {
+          try {
+            rawPrice = calculateProductPricing(
+              { ...product, net_gold_weight: netGoldWeight },
+              goldRate
+            ).final_selling_price;
+          } catch {
+            return { error: `Product ${index + 1} has invalid pricing settings for its custom weight` };
+          }
+        } else {
+          const originalWeight = Number(product.net_gold_weight);
+          if (!Number.isFinite(originalWeight) || originalWeight <= 0) {
+            return { error: `Product ${index + 1} needs an original weight to calculate its custom price` };
+          }
+          rawPrice = roundMoney(rawPrice * netGoldWeight / originalWeight);
+        }
+      }
+    }
     if (!Number.isFinite(rawPrice) || rawPrice < 0 || rawPrice > MAX_AMOUNT) {
       return { error: `Product ${index + 1} has an invalid catalog price` };
     }
     const price = roundMoney(rawPrice);
-    items.push({
+    const item = {
       product_id: productId,
       product_name: product.name,
       category: product.category || '',
@@ -90,7 +123,9 @@ function normalizeTackOrder(body, catalogProducts) {
       quantity,
       price,
       total_price: roundMoney(price * quantity)
-    });
+    };
+    if (hasNetGoldWeight) item.net_gold_weight = netGoldWeight;
+    items.push(item);
   }
 
   const gstIncluded = body.gst_included;
