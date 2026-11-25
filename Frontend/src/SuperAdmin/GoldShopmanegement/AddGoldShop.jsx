@@ -18,6 +18,17 @@ const INDIAN_STATES_AND_UTS = [
   "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
 ];
 
+function matchIndianState(value) {
+  const normalizedValue = String(value || "").toLowerCase().replace(/[^a-z]/g, "");
+  if (!normalizedValue) return "";
+  return INDIAN_STATES_AND_UTS.find((state) => {
+    const normalizedState = state.toLowerCase().replace(/[^a-z]/g, "");
+    return normalizedValue === normalizedState
+      || normalizedValue.includes(normalizedState)
+      || normalizedState.includes(normalizedValue);
+  }) || "";
+}
+
 function formatDate(value) {
   const [year, month, day] = value.split("-");
   const monthName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(month) - 1];
@@ -147,7 +158,7 @@ function Field({
         inputMode={inputMode}
         autoCapitalize={autoCapitalize}
       />
-      {error && <span id={`${name}-error`} className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-rose-700">{error}</span>}
+      <span id={`${name}-error`} aria-live="polite" className={`mt-1 block h-10 overflow-hidden text-[11px] font-medium normal-case tracking-normal ${error ? "text-rose-700" : "invisible"}`}>{error || " "}</span>
     </label>
   );
 }
@@ -203,7 +214,7 @@ function PasswordField({ label, name, value, onChange, onBlur, error, visible, o
           {visible ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </span>
-      {error && <span id={`${name}-error`} className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-rose-700">{error}</span>}
+      <span id={`${name}-error`} aria-live="polite" className={`mt-1 block h-10 overflow-hidden text-[11px] font-medium normal-case tracking-normal ${error ? "text-rose-700" : "invisible"}`}>{error || " "}</span>
     </label>
   );
 }
@@ -338,9 +349,64 @@ export default function AddGoldShop({
     setFetchingLocation(true);
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        const coordinates = `Latitude: ${coords.latitude.toFixed(6)}, Longitude: ${coords.longitude.toFixed(6)}`;
-        setCurrentLocation(coordinates);
-        setFetchingLocation(false);
+        const lookupLocation = async () => {
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), 10000);
+          try {
+            const params = new URLSearchParams({
+              format: "jsonv2",
+              addressdetails: "1",
+              lat: String(coords.latitude),
+              lon: String(coords.longitude)
+            });
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
+              headers: { "Accept-Language": "en" },
+              signal: controller.signal
+            });
+            if (!response.ok) throw new Error("OpenStreetMap could not look up this location. Please try again.");
+
+            const result = await response.json();
+            if (!result || typeof result !== "object" || !result.address) {
+              throw new Error("No address details were found for this location.");
+            }
+
+            const address = result.address;
+            const street = [address.house_number, address.road || address.pedestrian || address.residential]
+              .filter(Boolean)
+              .join(" ");
+            const locality = address.neighbourhood || address.suburb || address.quarter;
+            const shopAddress = [street, locality].filter(Boolean).join(", ") || result.display_name || "";
+            const city = address.city || address.town || address.village || address.municipality
+              || address.city_district || address.county || "";
+            const state = matchIndianState(address.state);
+            const postalCode = String(address.postcode || "").replace(/\D/g, "");
+            const pincode = /^[1-9]\d{5}$/.test(postalCode) ? postalCode : "";
+
+            setForm((current) => ({
+              ...current,
+              address: shopAddress,
+              city,
+              state,
+              pincode
+            }));
+            setCurrentLocation("Location fields filled where available. Please verify them before saving.");
+            setFormError("");
+            toast.success("Current location added. Please verify the address details.");
+          } catch (error) {
+            const message = error && error.name === "AbortError"
+              ? "Location lookup timed out. Please try again."
+              : error instanceof TypeError
+                ? "Could not connect to OpenStreetMap. Please try again."
+                : error instanceof Error
+                  ? error.message
+                  : "Could not look up this location.";
+            toast.error(message);
+          } finally {
+            window.clearTimeout(timeout);
+            setFetchingLocation(false);
+          }
+        };
+        lookupLocation();
       },
       (error) => {
         const message = error.code === error.PERMISSION_DENIED
@@ -521,7 +587,7 @@ export default function AddGoldShop({
             ))}
           </div>
 
-          {formError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{formError}</p>}
+          <p role="alert" aria-live="polite" className={`flex h-11 items-center overflow-hidden rounded-xl border px-4 text-sm ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
 
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
               <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>
@@ -564,7 +630,7 @@ export default function AddGoldShop({
                       </button>
                     </span>
                     <textarea className={`${inputClass} min-h-24 resize-y`} name="address" value={form.address} onChange={handleChange} rows={3} placeholder="Street address" />
-                    {currentLocation && <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-stone-500">{currentLocation}. Enter the street address, city, state, and pincode manually; coordinates are not sent to an external service.</span>}
+                    {currentLocation && <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-stone-500">{currentLocation} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="font-semibold underline">© OpenStreetMap contributors</a></span>}
                   </label>
                   <label className={`${labelClass} sm:col-span-2`}>
                     Admin notes
@@ -613,7 +679,7 @@ export default function AddGoldShop({
                         <select className={`${inputClass} ${fieldErrors.planId ? "border-rose-500" : ""}`} name="planId" value={selectedPlanId} onChange={handleChange} aria-invalid={Boolean(fieldErrors.planId)}>
                           {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.plan_name}</option>)}
                         </select>
-                        {fieldErrors.planId && <span className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-rose-700">{fieldErrors.planId}</span>}
+                        <span className={`mt-1 block h-10 overflow-hidden text-[11px] font-medium normal-case tracking-normal ${fieldErrors.planId ? "text-rose-700" : "invisible"}`}>{fieldErrors.planId || " "}</span>
                       </label>
                       <label className={labelClass}>
                         Duration<span className="ml-1 text-rose-600">*</span>
@@ -629,7 +695,7 @@ export default function AddGoldShop({
                       <label className={labelClass}>
                         Start date<span className="ml-1 text-rose-600">*</span>
                         <span className="relative block"><CalendarDays className="absolute right-3 top-4 h-4 w-4 text-stone-400" /><input className={`${inputClass} ${fieldErrors.startDate ? "border-rose-500" : ""}`} type="date" name="startDate" value={form.startDate} onChange={handleChange} onBlur={handleFieldBlur} aria-invalid={Boolean(fieldErrors.startDate)} /></span>
-                        {fieldErrors.startDate && <span className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-rose-700">{fieldErrors.startDate}</span>}
+                        <span className={`mt-1 block h-10 overflow-hidden text-[11px] font-medium normal-case tracking-normal ${fieldErrors.startDate ? "text-rose-700" : "invisible"}`}>{fieldErrors.startDate || " "}</span>
                       </label>
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className={labelClass}>Approval status</p><p className="mt-1 text-sm font-semibold text-amber-800">{isEditing ? (shopDetails?.approval_status || "Pending") : "Pending"}</p></div>
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className="mt-1 text-sm font-semibold text-amber-800">Pending Super Admin confirmation</p></div>
