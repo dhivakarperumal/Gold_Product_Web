@@ -98,14 +98,16 @@ function Login() {
       alternateLabel="Register here"
       alternateTo="/register"
       contentClassName="flex flex-col items-center justify-center"
+      splitLayout
       fixedHeight
       hideHeader
     >
-      <div className="mx-auto mb-4 w-full max-w-md">
-        <h1 className="text-2xl font-bold tracking-tight text-[#172a23]">Login</h1>
-        <p className="mt-1 text-sm text-stone-600">Sign in to your account to continue.</p>
+      <div className="mx-auto mb-4 w-full max-w-md text-center">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-800">Secure admin access</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#172a23]">Login</h1>
+        <p className="mt-1 text-sm text-stone-600">Sign in to your Sri Golds account to continue.</p>
       </div>
-      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-md space-y-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-7">
+      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-md space-y-5">
             {/* Email/Mobile */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5 ml-1 tracking-wide">
@@ -122,7 +124,7 @@ function Login() {
                   type="text"
                   placeholder="Enter your email or mobile number"
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-amber-600 focus:ring-2 focus:ring-amber-600/15"
+                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-[#008577] focus:ring-2 focus:ring-emerald-600/15"
                   required
                 />
               </div>
@@ -144,7 +146,7 @@ function Login() {
                   name="password"
                   placeholder="Enter your password"
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 pr-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-amber-600 focus:ring-2 focus:ring-amber-600/15"
+                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 pr-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-[#008577] focus:ring-2 focus:ring-emerald-600/15"
                   required
                 />
                 <button
@@ -171,7 +173,7 @@ function Login() {
             {/* Login Button */}
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl text-white font-semibold bg-gradient-to-r from-primary to-primary-light hover:from-primary-dark hover:to-primary transition-all flex items-center justify-center gap-2 relative overflow-hidden group shadow-lg shadow-primary/30 cursor-pointer hover:-translate-y-0.5"
+              className="w-full rounded-xl bg-gradient-to-r from-[#064A41] to-[#008577] py-3.5 font-semibold text-white shadow-lg shadow-emerald-900/20 transition-all hover:-translate-y-0.5 hover:from-[#043D37] hover:to-[#00695C] flex items-center justify-center gap-2 relative overflow-hidden group cursor-pointer"
             >
               <span className="relative z-10 flex items-center gap-2 tracking-wide">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
