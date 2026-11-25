@@ -27,6 +27,13 @@ function calculateOrderTotals(cart, gstIncluded, gstRate, discountType, discount
   };
 }
 
+function formatWeight(value) {
+  const weight = Number(value);
+  return value == null || value === "" || !Number.isFinite(weight)
+    ? ""
+    : `${weight.toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`;
+}
+
 const INDIAN_STATES_AND_UTS = [
   "Andhra Pradesh",
   "Arunachal Pradesh",
@@ -98,7 +105,7 @@ function OrderSummary({
   const balanceDue = total - advance;
 
   return (
-    <aside className="mb-4 flex min-h-0 flex-col rounded-xl bg-gradient-to-b from-[#003B32] to-[#14534a] p-2 text-white shadow-lg sm:p-5 xl:min-h-full">
+    <aside className="mb-4 flex min-h-0 flex-col rounded-xl bg-gradient-to-b from-[#003B32] to-[#14534a] p-2 text-white shadow-lg sm:p-5 xl:min-h-[89vh]">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-extrabold">Order Summary</h2>
@@ -128,6 +135,11 @@ function OrderSummary({
                   <p className="mt-0.5 truncate text-xs text-white/55">
                     {[item.colorName, item.size].filter(Boolean).join(" / ") || `ID: ${item.product_id}`}
                   </p>
+                  {formatWeight(item.net_gold_weight) && (
+                    <p className="mt-1 text-[11px] text-white/65">
+                      Net weight: {formatWeight(item.net_gold_weight)}
+                    </p>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -457,7 +469,7 @@ const TackOrders = () => {
           </button>
         </div>
       ) : loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }, (_, index) => (
             <div key={index} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <div className="aspect-[4/3] animate-pulse bg-slate-100 xl:aspect-[8/5]" />
@@ -470,11 +482,12 @@ const TackOrders = () => {
           ))}
         </div>
       ) : products.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {products.map((product) => {
             const imageUrl = getProductImageUrl(product);
             const stock = Number(product.total_stock ?? 0);
             const price = Number(product.final_selling_price ?? product.offer_price ?? product.mrp ?? 0);
+            const netWeight = formatWeight(product.net_gold_weight) || "—";
             const originalPrice = Number(product.mrp ?? 0);
             const offerPrice = Number(product.offer_price ?? price);
             const discountPercent = originalPrice > offerPrice && originalPrice > 0
@@ -499,7 +512,7 @@ const TackOrders = () => {
             return (
               <article
                 key={product.id}
-                className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-amber-50 via-stone-100 to-teal-50 xl:aspect-[8/5]">
                   {imageUrl ? (
@@ -530,10 +543,10 @@ const TackOrders = () => {
                   </span>
                 </div>
 
-                <div className="p-4 xl:p-3">
+                <div className="flex flex-1 flex-col p-4 xl:p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h2 className="truncate text-base font-bold text-slate-800">
+                      <h2 className="truncate text-lg font-bold text-slate-800">
                         {product.name || "Unnamed product"}
                       </h2>
                       <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
@@ -545,20 +558,26 @@ const TackOrders = () => {
                     </p>
                   </div>
 
-                  <div className="mt-4 flex items-center gap-2 xl:mt-3">
-                    <div className="min-w-0 flex-1 rounded-xl bg-slate-50 p-3 text-xs xl:p-2">
-                      <p className="text-slate-500">Metal / Purity</p>
-                      <p className="mt-1 font-semibold text-slate-700">
+                  <div className="mt-4 flex items-center gap-3">
+                    <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                      <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 p-2.5">
+                        <p className="text-[10px] font-medium text-slate-500">Metal / Purity</p>
+                        <p className="mt-1 break-words text-xs font-semibold leading-snug text-slate-700">
                         {[product.metal_type, product.purity].filter(Boolean).join(" / ") || "Not specified"}
-                      </p>
+                        </p>
+                      </div>
+                      <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 p-2.5">
+                        <p className="text-[10px] font-medium text-slate-500">Net weight</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-700">{netWeight}</p>
+                      </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => void addToCart(product)}
                       disabled={stock <= 0}
-                      aria-label="Add product"
-                      title="Add product"
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#14534a] text-white shadow-sm transition hover:bg-[#0f4039] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#14534a] disabled:cursor-not-allowed disabled:bg-slate-300"
+                      aria-label={`Add ${product.name || "product"} to cart`}
+                      title="Add to cart"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#14534a] text-white shadow-sm transition hover:bg-[#0f4039] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#14534a] disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                       <FiPlus size={20} aria-hidden="true" />
                     </button>
