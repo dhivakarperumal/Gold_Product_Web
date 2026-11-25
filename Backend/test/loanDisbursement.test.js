@@ -3,15 +3,22 @@ const test = require('node:test');
 const { pool } = require('../src/config/db');
 const { createLoan } = require('../src/modules/loanModule');
 
-function fakeConnection({ balance = '100.00', failOnFundInsert = false, replayLoanId = null } = {}) {
+function fakeConnection({
+  balance = '100.00',
+  failOnFundInsert = false,
+  replayLoanId = null,
+  loanSequences = new Map()
+} = {}) {
   const state = {
     committed: false,
     rolledBack: false,
     released: false,
     fundInserts: [],
+    loanNumbers: [],
     loanInsertParams: null,
     statements: []
   };
+  let ownerUserId;
   const loan = {
     id: replayLoanId || 25,
     loan_number: 'GL-20261020-000025',
@@ -31,16 +38,26 @@ function fakeConnection({ balance = '100.00', failOnFundInsert = false, replayLo
       state.statements.push(sql);
       if (sql.includes('FROM loan_customers WHERE id = ?')) return [[{ id: 1, full_name: 'Test Customer' }]];
       if (sql.includes('FROM interest_types WHERE type_key = ?')) return [[{ enabled: 1 }]];
-      if (sql.includes('FROM users WHERE user_id = ?')) return [[{ user_id: params[0] }]];
+      if (sql.includes('FROM users WHERE user_id = ?')) {
+        ownerUserId = params[0];
+        return [[{ user_id: params[0] }]];
+      }
       if (sql.includes('AS balance')) return [[{ balance }]];
       if (sql.includes('FROM funds') && sql.includes('idempotency_key = ?')) {
         return [replayLoanId ? [{ related_reference: String(replayLoanId) }] : []];
+      }
+      if (sql.includes('MAX(CAST(SUBSTRING_INDEX(loan_number')) {
+        return [[{ max_number: loanSequences.get(params[0]) || 0 }]];
       }
       if (sql.startsWith('INSERT INTO loans')) {
         state.loanInsertParams = params;
         return [{ insertId: loan.id }];
       }
-      if (sql.startsWith('UPDATE loans SET loan_number')) return [{ affectedRows: 1 }];
+      if (sql.startsWith('UPDATE loans SET loan_number')) {
+        state.loanNumbers.push(params[0]);
+        loanSequences.set(ownerUserId, Number(params[0].slice(-6)));
+        return [{ affectedRows: 1 }];
+      }
       if (sql.startsWith('INSERT INTO funds')) {
         if (failOnFundInsert) throw new Error('Simulated fund ledger failure');
         state.fundInserts.push({ sql, params });
@@ -62,7 +79,10 @@ function createConcurrentPool(shared) {
         async commit() {
           shared.balance -= local.fundEntries.reduce((sum, entry) => sum + entry.amount, 0);
           shared.fundEntries.push(...local.fundEntries);
-          if (local.loan) shared.loans.set(local.loan.id, local.loan);
+          if (local.loan) {
+            shared.loans.set(local.loan.id, local.loan);
+            shared.loanSequences.set(local.ownerUserId, Number(local.loan.loan_number.slice(-6)));
+          }
           local.unlock?.();
         },
         async rollback() { local.unlock?.(); },
@@ -75,6 +95,7 @@ function createConcurrentPool(shared) {
           if (sql.includes('FROM loan_customers WHERE id = ?')) return [[{ id: 1, full_name: 'Test Customer' }]];
           if (sql.includes('FROM interest_types WHERE type_key = ?')) return [[{ enabled: 1 }]];
           if (sql.includes('FROM users WHERE user_id = ?')) {
+            local.ownerUserId = params[0];
             const previous = shared.adminLock;
             shared.adminLock = new Promise((resolve) => { local.unlock = resolve; });
             await previous;
@@ -84,6 +105,9 @@ function createConcurrentPool(shared) {
           if (sql.includes('FROM funds') && sql.includes('idempotency_key = ?')) {
             const transaction = shared.fundEntries.find((entry) => entry.idempotency_key === params[1]);
             return [transaction ? [{ related_reference: transaction.related_reference }] : []];
+          }
+          if (sql.includes('MAX(CAST(SUBSTRING_INDEX(loan_number')) {
+            return [[{ max_number: shared.loanSequences.get(params[0]) || 0 }]];
           }
           if (sql.startsWith('INSERT INTO loans')) {
             local.loan = { id: ++shared.nextLoanId, loan_number: '', principal_amount: params[0] };
@@ -145,7 +169,42 @@ test('records the loan disbursement as one owner-scoped fund debit', async (cont
   assert.equal(state.fundInserts[0].params[9], 'loan-disbursement:loan-request-1');
   assert.equal(state.loanInsertParams[6], 'admin-user-uuid');
   assert.equal(state.loanInsertParams[7], 'admin-user-uuid');
+  assert.equal(state.loanNumbers[0], 'GL-20261020-000001');
   assert.equal(state.committed, true);
+});
+
+test('numbers loans independently for each admin', async (context) => {
+  const originalGetConnection = pool.getConnection;
+  const loanSequences = new Map();
+  const { connection, state } = fakeConnection({ loanSequences });
+  pool.getConnection = async () => connection;
+  context.after(() => { pool.getConnection = originalGetConnection; });
+
+  await createLoan(loanDetails(), {
+    idempotencyKey: 'loan-sequence-admin-one-1',
+    fundCreatedByUserId: 'admin-user-uuid',
+    fundAdminName: 'Admin One'
+  });
+  await createLoan({
+    ...loanDetails(),
+    created_by: 'other-admin-uuid',
+    updated_by: 'other-admin-uuid'
+  }, {
+    idempotencyKey: 'loan-sequence-admin-two-1',
+    fundCreatedByUserId: 'other-admin-uuid',
+    fundAdminName: 'Admin Two'
+  });
+  await createLoan(loanDetails(), {
+    idempotencyKey: 'loan-sequence-admin-one-2',
+    fundCreatedByUserId: 'admin-user-uuid',
+    fundAdminName: 'Admin One'
+  });
+
+  assert.deepEqual(state.loanNumbers, [
+    'GL-20261020-000001',
+    'GL-20261020-000001',
+    'GL-20261020-000002'
+  ]);
 });
 
 test('rolls back a loan when its disbursement exceeds the admin balance', async (context) => {
@@ -207,6 +266,7 @@ test('serializes concurrent loans so they cannot spend the same admin balance', 
     balance: 100,
     fundEntries: [],
     loans: new Map(),
+    loanSequences: new Map(),
     nextLoanId: 0
   };
   pool.getConnection = createConcurrentPool(shared).getConnection;

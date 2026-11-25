@@ -36,6 +36,7 @@ test('stores the creating admin UUID in both customer audit fields', async () =>
   const originalExecute = pool.execute;
   const adminUserId = '2c9f163f-e700-11f1-8318-51021565bd83';
   let insertedCustomerValues;
+  let assignedCustomerCode;
 
   pool.getConnection = async () => ({
     async beginTransaction() {},
@@ -48,6 +49,9 @@ test('stores the creating admin UUID in both customer audit fields', async () =>
       if (sql.startsWith('INSERT INTO loan_customers')) {
         insertedCustomerValues = values;
         return [{ insertId: 25 }, []];
+      }
+      if (sql.startsWith('UPDATE loan_customers SET customer_code')) {
+        assignedCustomerCode = values[0];
       }
       return [{ affectedRows: 1 }, []];
     }
@@ -65,6 +69,62 @@ test('stores the creating admin UUID in both customer audit fields', async () =>
     assert.equal(insertedCustomerValues[2], adminUserId);
     assert.equal(customer.created_by, adminUserId);
     assert.equal(customer.updated_by, adminUserId);
+    assert.equal(assignedCustomerCode, 'CUS-000001');
+  } finally {
+    pool.getConnection = originalGetConnection;
+    pool.execute = originalExecute;
+  }
+});
+
+test('numbers customer codes independently for each admin', async () => {
+  const originalGetConnection = pool.getConnection;
+  const originalExecute = pool.execute;
+  const nextCodeByAdmin = new Map();
+  const assignedCodes = [];
+  let nextCustomerId = 1;
+
+  pool.getConnection = async () => {
+    let ownerUserId;
+    return {
+      async beginTransaction() {},
+      async commit() {},
+      async rollback() {},
+      release() {},
+      async execute(sql, values) {
+        if (sql.includes('SELECT user_id FROM users WHERE user_id')) {
+          ownerUserId = values[0];
+          return [[], []];
+        }
+        if (sql.includes('SELECT id FROM users')) return [[], []];
+        if (sql.startsWith('INSERT INTO users')) return [{ insertId: 100 }, []];
+        if (sql.includes('SELECT COALESCE(MAX(')) {
+          return [[{ max_code: nextCodeByAdmin.get(values[0]) || 0 }], []];
+        }
+        if (sql.startsWith('INSERT INTO loan_customers')) {
+          return [{ insertId: nextCustomerId++ }, []];
+        }
+        if (sql.startsWith('UPDATE loan_customers SET customer_code')) {
+          const code = values[0];
+          assignedCodes.push({ ownerUserId, code });
+          nextCodeByAdmin.set(ownerUserId, Number(code.slice(4)));
+        }
+        return [{ affectedRows: 1 }, []];
+      }
+    };
+  };
+  pool.execute = async () => [[{}], []];
+
+  try {
+    const customer = { full_name: 'Gold Customer', mobile: '9876543210' };
+    await createLoanCustomer(customer, 'Customer One', 'customer-pass-123', 'admin-one');
+    await createLoanCustomer(customer, 'Customer Two', 'customer-pass-123', 'admin-two');
+    await createLoanCustomer(customer, 'Customer Three', 'customer-pass-123', 'admin-one');
+
+    assert.deepEqual(assignedCodes, [
+      { ownerUserId: 'admin-one', code: 'CUS-000001' },
+      { ownerUserId: 'admin-two', code: 'CUS-000001' },
+      { ownerUserId: 'admin-one', code: 'CUS-000002' }
+    ]);
   } finally {
     pool.getConnection = originalGetConnection;
     pool.execute = originalExecute;

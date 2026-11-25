@@ -139,6 +139,7 @@ async function initializeLoanCustomerModule() {
       await pool.query(`ALTER TABLE loan_customers ADD COLUMN \`${column}\` ${definition}`);
     }
   }
+  await ensureLoanCustomerCodeUniquePerCreator();
   await ensureLoanCustomerAuditForeignKey('created_by', 'fk_loan_customers_created_by_user_id');
   await ensureLoanCustomerAuditForeignKey('updated_by', 'fk_loan_customers_updated_by_user_id');
   await linkExistingCustomerAccounts();
@@ -188,6 +189,54 @@ async function ensureLoanCustomerAuditForeignKey(column, constraintName) {
   }
 }
 
+async function ensureLoanCustomerCodeUniquePerCreator() {
+  const [indexRows] = await pool.execute(
+    `SELECT INDEX_NAME, COLUMN_NAME, SEQ_IN_INDEX, NON_UNIQUE
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'loan_customers'
+     ORDER BY INDEX_NAME, SEQ_IN_INDEX`
+  );
+  const indexes = new Map();
+  for (const row of indexRows) {
+    if (!indexes.has(row.INDEX_NAME)) {
+      indexes.set(row.INDEX_NAME, { nonUnique: Number(row.NON_UNIQUE), columns: [] });
+    }
+    indexes.get(row.INDEX_NAME).columns.push(row.COLUMN_NAME);
+  }
+
+  for (const [name, index] of indexes) {
+    if (index.nonUnique === 0 && index.columns.length === 1 && index.columns[0] === 'customer_code') {
+      const escapedName = String(name).replace(/`/g, '``');
+      await pool.query(`ALTER TABLE loan_customers DROP INDEX \`${escapedName}\``);
+    }
+  }
+
+  const hasCreatorCodeUniqueKey = Array.from(indexes.values()).some((index) =>
+    index.nonUnique === 0
+      && index.columns.length === 2
+      && index.columns[0] === 'created_by'
+      && index.columns[1] === 'customer_code'
+  );
+  if (!hasCreatorCodeUniqueKey) {
+    const [customers] = await pool.execute(
+      'SELECT id, created_by FROM loan_customers ORDER BY created_by, created_at, id'
+    );
+    const nextCodeByCreator = new Map();
+    for (const customer of customers) {
+      const creator = customer.created_by === null ? null : String(customer.created_by);
+      const nextCode = (nextCodeByCreator.get(creator) || 0) + 1;
+      nextCodeByCreator.set(creator, nextCode);
+      await pool.execute(
+        'UPDATE loan_customers SET customer_code = ? WHERE id = ?',
+        [`CUS-${String(nextCode).padStart(6, '0')}`, customer.id]
+      );
+    }
+    await pool.query(
+      'ALTER TABLE loan_customers ADD UNIQUE KEY uq_loan_customers_creator_code (created_by, customer_code)'
+    );
+  }
+}
+
 async function listLoanCustomers(search = '', dateRange = {}, createdByUserId) {
   const term = `%${search}%`;
   const conditions = [`(? = '' OR CAST(id AS CHAR) LIKE ? OR customer_code LIKE ? OR full_name LIKE ? OR mobile LIKE ?
@@ -222,6 +271,10 @@ async function createLoanCustomer(customer, username, password = customer.mobile
   let id;
   try {
     await connection.beginTransaction();
+    await connection.execute(
+      'SELECT user_id FROM users WHERE user_id = ? FOR UPDATE',
+      [createdByUserId]
+    );
     const [existingUsers] = await connection.execute(
       'SELECT id FROM users WHERE username = ? LIMIT 1 FOR UPDATE',
       [username]
@@ -240,6 +293,12 @@ async function createLoanCustomer(customer, username, password = customer.mobile
       status: 'Active',
       role: 'user'
     });
+    const [customerSequences] = await connection.execute(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(customer_code, '-', -1) AS UNSIGNED)), 0) AS max_code
+       FROM loan_customers
+       WHERE created_by = ? AND customer_code REGEXP '^CUS-[0-9]+$'`,
+      [createdByUserId]
+    );
     const fields = ['user_id', 'created_by', 'updated_by', ...Object.keys(customer)];
     const [result] = await connection.execute(
       `INSERT INTO loan_customers (${fields.map((field) => `\`${field}\``).join(', ')})
@@ -251,7 +310,7 @@ async function createLoanCustomer(customer, username, password = customer.mobile
       })
     );
     id = result.insertId;
-    const customerCode = `CUS-${String(id).padStart(6, '0')}`;
+    const customerCode = `CUS-${String(Number(customerSequences[0]?.max_code || 0) + 1).padStart(6, '0')}`;
     await connection.execute(
       'UPDATE loan_customers SET customer_code = ? WHERE id = ?',
       [customerCode, id]
