@@ -19,6 +19,8 @@ function OrderSummary({
   setDiscountType,
   discountValue,
   setDiscountValue,
+  advanceAmount,
+  setAdvanceAmount,
   onNext,
   onBack,
   orderStep
@@ -36,6 +38,8 @@ function OrderSummary({
     discountType === "Percent" ? subtotal * Math.min(requestedDiscount, 100) / 100 : requestedDiscount
   );
   const total = Math.max(0, subtotal + gstAmount - discount);
+  const advance = Math.min(total, Math.max(0, Number(advanceAmount) || 0));
+  const balanceDue = total - advance;
 
   return (
     <aside className="flex min-h-0 flex-col rounded-xl bg-gradient-to-b from-[#2c160c] to-[#482817] p-2 text-white shadow-lg sm:p-5 xl:h-full">
@@ -195,6 +199,30 @@ function OrderSummary({
           <span className="text-2xl font-black">{formatCurrency(total)}</span>
         </div>
 
+        <label className="block text-sm font-semibold text-white/75">
+          Advance amount
+          <input
+            type="number"
+            min="0"
+            max={total}
+            step="0.01"
+            value={advanceAmount === "" ? "" : advance}
+            onChange={(event) => {
+              const value = event.target.value;
+              setAdvanceAmount(
+                value === "" ? "" : String(Math.min(total, Math.max(0, Number(value) || 0)))
+              );
+            }}
+            aria-label="Advance amount"
+            className="mt-1 w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-right font-bold text-white outline-none focus:border-orange-400"
+          />
+        </label>
+
+        <div className="flex items-center justify-between border-t border-white/15 pt-3 text-sm">
+          <span className="font-bold text-orange-200">Balance due</span>
+          <span className="font-extrabold">{formatCurrency(balanceDue)}</span>
+        </div>
+
         <button
           type="button"
           onClick={orderStep === "products" ? onNext : onBack}
@@ -221,6 +249,7 @@ const TackOrders = () => {
   const [gstRate, setGstRate] = useState("12");
   const [discountType, setDiscountType] = useState("Percent");
   const [discountValue, setDiscountValue] = useState("0");
+  const [advanceAmount, setAdvanceAmount] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -493,6 +522,8 @@ const TackOrders = () => {
           setDiscountType={setDiscountType}
           discountValue={discountValue}
           setDiscountValue={setDiscountValue}
+          advanceAmount={advanceAmount}
+          setAdvanceAmount={setAdvanceAmount}
           orderStep={orderStep}
           onNext={() => setOrderStep("details")}
           onBack={() => setOrderStep("products")}
@@ -571,6 +602,8 @@ const TackOrders = () => {
             setDiscountType={setDiscountType}
             discountValue={discountValue}
             setDiscountValue={setDiscountValue}
+            advanceAmount={advanceAmount}
+            setAdvanceAmount={setAdvanceAmount}
             orderStep={orderStep}
             onNext={() => setOrderStep("details")}
             onBack={() => setOrderStep("products")}
