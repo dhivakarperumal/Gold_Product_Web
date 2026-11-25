@@ -115,13 +115,11 @@ function Register() {
 
   return (
     <AuthLayout
-      eyebrow="Shop registration"
-      title="Register your gold shop"
-      subtitle="Complete the steps below to submit your application for review."
       alternatePrompt="Already have an account?"
       alternateLabel="Sign in"
       alternateTo="/login"
       fixedHeight
+      hideHeader
     >
       <AddGoldShop
         mode="register"
