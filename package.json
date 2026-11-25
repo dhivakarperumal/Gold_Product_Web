@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "concurrently -k -n frontend,backend \"npm run dev --workspace=Frontend\" \"npm run start --workspace=Backend\"",
     "dev:frontend": "npm run dev --workspace=Frontend",
-    "dev:backend": "npm run dev --workspace=Backend",
+    "dev:backend": "npm run start --workspace=Backend",
     "build": "npm run build --workspace=Frontend && npm run build --workspace=Backend",
     "build:frontend": "npm run build --workspace=Frontend",
     "build:backend": "npm run build --workspace=Backend",

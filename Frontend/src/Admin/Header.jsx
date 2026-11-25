@@ -202,13 +202,13 @@ const Header = ({ onMenuClick }) => {
     const loadSearchItems = async () => {
       try {
         const [prodRes, loanRes] = await Promise.allSettled([
-          api.get("/products"),
+          api.get("/products/mine"),
           api.get("/loans")
         ]);
 
         const items = [];
-        if (prodRes.status === "fulfilled" && Array.isArray(prodRes.value.data)) {
-          prodRes.value.data.forEach(p => items.push({
+        if (prodRes.status === "fulfilled" && Array.isArray(prodRes.value.data?.products)) {
+          prodRes.value.data.products.forEach(p => items.push({
             type: "product",
             id: p.id,
             title: p.name,
@@ -308,8 +308,8 @@ const Header = ({ onMenuClick }) => {
   // Fetch low stock products
   const fetchLowStockProducts = async () => {
     try {
-      const res = await api.get("/products");
-      const products = Array.isArray(res.data) ? res.data : [];
+      const res = await api.get("/products/mine");
+      const products = Array.isArray(res.data?.products) ? res.data.products : [];
       const alerts = products.filter(p => {
         const stock = parseInt(p.total_stock ?? p.stock ?? 0);
         return stock <= 10; // low stock threshold

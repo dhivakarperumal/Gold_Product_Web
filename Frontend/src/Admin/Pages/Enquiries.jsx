@@ -219,12 +219,12 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
     let active = true;
     const loadProducts = async () => {
       try {
-        const firstResponse = await api.get("/products", { params: { page: 1, limit: 100, status: "Active" } });
+        const firstResponse = await api.get("/products/mine", { params: { page: 1, limit: 100, status: "Active" } });
         const firstPage = firstResponse.data;
         if (!Array.isArray(firstPage.products)) throw new Error("The server returned an invalid product list.");
         const pages = Array.from({ length: Math.max(0, (firstPage.pagination?.totalPages || 1) - 1) }, (_, index) => index + 2);
         const additionalPages = await Promise.all(pages.map((pageNumber) =>
-          api.get("/products", { params: { page: pageNumber, limit: 100, status: "Active" } })
+          api.get("/products/mine", { params: { page: pageNumber, limit: 100, status: "Active" } })
         ));
         if (active) setProducts([
           ...firstPage.products,
