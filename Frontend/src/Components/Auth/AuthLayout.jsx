@@ -16,16 +16,16 @@ export default function AuthLayout({
 }) {
   if (splitLayout) {
     return (
-      <main className="min-h-screen bg-[#e8eeea] p-0 sm:p-4 lg:p-6">
-        <div className="mx-auto flex min-h-screen max-w-[1480px] overflow-hidden bg-white shadow-[0_24px_80px_rgba(27,39,33,0.14)] sm:min-h-[calc(100vh-2rem)] sm:rounded-[28px] lg:min-h-[calc(100vh-3rem)]">
-          <aside className="relative hidden min-h-full w-[54%] flex-col justify-between overflow-hidden bg-[#063d2c] p-10 text-white lg:flex xl:p-14">
+      <main className="min-h-screen bg-white">
+        <div className="flex min-h-screen w-full overflow-hidden bg-white">
+          <aside className="relative hidden min-h-full w-[62%] flex-none flex-col justify-between overflow-hidden bg-[#063d2c] p-10 text-white lg:flex xl:p-14">
             <img
               src="/images/loginbanner.png"
               alt=""
               aria-hidden="true"
               className="absolute inset-0 h-full w-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-br from-[#003B3B]/75 via-[#003B3B]/35 to-[#003B3B]/70" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#003B3B]/55 via-[#003B3B]/20 to-[#003B3B]/65" />
             <div className="relative flex items-center gap-3">
               <span className="grid h-11 w-11 place-items-center rounded-xl border border-white/20 bg-white/10 text-amber-300 backdrop-blur-sm">
                 <Gem size={22} />
@@ -37,25 +37,27 @@ export default function AuthLayout({
             </div>
 
             <div className="relative max-w-xl py-10">
-              <span className="inline-flex rounded-full border border-emerald-100/35 bg-emerald-950/30 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-50 backdrop-blur-sm">
-                Crafted with care · Trusted for generations
+              <span className="inline-flex rounded-full border border-emerald-100/50 bg-emerald-950/30 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-50 backdrop-blur-sm">
+                Fine jewellery · Trusted for generations
               </span>
               <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight xl:text-5xl">
-                Your business, <span className="text-amber-300">beautifully</span> managed.
+                Timeless elegance for <span className="text-amber-300">every occasion.</span>
               </h2>
               <p className="mt-4 max-w-lg text-sm leading-6 text-white/80 xl:text-base">
-                A secure workspace to manage your jewellery shop, customers, products, and billing with confidence.
+                Discover a better way to manage your jewellery shop, serve customers, and keep every detail in harmony.
               </p>
               <div className="mt-7 flex flex-wrap gap-2">
                 {["Gold", "Diamond", "Silver"].map((item) => (
-                  <span key={item} className="rounded-full bg-white/90 px-4 py-2 text-xs font-bold text-[#064A41]">
+                  <span key={item} className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-bold text-[#064A41]">
                     {item}
                   </span>
                 ))}
               </div>
             </div>
 
-            <div className="relative grid grid-cols-3 gap-3 border-t border-white/20 pt-5 text-center">
+            <div className="relative border-t border-white/20 pt-5">
+              <h3 className="mb-5 text-center text-3xl font-black tracking-tight xl:text-4xl">Welcome to Sri Golds</h3>
+              <div className="grid grid-cols-3 gap-3 text-center">
               {[
                 { label: "Secure access", icon: <ShieldCheck size={19} /> },
                 { label: "Shop management", icon: <Gem size={19} /> },
@@ -66,10 +68,11 @@ export default function AuthLayout({
                   {feature.label}
                 </div>
               ))}
+              </div>
             </div>
           </aside>
 
-          <section className="flex w-full min-w-0 flex-col bg-white px-5 py-5 sm:px-8 sm:py-7 lg:w-[46%] lg:rounded-l-[3rem] lg:px-10 lg:py-8 xl:px-14">
+          <section className="flex w-full min-w-0 flex-col bg-white px-5 py-5 sm:px-8 sm:py-7 lg:-ml-[4%] lg:w-[42%] lg:flex-none lg:rounded-l-[5rem] lg:px-10 lg:py-8 xl:px-14">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 lg:hidden">
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#063d2c] text-amber-300">
@@ -86,7 +89,7 @@ export default function AuthLayout({
             </div>
 
             <div className="mt-4 flex justify-center lg:mt-2">
-              <img src="/images/logo.png" alt="Sri Golds" className="h-16 w-40 object-contain sm:h-[4.5rem] sm:w-48" />
+              <img src="/images/logo.png" alt="Sri Golds" className="h-20 w-48 object-contain sm:h-24 sm:w-56" />
             </div>
 
             {!hideHeader && (
