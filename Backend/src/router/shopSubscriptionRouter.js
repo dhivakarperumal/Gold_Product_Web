@@ -4,13 +4,11 @@ const {
   getPlans,
   postAssistanceRequest,
   postOrder,
-  postVerifyPayment,
-  postWebhook
+  postVerifyPayment
 } = require('../controllers/shopSubscriptionController');
 
 const router = express.Router();
 
-router.post('/razorpay/webhook', postWebhook);
 router.use(requireSubscriptionAccount);
 router.get('/plans', getPlans);
 router.post('/requests', postAssistanceRequest);

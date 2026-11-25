@@ -7,14 +7,13 @@ class RazorpayClientError extends Error {
   }
 }
 
-function razorpayCredentials({ webhook = false } = {}) {
+function razorpayCredentials() {
   const keyId = String(process.env.RAZORPAY_KEY_ID || '').trim();
   const keySecret = String(process.env.RAZORPAY_KEY_SECRET || '').trim();
-  const webhookSecret = String(process.env.RAZORPAY_WEBHOOK_SECRET || '').trim();
-  if (!keyId || !keySecret || (webhook && !webhookSecret)) {
+  if (!keyId || !keySecret) {
     throw new RazorpayClientError(503, 'Razorpay is not configured. Set its API key and secret before accepting payments.');
   }
-  return { keyId, keySecret, webhookSecret };
+  return { keyId, keySecret };
 }
 
 async function razorpayRequest(path, { method = 'GET', body } = {}) {
@@ -81,17 +80,10 @@ function verifyCheckoutSignature(orderId, paymentId, signature) {
   return signaturesMatch(expected, signature);
 }
 
-function verifyWebhookSignature(rawBody, signature) {
-  const { webhookSecret } = razorpayCredentials({ webhook: true });
-  const expected = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
-  return signaturesMatch(expected, signature);
-}
-
 module.exports = {
   RazorpayClientError,
   createRazorpayOrder,
   getRazorpayPayment,
   razorpayCredentials,
-  verifyCheckoutSignature,
-  verifyWebhookSignature
+  verifyCheckoutSignature
 };

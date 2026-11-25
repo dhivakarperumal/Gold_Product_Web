@@ -1,15 +1,11 @@
 const {
   ShopSubscriptionError,
   createSubscriptionOrder,
-  handleCapturedWebhook,
   listAvailableSubscriptionPlans,
   requestSubscriptionAssistance,
   verifySubscriptionCheckout
 } = require('../modules/shopSubscriptionModule');
-const {
-  RazorpayClientError,
-  verifyWebhookSignature
-} = require('../services/razorpayClient');
+const { RazorpayClientError } = require('../services/razorpayClient');
 
 const DURATIONS = new Set(['monthly', 'quarterly', 'half_yearly', 'yearly']);
 
@@ -69,29 +65,9 @@ async function postVerifyPayment(req, res, next) {
   }
 }
 
-async function postWebhook(req, res, next) {
-  const signature = req.get('x-razorpay-signature') || '';
-  if (!Buffer.isBuffer(req.rawBody)) {
-    return res.status(400).json({ message: 'Webhook request body is unavailable.' });
-  }
-  try {
-    if (!verifyWebhookSignature(req.rawBody, signature)) {
-      return res.status(401).json({ message: 'Razorpay webhook signature is invalid.' });
-    }
-    if (req.body?.event !== 'payment.captured') {
-      return res.json({ received: true });
-    }
-    await handleCapturedWebhook(req.body?.payload?.payment?.entity);
-    return res.json({ received: true });
-  } catch (error) {
-    return handleSubscriptionError(error, res, next);
-  }
-}
-
 module.exports = {
   getPlans,
   postAssistanceRequest,
   postOrder,
-  postVerifyPayment,
-  postWebhook
+  postVerifyPayment
 };

@@ -265,15 +265,6 @@ async function verifySubscriptionCheckout(user, input) {
   return completeSubscriptionOrder(orderId, payment, user.user_id);
 }
 
-async function handleCapturedWebhook(payment) {
-  if (!payment || payment.status !== 'captured'
-    || !/^order_[A-Za-z0-9]+$/.test(String(payment.order_id || ''))
-    || !/^pay_[A-Za-z0-9]+$/.test(String(payment.id || ''))) {
-    return { ignored: true };
-  }
-  return completeSubscriptionOrder(payment.order_id, payment);
-}
-
 async function requestSubscriptionAssistance(user) {
   const [shops] = await pool.execute(
     `SELECT id FROM gold_shops
@@ -294,7 +285,6 @@ module.exports = {
   completeSubscriptionOrder,
   createSubscriptionOrder,
   getAccountPlanForOwner,
-  handleCapturedWebhook,
   listAvailableSubscriptionPlans,
   requestSubscriptionAssistance,
   verifySubscriptionCheckout
