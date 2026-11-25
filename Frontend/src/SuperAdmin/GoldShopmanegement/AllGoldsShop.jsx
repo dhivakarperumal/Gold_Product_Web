@@ -419,9 +419,6 @@ export default function AllGoldsShop() {
         ...(subscription ? { subscription } : {})
       }));
       if (documents?.profilePhoto) formData.append("profilePhoto", documents.profilePhoto);
-      if (documents?.aadhaarCard) formData.append("aadhaarCard", documents.aadhaarCard);
-      if (documents?.gstCertificate) formData.append("gstCertificate", documents.gstCertificate);
-      documents?.otherDocuments?.forEach((document) => formData.append("otherDocuments", document));
       const response = modal === "edit"
         ? await api.put(`/super-admin/gold-shops/${selectedShop.id}`, formData)
         : await api.post("/super-admin/gold-shops", formData);

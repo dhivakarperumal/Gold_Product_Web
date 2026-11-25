@@ -8,6 +8,27 @@ const today = () => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
 
+const INDIAN_STATES_AND_UTS = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa",
+  "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
+  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland",
+  "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+  "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands",
+  "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi",
+  "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+];
+
+function matchIndianState(value) {
+  const normalizedValue = String(value || "").toLowerCase().replace(/[^a-z]/g, "");
+  if (!normalizedValue) return "";
+  return INDIAN_STATES_AND_UTS.find((state) => {
+    const normalizedState = state.toLowerCase().replace(/[^a-z]/g, "");
+    return normalizedValue === normalizedState
+      || normalizedValue.includes(normalizedState)
+      || normalizedState.includes(normalizedValue);
+  }) || "";
+}
+
 function formatDate(value) {
   const [year, month, day] = value.split("-");
   const monthName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(month) - 1];
@@ -21,6 +42,56 @@ function formatStoredDate(value) {
 
 function mobileLoginPassword(value) {
   return String(value || "").replace(/[\s()-]/g, "").trim();
+}
+
+function validateField(name, value, { required = false, otherValue = "" } = {}) {
+  const trimmed = String(value || "").trim();
+  if (name === "ownerName" || name === "shopName") {
+    if (!trimmed) return `${name === "ownerName" ? "Name" : "Shop name"} is required.`;
+    return trimmed.length <= 150 ? "" : `${name === "ownerName" ? "Name" : "Shop name"} must be 150 characters or fewer.`;
+  }
+  if (name === "mobile") {
+    if (!trimmed) return "Mobile number is required.";
+    return /^[6-9]\d{9}$/.test(trimmed) ? "" : "Enter a 10-digit mobile number starting with 6, 7, 8, or 9.";
+  }
+  if (name === "aadhaarNumber" && trimmed && !/^\d{12}$/.test(trimmed)) {
+    return "Aadhaar number must contain exactly 12 digits.";
+  }
+  if (name === "gstNumber" && trimmed
+    && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i.test(trimmed)) {
+    return "Enter a valid 15-character GSTIN.";
+  }
+  if (name === "pincode" && trimmed && !/^[1-9]\d{5}$/.test(trimmed)) {
+    return "Pincode must be a valid 6-digit Indian postal code.";
+  }
+  if (name === "email") {
+    if (!trimmed && required) return "Email ID is required for shop login.";
+    if (trimmed && (trimmed.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed))) {
+      return "Enter a valid email address.";
+    }
+  }
+  if (name === "startDate" && required) {
+    const [year, month, day] = trimmed.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed) || date.toISOString().slice(0, 10) !== trimmed) {
+      return "Enter a valid subscription start date.";
+    }
+  }
+  if (name === "loginUsername" && required) {
+    if (!trimmed) return "Username is required.";
+    return /^[A-Za-z0-9._@+-]{3,150}$/.test(trimmed)
+      ? ""
+      : "Username must be 3 to 150 letters, numbers, or . _ @ + - characters.";
+  }
+  if (name === "loginPassword" && required) {
+    if (value.length < 8 || new TextEncoder().encode(value).length > 72) {
+      return "Password must be at least 8 characters and no more than 72 bytes.";
+    }
+  }
+  if (name === "confirmPassword" && required && value !== otherValue) {
+    return "Password and confirm password do not match.";
+  }
+  return "";
 }
 
 function estimatedEndDate(startDate, duration) {
@@ -39,11 +110,12 @@ function createInitialForm(shop) {
   return {
     shopName: shop?.shop_name || "",
     ownerName: shop?.owner_name || "",
-    mobile: shop?.mobile || "",
+    mobile: String(shop?.mobile || "").replace(/\D/g, "").slice(-10),
     email: shop?.email || "",
     loginUsername: shop?.owner_username || "",
     loginPassword: mobileLoginPassword(shop?.mobile),
     confirmPassword: mobileLoginPassword(shop?.mobile),
+    aadhaarNumber: shop?.aadhaar_number || "",
     gstNumber: shop?.gst_number || "",
     address: shop?.address || "",
     city: shop?.city || "",
@@ -62,21 +134,31 @@ function createInitialForm(shop) {
 const inputClass = "mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-100";
 const labelClass = "text-xs font-semibold uppercase tracking-wide text-stone-600";
 
-function Field({ label, name, value, onChange, required, type = "text", placeholder, min, max }) {
+function Field({
+  label, name, value, onChange, onBlur, error, required, type = "text", placeholder,
+  min, max, maxLength, inputMode, autoCapitalize
+}) {
   return (
     <label className={labelClass}>
       {label}{required && <span className="ml-1 text-rose-600">*</span>}
       <input
-        className={inputClass}
+        className={`${inputClass} ${error ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100" : ""}`}
         type={type}
         name={name}
         value={value}
         onChange={onChange}
+        onBlur={onBlur}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${name}-error` : undefined}
         required={required}
         placeholder={placeholder}
         min={min}
         max={max}
+        maxLength={maxLength}
+        inputMode={inputMode}
+        autoCapitalize={autoCapitalize}
       />
+      <span id={`${name}-error`} aria-live="polite" className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${error ? "text-rose-700" : "invisible"}`}>{error || " "}</span>
     </label>
   );
 }
@@ -104,17 +186,20 @@ function FileField({ label, name, accept, multiple = false, files, onChange, hin
   );
 }
 
-function PasswordField({ label, name, value, onChange, visible, onToggle, placeholder }) {
+function PasswordField({ label, name, value, onChange, onBlur, error, visible, onToggle, placeholder }) {
   return (
     <label className={`block ${labelClass}`}>
       {label}<span className="ml-1 text-rose-600">*</span>
       <span className="relative block">
         <input
-          className={`${inputClass} pr-11`}
+          className={`${inputClass} pr-11 ${error ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100" : ""}`}
           type={visible ? "text" : "password"}
           name={name}
           value={value}
           onChange={onChange}
+          onBlur={onBlur}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${name}-error` : undefined}
           required
           placeholder={placeholder}
           autoComplete="new-password"
@@ -129,13 +214,13 @@ function PasswordField({ label, name, value, onChange, visible, onToggle, placeh
           {visible ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </span>
+      <span id={`${name}-error`} aria-live="polite" className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${error ? "text-rose-700" : "invisible"}`}>{error || " "}</span>
     </label>
   );
 }
 
 const TABS = [
   { id: "personal", label: "Personal Details", icon: UserRound },
-  { id: "address", label: "Address Details", icon: MapPin },
   { id: "shop", label: "Shop Details", icon: Store },
   { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "login", label: "Login Credential", icon: KeyRound }
@@ -150,16 +235,18 @@ export default function AddGoldShop({
   onSubmit
 }) {
   const [form, setForm] = useState(() => createInitialForm(initialShop));
-  const [files, setFiles] = useState({ profilePhoto: null, aadhaarCard: null, gstCertificate: null, otherDocuments: [] });
+  const [files, setFiles] = useState({ profilePhoto: null });
   const [existingDocuments, setExistingDocuments] = useState([]);
   const [shopDetails, setShopDetails] = useState(initialShop);
   const [shopDetailsLoading, setShopDetailsLoading] = useState(mode === "edit" && Boolean(initialShop?.id));
   const [shopDetailsError, setShopDetailsError] = useState("");
-  const [documentConsent, setDocumentConsent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState("");
+  const [fetchingLocation, setFetchingLocation] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
   const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const isEditing = mode === "edit";
 
   useEffect(() => {
@@ -196,7 +283,10 @@ export default function AddGoldShop({
   const endDate = estimatedEndDate(form.startDate, form.duration);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const { name } = event.target;
+    const value = name === "mobile"
+      ? event.target.value.replace(/\D/g, "").slice(0, 10)
+      : event.target.value;
     setForm((current) => {
       if (name !== "mobile") return { ...current, [name]: value };
 
@@ -212,37 +302,123 @@ export default function AddGoldShop({
           : current.confirmPassword
       };
     });
+    setFieldErrors((current) => {
+      if (!current[name]) return current;
+      const next = { ...current };
+      delete next[name];
+      return next;
+    });
     setFormError("");
+  };
+
+  const handleFieldBlur = (event) => {
+    const { name, value } = event.target;
+    const required = (!isEditing && ["email", "loginUsername", "loginPassword", "confirmPassword", "startDate"].includes(name));
+    const error = validateField(name, value, {
+      required,
+      otherValue: name === "confirmPassword" ? form.loginPassword : form.confirmPassword
+    });
+    setFieldErrors((current) => ({ ...current, [name]: error }));
   };
 
   const handleFileChange = (name, event) => {
     const selected = Array.from(event.target.files || []);
     if (selected.some((file) => file.size > 5 * 1024 * 1024)) {
-      setFormError("Each document must be 5 MB or smaller.");
+      setFormError("Profile photos must be 5 MB or smaller.");
       event.target.value = "";
       return;
     }
-    if (name === "profilePhoto" && selected.some((file) => !["image/jpeg", "image/png"].includes(file.type))) {
+    if (selected.some((file) => !["image/jpeg", "image/png"].includes(file.type))) {
       setFormError("Profile photos must be JPG or PNG images.");
-      event.target.value = "";
-      return;
-    }
-    if (selected.some((file) => !["application/pdf", "image/jpeg", "image/png"].includes(file.type))) {
-      setFormError("Documents must be PDF, JPG, or PNG files.");
-      event.target.value = "";
-      return;
-    }
-    if (name === "otherDocuments" && selected.length + files.otherDocuments.length > 4) {
-      setFormError("Choose no more than 4 supporting documents.");
       event.target.value = "";
       return;
     }
     setFiles((current) => ({
       ...current,
-      [name]: name === "otherDocuments" ? [...current.otherDocuments, ...selected] : (selected[0] || null)
+      [name]: selected[0] || null
     }));
     setFormError("");
     event.target.value = "";
+  };
+
+  const fetchCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Location is not supported by this browser.");
+      return;
+    }
+    setFetchingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const lookupLocation = async () => {
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), 10000);
+          try {
+            const params = new URLSearchParams({
+              format: "jsonv2",
+              addressdetails: "1",
+              lat: String(coords.latitude),
+              lon: String(coords.longitude)
+            });
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
+              headers: { "Accept-Language": "en" },
+              signal: controller.signal
+            });
+            if (!response.ok) throw new Error("OpenStreetMap could not look up this location. Please try again.");
+
+            const result = await response.json();
+            if (!result || typeof result !== "object" || !result.address) {
+              throw new Error("No address details were found for this location.");
+            }
+
+            const address = result.address;
+            const street = [address.house_number, address.road || address.pedestrian || address.residential]
+              .filter(Boolean)
+              .join(" ");
+            const locality = address.neighbourhood || address.suburb || address.quarter;
+            const shopAddress = [street, locality].filter(Boolean).join(", ") || result.display_name || "";
+            const city = address.city || address.town || address.village || address.municipality
+              || address.city_district || address.county || "";
+            const state = matchIndianState(address.state);
+            const postalCode = String(address.postcode || "").replace(/\D/g, "");
+            const pincode = /^[1-9]\d{5}$/.test(postalCode) ? postalCode : "";
+
+            setForm((current) => ({
+              ...current,
+              address: shopAddress,
+              city,
+              state,
+              pincode
+            }));
+            setCurrentLocation("Location fields filled where available. Please verify them before saving.");
+            setFormError("");
+            toast.success("Current location added. Please verify the address details.");
+          } catch (error) {
+            const message = error && error.name === "AbortError"
+              ? "Location lookup timed out. Please try again."
+              : error instanceof TypeError
+                ? "Could not connect to OpenStreetMap. Please try again."
+                : error instanceof Error
+                  ? error.message
+                  : "Could not look up this location.";
+            toast.error(message);
+          } finally {
+            window.clearTimeout(timeout);
+            setFetchingLocation(false);
+          }
+        };
+        lookupLocation();
+      },
+      (error) => {
+        const message = error.code === error.PERMISSION_DENIED
+          ? "Location permission was denied. Allow location access in your browser and try again."
+          : error.code === error.POSITION_UNAVAILABLE
+            ? "Your current location is unavailable."
+            : "Location request timed out. Please try again.";
+        toast.error(message);
+        setFetchingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   const downloadDocument = async (document) => {
@@ -262,12 +438,65 @@ export default function AddGoldShop({
     }
   };
 
-  const submit = (event, addAnother = false) => {
+  const validateTabs = (tabs) => {
+    const fieldsByTab = {
+      personal: [["ownerName", true], ["mobile", true], ["aadhaarNumber", false]],
+      shop: [["shopName", true], ["gstNumber", false], ["pincode", false]],
+      login: [
+        ["email", !isEditing],
+        ["loginUsername", !isEditing],
+        ["loginPassword", !isEditing],
+        ["confirmPassword", !isEditing]
+      ]
+    };
+    const errors = {};
+    let firstInvalidTab = "";
+
+    for (const tab of tabs) {
+      for (const [name, required] of fieldsByTab[tab] || []) {
+        const error = validateField(name, form[name], {
+          required,
+          otherValue: name === "confirmPassword" ? form.loginPassword : form.confirmPassword
+        });
+        if (error) {
+          errors[name] = error;
+          if (!firstInvalidTab) firstInvalidTab = tab;
+        }
+      }
+      if (tab === "subscription" && !isEditing) {
+        const planError = !selectedPlanId ? "Select a subscription plan." : "";
+        const dateError = validateField("startDate", form.startDate, { required: true });
+        if (planError || dateError) {
+          if (!firstInvalidTab) firstInvalidTab = tab;
+          errors.planId = planError;
+          errors.startDate = dateError;
+        }
+      }
+    }
+
+    setFieldErrors(errors);
+    if (firstInvalidTab) {
+      setActiveTab(firstInvalidTab);
+      setFormError(errors.planId || errors.startDate
+        ? "Select a subscription plan and a valid start date before continuing."
+        : "Please correct the highlighted fields before continuing.");
+      return false;
+    }
+    return true;
+  };
+
+  const submit = (event) => {
     event.preventDefault();
     if (shopDetailsLoading || shopDetailsError) return;
+    if (activeTabIndex !== TABS.length - 1) {
+      if (!validateTabs([activeTab])) return;
+      setActiveTab(TABS[activeTabIndex + 1].id);
+      setFormError("");
+      return;
+    }
+    if (!validateTabs(["personal", "shop", "subscription", "login"])) return;
     const requiredFields = [
       ["ownerName", "personal", "Owner name is required."],
-      ["mobile", "personal", "Mobile number is required."],
       ["shopName", "shop", "Shop name is required."]
     ];
     const missingField = requiredFields.find(([name]) => !String(form[name] || "").trim());
@@ -276,46 +505,12 @@ export default function AddGoldShop({
       setFormError(missingField[2]);
       return;
     }
-    if (!isEditing && !form.email.trim()) {
-      setActiveTab("login");
-      setFormError("Email ID is required for shop login.");
-      return;
-    }
-    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      setActiveTab("login");
-      setFormError("Enter a valid login email ID.");
-      return;
-    }
-    if (!isEditing && (!selectedPlanId || !form.startDate)) {
-      setActiveTab("subscription");
-      setFormError("Select a subscription plan and start date.");
-      return;
-    }
-    if (!isEditing && !/^[A-Za-z0-9._@+-]{3,150}$/.test(form.loginUsername.trim())) {
-      setActiveTab("login");
-      setFormError("Username must be 3 to 150 letters, numbers, or . _ @ + - characters.");
-      return;
-    }
-    if (!isEditing && (form.loginPassword.length < 8 || new TextEncoder().encode(form.loginPassword).length > 72)) {
-      setActiveTab("login");
-      setFormError("Password must be at least 8 characters and no more than 72 bytes.");
-      return;
-    }
-    if (!isEditing && form.loginPassword !== form.confirmPassword) {
-      setActiveTab("login");
-      setFormError("Password and confirm password do not match.");
-      return;
-    }
-    if ((files.aadhaarCard || files.gstCertificate || files.otherDocuments.length) && !documentConsent) {
-      setActiveTab("personal");
-      setFormError("Confirm that you have the owner's authorization to upload these documents.");
-      return;
-    }
     const shop = {
       shopName: form.shopName.trim(),
       ownerName: form.ownerName.trim(),
       mobile: form.mobile.trim(),
       email: form.email.trim(),
+      aadhaarNumber: form.aadhaarNumber.trim(),
       ...(isEditing ? {} : {
         credentials: {
           username: form.loginUsername.trim(),
@@ -330,7 +525,6 @@ export default function AddGoldShop({
       maxBranches: isEditing ? (initialShop?.max_branches || 1) : 1,
       maxStaff: isEditing ? (initialShop?.max_staff || 1) : 1,
       notes: form.notes.trim(),
-      documentConsent,
       documents: files
     };
     if (!isEditing) {
@@ -340,12 +534,11 @@ export default function AddGoldShop({
         startDate: form.startDate
       };
     }
-    onSubmit(shop, addAnother);
+    onSubmit(shop);
   };
 
   const sectionClass = "rounded-2xl border border-stone-200 bg-white p-4 sm:p-5";
   const activeTabIndex = TABS.findIndex((tab) => tab.id === activeTab);
-  const acceptedDocuments = ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
 
   return (
     <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6">
@@ -353,9 +546,9 @@ export default function AddGoldShop({
         role="dialog"
         aria-modal="true"
         aria-labelledby="gold-shop-form-title"
-        className="my-auto w-full max-w-4xl overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl"
+        className="my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl sm:h-[calc(100vh-3rem)]"
       >
-        <header className="flex items-start justify-between gap-4 border-b border-amber-100 bg-gradient-to-r from-[#13211d] to-[#26342d] px-5 py-5 text-white sm:px-7">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-amber-100 bg-gradient-to-r from-[#13211d] to-[#26342d] px-5 py-5 text-white sm:px-7">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
               Gold Shops Management
@@ -372,7 +565,8 @@ export default function AddGoldShop({
           </button>
         </header>
 
-        <form noValidate onSubmit={(event) => submit(event)} className="max-h-[calc(100vh-9rem)] space-y-4 overflow-y-auto p-4 sm:p-6">
+        <form noValidate onSubmit={(event) => submit(event)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4 sm:p-6">
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
@@ -393,36 +587,19 @@ export default function AddGoldShop({
             ))}
           </div>
 
-          {formError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{formError}</p>}
+          <p role="alert" aria-live="polite" className={`flex h-11 items-center overflow-hidden rounded-xl border px-4 text-sm ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
 
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
               <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Owner name" name="ownerName" value={form.ownerName} onChange={handleChange} required placeholder="Full name" />
-                <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} required type="tel" placeholder="+919876543210" />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Field label="Name" name="ownerName" value={form.ownerName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.ownerName} required maxLength={150} placeholder="Full name" />
+                <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.mobile} required type="text" inputMode="numeric" maxLength={10} placeholder="9876543210" />
                 <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." />
-                <FileField label="Aadhaar card" name="aadhaarCard" accept={acceptedDocuments} files={files.aadhaarCard} onChange={(event) => handleFileChange("aadhaarCard", event)} hint="Upload an Aadhaar image or PDF, up to 5 MB. Stored privately." />
-                <label className="flex items-start gap-2 text-xs font-medium text-stone-600 sm:col-span-2">
-                  <input type="checkbox" checked={documentConsent} onChange={(event) => setDocumentConsent(event.target.checked)} className="mt-0.5 accent-amber-700" />
-                  <span>I have the owner's authorization to upload these documents. Sensitive documents are stored privately and accessible only to Super Admins.</span>
-                </label>
+                <Field label="Aadhaar number" name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.aadhaarNumber} type="text" inputMode="numeric" maxLength={12} placeholder="12-digit Aadhaar number" />
               </div>
             </section>
 
-            <section id="gold-shop-panel-address" role="tabpanel" aria-labelledby="gold-shop-tab-address" hidden={activeTab !== "address"} className={sectionClass}>
-              <h3 className="mb-4 font-bold text-stone-800">Address Details</h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="City" />
-                <Field label="State" name="state" value={form.state} onChange={handleChange} placeholder="State" />
-                <Field label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} placeholder="Postal code" />
-                <label className={`${labelClass} sm:col-span-2`}>
-                  Shop address
-                  <textarea className={`${inputClass} min-h-24 resize-y`} name="address" value={form.address} onChange={handleChange} rows={3} placeholder="Street address" />
-                </label>
-              </div>
-            </section>
-
-            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className="space-y-4">
+            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className="space-y-2">
               <div className={sectionClass}>
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
@@ -431,11 +608,30 @@ export default function AddGoldShop({
                   </div>
                   <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold tracking-wide text-amber-800">GOLD-XXXX</span>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Shop name" name="shopName" value={form.shopName} onChange={handleChange} required placeholder="e.g. Sri Golds" />
-                  <Field label="GST number" name="gstNumber" value={form.gstNumber} onChange={handleChange} placeholder="15-character GSTIN" />
-                  <FileField label="GST certificate" name="gstCertificate" accept={acceptedDocuments} files={files.gstCertificate} onChange={(event) => handleFileChange("gstCertificate", event)} hint="PDF, JPG, or PNG, up to 5 MB." />
-                  <FileField label="Other important documents" name="otherDocuments" accept={acceptedDocuments} multiple files={files.otherDocuments} onChange={(event) => handleFileChange("otherDocuments", event)} hint="Upload up to 4 supporting documents; each up to 5 MB." />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Field label="Shop name" name="shopName" value={form.shopName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.shopName} required maxLength={150} placeholder="e.g. Sri Golds" />
+                  <Field label="GST number" name="gstNumber" value={form.gstNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.gstNumber} maxLength={15} autoCapitalize="characters" placeholder="15-character GSTIN" />
+                  <div className="grid gap-2 sm:col-span-2 lg:grid-cols-3">
+                    <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="City" />
+                    <label className={labelClass}>
+                      State
+                      <select className={inputClass} name="state" value={form.state} onChange={handleChange}>
+                        <option value="">Select state</option>
+                        {INDIAN_STATES_AND_UTS.map((state) => <option key={state} value={state}>{state}</option>)}
+                      </select>
+                    </label>
+                    <Field label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.pincode} inputMode="numeric" maxLength={6} placeholder="6-digit pincode" />
+                  </div>
+                  <label className={`${labelClass} sm:col-span-2`}>
+                    <span className="flex flex-wrap items-center justify-between gap-2">
+                      <span>Shop address</span>
+                      <button type="button" onClick={fetchCurrentLocation} disabled={fetchingLocation} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 px-2.5 py-1.5 text-[11px] font-bold normal-case tracking-normal text-amber-900 transition hover:bg-amber-50 disabled:cursor-wait disabled:opacity-60">
+                        <MapPin size={13} />{fetchingLocation ? "Fetching location…" : "Fetch current location"}
+                      </button>
+                    </span>
+                    <textarea className={`${inputClass} min-h-24 resize-y`} name="address" value={form.address} onChange={handleChange} rows={3} placeholder="Street address" />
+                    {currentLocation && <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-stone-500">{currentLocation} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="font-semibold underline">© OpenStreetMap contributors</a></span>}
+                  </label>
                   <label className={`${labelClass} sm:col-span-2`}>
                     Admin notes
                     <textarea className={`${inputClass} min-h-20 resize-y`} name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Internal notes about this shop" />
@@ -477,12 +673,13 @@ export default function AddGoldShop({
                   {!plans.length ? (
                     <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">No active subscription plans are available.</p>
                   ) : (
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       <label className={labelClass}>
                         Subscription plan<span className="ml-1 text-rose-600">*</span>
-                        <select className={inputClass} name="planId" value={selectedPlanId} onChange={handleChange}>
+                        <select className={`${inputClass} ${fieldErrors.planId ? "border-rose-500" : ""}`} name="planId" value={selectedPlanId} onChange={handleChange} aria-invalid={Boolean(fieldErrors.planId)}>
                           {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.plan_name}</option>)}
                         </select>
+                        <span className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${fieldErrors.planId ? "text-rose-700" : "invisible"}`}>{fieldErrors.planId || " "}</span>
                       </label>
                       <label className={labelClass}>
                         Duration<span className="ml-1 text-rose-600">*</span>
@@ -497,7 +694,8 @@ export default function AddGoldShop({
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Estimated end date</p><p className="mt-1 text-sm font-semibold text-stone-800">{endDate ? formatDate(endDate) : "Select a valid start date"}</p></div>
                       <label className={labelClass}>
                         Start date<span className="ml-1 text-rose-600">*</span>
-                        <span className="relative block"><CalendarDays className="absolute right-3 top-4 h-4 w-4 text-stone-400" /><input className={inputClass} type="date" name="startDate" value={form.startDate} onChange={handleChange} /></span>
+                        <span className="relative block"><CalendarDays className="absolute right-3 top-4 h-4 w-4 text-stone-400" /><input className={`${inputClass} ${fieldErrors.startDate ? "border-rose-500" : ""}`} type="date" name="startDate" value={form.startDate} onChange={handleChange} onBlur={handleFieldBlur} aria-invalid={Boolean(fieldErrors.startDate)} /></span>
+                        <span className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${fieldErrors.startDate ? "text-rose-700" : "invisible"}`}>{fieldErrors.startDate || " "}</span>
                       </label>
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className={labelClass}>Approval status</p><p className="mt-1 text-sm font-semibold text-amber-800">{isEditing ? (shopDetails?.approval_status || "Pending") : "Pending"}</p></div>
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className="mt-1 text-sm font-semibold text-amber-800">Pending Super Admin confirmation</p></div>
@@ -518,40 +716,31 @@ export default function AddGoldShop({
                   </div>
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Email ID" name="email" value={form.email} onChange={handleChange} required type="email" placeholder="owner@example.com" />
-                  <Field label="Username" name="loginUsername" value={form.loginUsername} onChange={handleChange} required placeholder="e.g. sri-golds-admin" />
-                  <PasswordField label="Password" name="loginPassword" value={form.loginPassword} onChange={handleChange} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} placeholder="At least 8 characters" />
-                  <PasswordField label="Confirm password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} visible={showConfirmPassword} onToggle={() => setShowConfirmPassword((visible) => !visible)} placeholder="Re-enter the password" />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Field label="Email ID" name="email" value={form.email} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.email} required={!isEditing} type="email" maxLength={255} placeholder="owner@example.com" />
+                  <Field label="Username" name="loginUsername" value={form.loginUsername} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.loginUsername} required maxLength={150} placeholder="e.g. sri-golds-admin" />
+                  <PasswordField label="Password" name="loginPassword" value={form.loginPassword} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.loginPassword} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} placeholder="At least 8 characters" />
+                  <PasswordField label="Confirm password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.confirmPassword} visible={showConfirmPassword} onToggle={() => setShowConfirmPassword((visible) => !visible)} placeholder="Re-enter the password" />
                   <p className="text-xs text-stone-500 sm:col-span-2">The mobile number is used as the default password and updates automatically when the number changes. You can enter a different password. Using a phone number as a password is less secure. The login account is created only after approval; passwords are stored as secure hashes.</p>
                 </div>
               )}
             </section>
           </fieldset>
-
-          <footer className="flex flex-col-reverse gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onCancel} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-100">
-              Cancel
-            </button>
-            {!isEditing && (
-              <button type="button" onClick={() => { setForm(createInitialForm(null)); setFiles({ profilePhoto: null, aadhaarCard: null, gstCertificate: null, otherDocuments: [] }); setDocumentConsent(false); setActiveTab("personal"); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-100">
-                Reset
-              </button>
-            )}
-            {!isEditing && (
-              <button type="button" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || !plans.length} onClick={(event) => submit(event, true)} className="rounded-xl border border-amber-300 px-4 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50">
-                Save &amp; Add Another
-              </button>
-            )}
-            <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
-              {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
-              {isEditing ? "Save Changes" : "Save Gold Shop"}
-            </button>
-          </footer>
-          <div className="flex justify-between">
-            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40">Previous</button>
-            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === TABS.length - 1} onClick={() => { setActiveTab(TABS[activeTabIndex + 1].id); setFormError(""); }} className="rounded-xl bg-stone-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">Next</button>
           </div>
+
+          <footer className="flex shrink-0 justify-between gap-3 border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6">
+            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40">Previous</button>
+            {activeTabIndex === TABS.length - 1 ? (
+              <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
+                {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                {isEditing ? "Save Changes" : "Save Gold Shop"}
+              </button>
+            ) : (
+              <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="rounded-xl bg-stone-800 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                Save &amp; Next
+              </button>
+            )}
+          </footer>
         </form>
       </section>
     </div>

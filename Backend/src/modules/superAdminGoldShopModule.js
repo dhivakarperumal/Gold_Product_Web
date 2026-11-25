@@ -99,6 +99,7 @@ async function initializeSuperAdminGoldShopModule() {
       owner_name VARCHAR(150) NOT NULL,
       mobile VARCHAR(20) NOT NULL,
       email VARCHAR(255) NULL,
+      aadhaar_number VARCHAR(12) NULL,
       gst_number VARCHAR(20) NULL,
       address TEXT NULL,
       city VARCHAR(100) NULL,
@@ -129,6 +130,9 @@ async function initializeSuperAdminGoldShopModule() {
     "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gold_shops'"
   );
   const existingShopColumns = new Set(shopColumns.map((column) => column.COLUMN_NAME));
+  if (!existingShopColumns.has('aadhaar_number')) {
+    await pool.query('ALTER TABLE gold_shops ADD COLUMN aadhaar_number VARCHAR(12) NULL AFTER email');
+  }
   if (!existingShopColumns.has('owner_user_id')) {
     await pool.query(
       'ALTER TABLE gold_shops ADD COLUMN owner_user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER shop_uuid'
@@ -778,11 +782,12 @@ async function createGoldShop(input, actorId, documents = [], actorUserId = acto
     const [shopResult] = await connection.execute(
       `INSERT INTO gold_shops
          (shop_uuid, shop_code, shop_name, owner_name, mobile, email, gst_number,
-          address, city, state, pincode, status, notes, max_branches, max_staff, created_by, updated_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          address, city, state, pincode, status, notes, max_branches, max_staff, created_by, updated_by,
+          aadhaar_number)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [shopUuid, temporaryCode, input.shop_name, input.owner_name, input.mobile, input.email,
         input.gst_number, input.address, input.city, input.state, input.pincode, input.status,
-        input.notes, input.max_branches, input.max_staff, actorUserId, actorUserId]
+        input.notes, input.max_branches, input.max_staff, actorUserId, actorUserId, input.aadhaar_number]
     );
     shopId = shopResult.insertId;
     const shopCode = `GOLD-${String(shopId).padStart(4, '0')}`;
@@ -882,11 +887,11 @@ async function updateGoldShop(id, input, actorId, documents = [], actorUserId = 
       `UPDATE gold_shops
        SET shop_name = ?, owner_name = ?, mobile = ?, email = ?, gst_number = ?,
            address = ?, city = ?, state = ?, pincode = ?, notes = ?,
-           max_branches = ?, max_staff = ?, updated_by = ?
+           max_branches = ?, max_staff = ?, updated_by = ?, aadhaar_number = ?
        WHERE id = ? AND deleted_at IS NULL`,
       [input.shop_name, input.owner_name, input.mobile, input.email, input.gst_number,
         input.address, input.city, input.state, input.pincode, input.notes,
-        input.max_branches, input.max_staff, actorUserId, id]
+        input.max_branches, input.max_staff, actorUserId, input.aadhaar_number, id]
     );
     if (!result.affectedRows) {
       await connection.rollback();

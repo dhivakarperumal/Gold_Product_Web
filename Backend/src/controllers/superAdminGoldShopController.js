@@ -33,7 +33,7 @@ const PAYMENT_METHODS = new Map([
   ['other', 'Other']
 ]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_PATTERN = /^\+?[1-9]\d{9,14}$/;
+const PHONE_PATTERN = /^[6-9]\d{9}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const SHOP_DOCUMENT_TYPES = {
   profilePhoto: 'profile_photo',
@@ -140,6 +140,7 @@ function validateShop(body, { creating = false } = {}) {
   const ownerName = String(body.ownerName || '').trim();
   const mobile = String(body.mobile || '').replace(/[\s()-]/g, '').trim();
   const email = normalizeOptionalString(body.email)?.toLowerCase() || null;
+  const aadhaarNumber = normalizeOptionalString(body.aadhaarNumber);
   const gstNumber = normalizeOptionalString(body.gstNumber)?.toUpperCase() || null;
   const address = normalizeOptionalString(body.address);
   const city = normalizeOptionalString(body.city);
@@ -161,13 +162,18 @@ function validateShop(body, { creating = false } = {}) {
     || (notes && notes.length > 10000)) {
     return { error: 'Shop address, location, pincode, or notes exceeds the allowed length' };
   }
-  if (!PHONE_PATTERN.test(mobile)) return { error: 'Enter a valid mobile number' };
-  if (email && (email.length > 255 || !EMAIL_PATTERN.test(email))) return { error: 'Enter a valid email address' };
-  if (gstNumber && (gstNumber.length !== 15 || !/^[A-Z0-9]{15}$/.test(gstNumber))) {
-    return { error: 'GST number must contain 15 letters or numbers' };
+  if (!PHONE_PATTERN.test(mobile)) {
+    return { error: 'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9' };
   }
-  if (pincode && (pincode.length > 20 || !/^[A-Za-z0-9 -]+$/.test(pincode))) {
-    return { error: 'Enter a valid pincode' };
+  if (email && (email.length > 255 || !EMAIL_PATTERN.test(email))) return { error: 'Enter a valid email address' };
+  if (aadhaarNumber && !/^\d{12}$/.test(aadhaarNumber)) {
+    return { error: 'Aadhaar number must contain exactly 12 digits' };
+  }
+  if (gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstNumber)) {
+    return { error: 'Enter a valid 15-character GSTIN' };
+  }
+  if (pincode && !/^[1-9]\d{5}$/.test(pincode)) {
+    return { error: 'Pincode must be a valid 6-digit Indian postal code' };
   }
   if (!Number.isSafeInteger(maxBranches) || maxBranches < 1 || maxBranches > 100000) {
     return { error: 'Maximum branches must be between 1 and 100000' };
@@ -182,6 +188,7 @@ function validateShop(body, { creating = false } = {}) {
       owner_name: ownerName,
       mobile,
       email,
+      aadhaar_number: aadhaarNumber,
       gst_number: gstNumber,
       address,
       city,
