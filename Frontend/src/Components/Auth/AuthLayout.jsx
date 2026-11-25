@@ -49,7 +49,7 @@ export default function AuthLayout({
           <p className="relative z-10 text-xs text-white/40">Gold Shop Management · Admin Portal</p>
         </aside>
 
-        <section className={`flex min-w-0 flex-col bg-[#fbfaf7] px-4 py-5 sm:px-7 sm:py-7 lg:px-10 lg:py-9 xl:px-14 ${fixedHeight ? "min-h-0 overflow-hidden" : ""}`}>
+        <section className={`flex min-w-0 flex-col bg-[#fbfaf7] ${fixedHeight ? "min-h-0 overflow-hidden px-3 py-3 sm:px-5 sm:py-4 lg:px-6 lg:py-5 xl:px-7" : "px-4 py-5 sm:px-7 sm:py-7 lg:px-10 lg:py-9 xl:px-14"}`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 lg:hidden">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#10251f] text-amber-300">
@@ -65,15 +65,15 @@ export default function AuthLayout({
             </div>
           </div>
 
-          <header className={`shrink-0 ${fixedHeight ? "mb-4 mt-4 lg:mt-5" : "mb-6 mt-7 sm:mb-8 lg:mt-10"}`}>
+          <header className={`shrink-0 ${fixedHeight ? "mb-3 mt-3 lg:mt-4" : "mb-6 mt-7 sm:mb-8 lg:mt-10"}`}>
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-800">{eyebrow}</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#172a23] sm:text-4xl">{title}</h1>
+            <h1 className={`mt-2 font-semibold tracking-tight text-[#172a23] ${fixedHeight ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl"}`}>{title}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">{subtitle}</p>
           </header>
 
           <div className={`w-full ${fixedHeight ? "min-h-0 flex-1" : ""} ${contentClassName}`}>{children}</div>
 
-          <footer className={`shrink-0 text-center text-[11px] text-stone-400 ${fixedHeight ? "pt-3" : "mt-auto pt-6"}`}>
+          <footer className={`shrink-0 text-center text-[11px] text-stone-400 ${fixedHeight ? "pt-1" : "mt-auto pt-6"}`}>
             Protected access · Shop applications are reviewed before approval
           </footer>
         </section>

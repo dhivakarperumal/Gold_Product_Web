@@ -575,11 +575,11 @@ export default function AddGoldShop({
         )}
 
         <form noValidate onSubmit={(event) => submit(event)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4 sm:p-6">
+          <div className={`min-h-0 flex-1 space-y-2 overflow-y-auto ${registrationMode ? "p-3 sm:p-4" : "p-4 sm:p-6"}`}>
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
-          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-stone-100 p-1.5 sm:grid-cols-3 lg:grid-cols-5" role="tablist" aria-label="Gold shop form sections">
+          <div className="grid grid-cols-4 gap-1 rounded-2xl bg-stone-100 p-1" role="tablist" aria-label="Gold shop form sections">
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -589,9 +589,9 @@ export default function AddGoldShop({
                 aria-selected={activeTab === id}
                 aria-controls={`gold-shop-panel-${id}`}
                 onClick={() => { setActiveTab(id); setFormError(""); }}
-                className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 py-2 text-xs font-bold transition sm:px-3 ${activeTab === id ? "bg-white text-amber-900 shadow-sm" : "text-stone-600 hover:bg-white/70"}`}
+                className={`inline-flex min-h-9 whitespace-normal items-center justify-center gap-0 rounded-xl px-0 py-1 text-[8px] font-bold transition sm:whitespace-nowrap sm:gap-1 sm:px-1 sm:text-[10px] lg:text-xs ${activeTab === id ? "bg-white text-amber-900 shadow-sm" : "text-stone-600 hover:bg-white/70"}`}
               >
-                <Icon size={15} />{label}
+                <Icon size={15} className="hidden sm:block" />{label}
               </button>
             ))}
           </div>
