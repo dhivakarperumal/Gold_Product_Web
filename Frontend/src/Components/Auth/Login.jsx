@@ -97,16 +97,15 @@ function Login() {
       alternatePrompt="New gold shop?"
       alternateLabel="Register here"
       alternateTo="/register"
-      contentClassName="flex items-center justify-center"
+      contentClassName="flex flex-col items-center justify-center"
       fixedHeight
       hideHeader
     >
+      <div className="mx-auto mb-4 w-full max-w-md">
+        <h1 className="text-2xl font-bold tracking-tight text-[#172a23]">Login</h1>
+        <p className="mt-1 text-sm text-stone-600">Sign in to your account to continue.</p>
+      </div>
       <form onSubmit={handleSubmit} className="mx-auto w-full max-w-md space-y-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-7">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold tracking-tight text-[#172a23]">Login</h1>
-              <p className="text-sm text-stone-600">Sign in to your account to continue.</p>
-            </div>
-
             {/* Email/Mobile */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5 ml-1 tracking-wide">
