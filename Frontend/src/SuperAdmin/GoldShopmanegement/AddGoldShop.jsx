@@ -554,7 +554,7 @@ export default function AddGoldShop({
         aria-label={registrationMode ? "Gold shop registration form" : undefined}
         aria-labelledby={registrationMode ? undefined : "gold-shop-form-title"}
         className={registrationMode
-          ? "mx-auto flex h-[calc(100vh-17rem)] min-h-[560px] max-h-[760px] w-full flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
+          ? "mx-auto flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
           : "my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl sm:h-[calc(100vh-3rem)]"}
       >
         {!registrationMode && (

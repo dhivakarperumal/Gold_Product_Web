@@ -61,6 +61,7 @@ function Register() {
         alternateLabel="Sign in"
         alternateTo="/login"
         contentClassName="mx-auto max-w-lg"
+        fixedHeight
       >
         <section className="rounded-2xl border border-stone-200 bg-white p-7 text-center shadow-sm sm:p-9">
           <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-600" aria-hidden="true" />
@@ -85,6 +86,7 @@ function Register() {
         alternateLabel="Sign in"
         alternateTo="/login"
         contentClassName="mx-auto max-w-md"
+        fixedHeight
       >
         <section className="rounded-2xl border border-stone-200 bg-white p-7 text-center shadow-sm">
           {plansLoading ? (
@@ -119,6 +121,7 @@ function Register() {
       alternatePrompt="Already have an account?"
       alternateLabel="Sign in"
       alternateTo="/login"
+      fixedHeight
     >
       <AddGoldShop
         mode="register"

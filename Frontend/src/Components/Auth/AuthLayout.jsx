@@ -9,12 +9,13 @@ export default function AuthLayout({
   alternateLabel,
   alternateTo,
   contentClassName = "",
+  fixedHeight = false,
   children
 }) {
   return (
-    <main className="min-h-screen bg-[#f0efe9] p-3 sm:p-5 lg:p-8">
-      <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-[1440px] overflow-hidden rounded-[28px] border border-stone-200/80 bg-white shadow-[0_24px_80px_rgba(27,39,33,0.14)] sm:min-h-[calc(100vh-2.5rem)] lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[minmax(300px,0.82fr)_minmax(0,1.18fr)]">
-        <aside className="relative hidden flex-col justify-between overflow-hidden bg-[#10251f] p-9 text-white lg:flex xl:p-12">
+    <main className={`${fixedHeight ? "h-screen overflow-hidden" : "min-h-screen"} bg-[#f0efe9] p-3 sm:p-5 lg:p-8`}>
+      <div className={`mx-auto grid max-w-[1440px] overflow-hidden rounded-[28px] border border-stone-200/80 bg-white shadow-[0_24px_80px_rgba(27,39,33,0.14)] lg:grid-cols-[minmax(300px,0.82fr)_minmax(0,1.18fr)] ${fixedHeight ? "h-full min-h-0 grid-rows-[minmax(0,1fr)]" : "min-h-[calc(100vh-1.5rem)] sm:min-h-[calc(100vh-2.5rem)] lg:min-h-[calc(100vh-4rem)]"}`}>
+        <aside className={`relative hidden flex-col justify-between overflow-hidden bg-[#10251f] p-9 text-white lg:flex xl:p-12 ${fixedHeight ? "min-h-0" : ""}`}>
           <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full border border-amber-200/10" />
           <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full border border-amber-200/10" />
           <div className="absolute -bottom-48 -left-32 h-[28rem] w-[28rem] rounded-full bg-emerald-500/10 blur-3xl" />
@@ -48,7 +49,7 @@ export default function AuthLayout({
           <p className="relative z-10 text-xs text-white/40">Gold Shop Management · Admin Portal</p>
         </aside>
 
-        <section className="flex min-w-0 flex-col bg-[#fbfaf7] px-4 py-5 sm:px-7 sm:py-7 lg:px-10 lg:py-9 xl:px-14">
+        <section className={`flex min-w-0 flex-col bg-[#fbfaf7] px-4 py-5 sm:px-7 sm:py-7 lg:px-10 lg:py-9 xl:px-14 ${fixedHeight ? "min-h-0 overflow-hidden" : ""}`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 lg:hidden">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#10251f] text-amber-300">
@@ -64,15 +65,15 @@ export default function AuthLayout({
             </div>
           </div>
 
-          <header className="mb-6 mt-7 sm:mb-8 lg:mt-10">
+          <header className={`shrink-0 ${fixedHeight ? "mb-4 mt-4 lg:mt-5" : "mb-6 mt-7 sm:mb-8 lg:mt-10"}`}>
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-800">{eyebrow}</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#172a23] sm:text-4xl">{title}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">{subtitle}</p>
           </header>
 
-          <div className={`w-full ${contentClassName}`}>{children}</div>
+          <div className={`w-full ${fixedHeight ? "min-h-0 flex-1" : ""} ${contentClassName}`}>{children}</div>
 
-          <footer className="mt-auto pt-6 text-center text-[11px] text-stone-400">
+          <footer className={`shrink-0 text-center text-[11px] text-stone-400 ${fixedHeight ? "pt-3" : "mt-auto pt-6"}`}>
             Protected access · Shop applications are reviewed before approval
           </footer>
         </section>
