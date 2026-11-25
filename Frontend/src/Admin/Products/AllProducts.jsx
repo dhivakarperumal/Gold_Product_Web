@@ -69,7 +69,6 @@ const AllProducts = () => {
     const [stats, setStats] = useState(pageData?.stats || { total: 0, active: 0, lowStock: 0, outOfStock: 0 });
     const [filterOptions, setFilterOptions] = useState(pageData?.filters || { categories: [], purities: [] });
     const [refreshingPrices, setRefreshingPrices] = useState(false);
-    const [lastPriceRefresh, setLastPriceRefresh] = useState(null);
     const previousRateSignature = useRef("");
     const activeRateSignature = activeRateSet
         ? `${activeRateSet.batch_id || activeRateSet.id}:${activeRateSet.rates
@@ -250,7 +249,6 @@ const AllProducts = () => {
         try {
             const { data } = await api.post("/products/recalculate-prices", { reason: "Manual product price refresh" });
             toast.success(`Price refresh complete: ${data.updated} product${data.updated === 1 ? "" : "s"} updated.`);
-            setLastPriceRefresh(new Date());
             setProductsCached({});
             await fetchProducts();
         } catch (error) {
@@ -261,11 +259,6 @@ const AllProducts = () => {
     };
 
     const formatMoney = formatCurrency;
-    const formatDate = (value) => {
-        if (!value) return "Not updated";
-        const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
-    };
 
     const getProductImage = (product) => {
         return getProductImageUrl(product)
@@ -368,10 +361,6 @@ const AllProducts = () => {
                         <button onClick={() => setViewMode("grid")} className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-[#003B3B] text-white shadow-sm" : "text-gray-400 hover:text-slate-600"}`}>
                             <FiGrid size={17} />
                         </button>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-                        <p>Prices are stored from the active daily metal rates; MRP remains manually configured.</p>
-                        <p>{lastPriceRefresh ? `Last manual refresh: ${formatDate(lastPriceRefresh)}` : "Product rows show each price's last update."}</p>
                     </div>
                     <button
                         onClick={() => navigate("/admin/products/add")}
