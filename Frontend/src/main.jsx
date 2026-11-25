@@ -68,6 +68,7 @@ const UserProfile  = React.lazy(() => import("./Components/Account/UserProfile.j
 const AdminKyc = React.lazy(() => import("./Admin/Kyc/AdminKyc.jsx"));
 const BillingManagement = React.lazy(() => import("./Admin/Pages/BillingManagement.jsx"));
 const Reports = React.lazy(() => import("./Admin/Pages/Reports.jsx"));
+const TackOrders = React.lazy(() => import("./Admin/TackOrders/Tackorders.jsx"));
 
 const ErrorPage = React.lazy(() => import("./Admin/Pages/ErrorPage.jsx"));
 
@@ -191,6 +192,7 @@ const router = createHashRouter([
       { path: "enquiries", element: <Enquiries /> },
       { path: "enquiries/new", element: <Enquiries /> },
       { path: "enquiries/edit/:id", element: <Enquiries /> },
+      { path: "tack-orders", element: <TackOrders /> },
     ],
   },
 ]);

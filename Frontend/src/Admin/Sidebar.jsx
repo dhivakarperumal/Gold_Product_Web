@@ -26,7 +26,8 @@ import {
   Clock3,
   Coins,
   CheckCircle2,
-  MessageCircle
+  MessageCircle,
+  ClipboardList
 } from "lucide-react";
 
 /* ================= NAV ITEMS ================= */
@@ -36,6 +37,7 @@ const navItems = [
 
   { path: "/admin/billings", label: "Billing", icon: Files },
   { path: "/admin/enquiries", label: "All Enquiries", icon:  MessageCircle, activePaths: ["/admin/enquiries/new"] },
+  { path: "/admin/tack-orders", label: "Tack Orders", icon: ClipboardList },
  
   {
     label: "Loan Management",
