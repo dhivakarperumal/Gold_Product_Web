@@ -28,27 +28,24 @@ const AdminLayout = () => {
         <div className="admin-root flex min-h-screen bg-[#F4F7F6] text-slate-900">
 
             {/* Sidebar */}
-            {!isTackOrdersPage && (
-                <Sidebar
-                    isOpen={sidebarOpen}
-                    onClose={() => setSidebarOpen(false)}
-                    collapsed={sidebarCollapsed}
-                    onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-                />
-            )}
+            <Sidebar
+                isOpen={sidebarOpen}
+                onClose={() => setSidebarOpen(false)}
+                collapsed={sidebarCollapsed}
+                onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            />
 
             {/* Main Content */}
             <div
                 className={`
           flex flex-col flex-1 min-w-0 min-h-screen
           transition-all duration-300 ease-in-out
-          ${!isTackOrdersPage && isLargeScreen ? (sidebarCollapsed ? "lg:ml-20" : "lg:ml-72") : ""}
+          ${isLargeScreen ? (sidebarCollapsed ? "lg:ml-20" : "lg:ml-72") : ""}
         `}
             >
                 {/* Header */}
                 <Header
                     onMenuClick={() => setSidebarOpen(true)}
-                    showMenuButton={!isTackOrdersPage}
                     productSearch={isTackOrdersPage ? tackOrdersSearch : undefined}
                     onProductSearchChange={setTackOrdersSearch}
                 />
