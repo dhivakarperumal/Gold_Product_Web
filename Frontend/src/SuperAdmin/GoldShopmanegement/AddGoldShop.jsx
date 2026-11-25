@@ -158,7 +158,7 @@ function Field({
         inputMode={inputMode}
         autoCapitalize={autoCapitalize}
       />
-      <span id={`${name}-error`} aria-live="polite" className={`mt-1 block h-10 overflow-hidden text-[11px] font-medium normal-case tracking-normal ${error ? "text-rose-700" : "invisible"}`}>{error || " "}</span>
+      <span id={`${name}-error`} aria-live="polite" className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${error ? "text-rose-700" : "invisible"}`}>{error || " "}</span>
     </label>
   );
 }
@@ -214,7 +214,7 @@ function PasswordField({ label, name, value, onChange, onBlur, error, visible, o
           {visible ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </span>
-      <span id={`${name}-error`} aria-live="polite" className={`mt-1 block h-10 overflow-hidden text-[11px] font-medium normal-case tracking-normal ${error ? "text-rose-700" : "invisible"}`}>{error || " "}</span>
+      <span id={`${name}-error`} aria-live="polite" className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${error ? "text-rose-700" : "invisible"}`}>{error || " "}</span>
     </label>
   );
 }
@@ -566,7 +566,7 @@ export default function AddGoldShop({
         </header>
 
         <form noValidate onSubmit={(event) => submit(event)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4 sm:p-6">
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
@@ -591,7 +591,7 @@ export default function AddGoldShop({
 
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
               <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <Field label="Name" name="ownerName" value={form.ownerName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.ownerName} required maxLength={150} placeholder="Full name" />
                 <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.mobile} required type="text" inputMode="numeric" maxLength={10} placeholder="9876543210" />
                 <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." />
@@ -599,7 +599,7 @@ export default function AddGoldShop({
               </div>
             </section>
 
-            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className="space-y-4">
+            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className="space-y-2">
               <div className={sectionClass}>
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
@@ -608,10 +608,10 @@ export default function AddGoldShop({
                   </div>
                   <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold tracking-wide text-amber-800">GOLD-XXXX</span>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <Field label="Shop name" name="shopName" value={form.shopName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.shopName} required maxLength={150} placeholder="e.g. Sri Golds" />
                   <Field label="GST number" name="gstNumber" value={form.gstNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.gstNumber} maxLength={15} autoCapitalize="characters" placeholder="15-character GSTIN" />
-                  <div className="grid gap-4 sm:col-span-2 lg:grid-cols-3">
+                  <div className="grid gap-2 sm:col-span-2 lg:grid-cols-3">
                     <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="City" />
                     <label className={labelClass}>
                       State
@@ -673,13 +673,13 @@ export default function AddGoldShop({
                   {!plans.length ? (
                     <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">No active subscription plans are available.</p>
                   ) : (
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       <label className={labelClass}>
                         Subscription plan<span className="ml-1 text-rose-600">*</span>
                         <select className={`${inputClass} ${fieldErrors.planId ? "border-rose-500" : ""}`} name="planId" value={selectedPlanId} onChange={handleChange} aria-invalid={Boolean(fieldErrors.planId)}>
                           {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.plan_name}</option>)}
                         </select>
-                        <span className={`mt-1 block h-10 overflow-hidden text-[11px] font-medium normal-case tracking-normal ${fieldErrors.planId ? "text-rose-700" : "invisible"}`}>{fieldErrors.planId || " "}</span>
+                        <span className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${fieldErrors.planId ? "text-rose-700" : "invisible"}`}>{fieldErrors.planId || " "}</span>
                       </label>
                       <label className={labelClass}>
                         Duration<span className="ml-1 text-rose-600">*</span>
@@ -695,7 +695,7 @@ export default function AddGoldShop({
                       <label className={labelClass}>
                         Start date<span className="ml-1 text-rose-600">*</span>
                         <span className="relative block"><CalendarDays className="absolute right-3 top-4 h-4 w-4 text-stone-400" /><input className={`${inputClass} ${fieldErrors.startDate ? "border-rose-500" : ""}`} type="date" name="startDate" value={form.startDate} onChange={handleChange} onBlur={handleFieldBlur} aria-invalid={Boolean(fieldErrors.startDate)} /></span>
-                        <span className={`mt-1 block h-10 overflow-hidden text-[11px] font-medium normal-case tracking-normal ${fieldErrors.startDate ? "text-rose-700" : "invisible"}`}>{fieldErrors.startDate || " "}</span>
+                        <span className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${fieldErrors.startDate ? "text-rose-700" : "invisible"}`}>{fieldErrors.startDate || " "}</span>
                       </label>
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className={labelClass}>Approval status</p><p className="mt-1 text-sm font-semibold text-amber-800">{isEditing ? (shopDetails?.approval_status || "Pending") : "Pending"}</p></div>
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className="mt-1 text-sm font-semibold text-amber-800">Pending Super Admin confirmation</p></div>
@@ -716,7 +716,7 @@ export default function AddGoldShop({
                   </div>
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <Field label="Email ID" name="email" value={form.email} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.email} required={!isEditing} type="email" maxLength={255} placeholder="owner@example.com" />
                   <Field label="Username" name="loginUsername" value={form.loginUsername} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.loginUsername} required maxLength={150} placeholder="e.g. sri-golds-admin" />
                   <PasswordField label="Password" name="loginPassword" value={form.loginPassword} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.loginPassword} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} placeholder="At least 8 characters" />
