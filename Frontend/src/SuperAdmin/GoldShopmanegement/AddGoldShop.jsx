@@ -557,6 +557,33 @@ export default function AddGoldShop({
     : "rounded-2xl border border-stone-200 bg-white p-4 sm:p-5";
   const activeTabIndex = TABS.findIndex((tab) => tab.id === activeTab);
   const ActiveTabIcon = TABS[activeTabIndex]?.icon || UserRound;
+  const tabNavigation = (
+    <div className={registrationMode ? "grid grid-cols-4 border-b border-stone-200" : "grid grid-cols-4 gap-1 rounded-2xl bg-stone-100 p-1"} role="tablist" aria-label="Gold shop form sections">
+      {TABS.map(({ id, label, icon: Icon }) => {
+        const isActive = activeTab === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`gold-shop-tab-${id}`}
+            aria-selected={isActive}
+            aria-controls={`gold-shop-panel-${id}`}
+            onClick={() => { setActiveTab(id); setFormError(""); }}
+            className={registrationMode
+              ? `inline-flex min-w-0 items-center justify-center gap-0.5 whitespace-nowrap border-b-2 px-0.5 py-2 text-center text-[8px] font-semibold transition sm:gap-2 sm:px-2 sm:py-3 sm:text-xs ${isActive ? "border-emerald-900 text-emerald-950" : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"}`
+              : `inline-flex min-h-9 whitespace-normal items-center justify-center gap-0 rounded-xl px-0 py-1 text-[8px] font-bold transition sm:whitespace-nowrap sm:gap-1 sm:px-1 sm:text-[10px] lg:text-xs ${isActive ? "bg-white text-amber-900 shadow-sm" : "text-stone-600 hover:bg-white/70"}`}
+          >
+            {registrationMode ? (
+              <><Icon size={15} className="hidden shrink-0 sm:block" /><span>{label}</span></>
+            ) : (
+              <><Icon size={15} />{label}</>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className={registrationMode ? "h-full min-h-0 w-full" : "fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"}>
@@ -587,44 +614,12 @@ export default function AddGoldShop({
         )}
 
         <form noValidate onSubmit={(event) => submit(event)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {registrationMode && <div className="shrink-0 px-1 pb-1 pt-2 sm:px-2">{tabNavigation}</div>}
           <div className={`min-h-0 flex-1 space-y-3 overflow-y-auto ${registrationMode ? "px-1 py-1 sm:px-2" : "p-4 sm:p-6"}`}>
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
-          <div className={registrationMode ? "grid grid-cols-4 gap-0" : "grid grid-cols-4 gap-1 rounded-2xl bg-stone-100 p-1"} role="tablist" aria-label="Gold shop form sections">
-            {TABS.map(({ id, label, icon: Icon }, index) => {
-              const isActive = activeTab === id;
-              const isComplete = index < activeTabIndex;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  id={`gold-shop-tab-${id}`}
-                  aria-selected={isActive}
-                  aria-controls={`gold-shop-panel-${id}`}
-                  onClick={() => { setActiveTab(id); setFormError(""); }}
-                  className={registrationMode
-                    ? "group relative flex min-w-0 flex-col items-center gap-1.5 px-0.5 pb-1 text-center sm:gap-2"
-                    : `inline-flex min-h-9 whitespace-normal items-center justify-center gap-0 rounded-xl px-0 py-1 text-[8px] font-bold transition sm:whitespace-nowrap sm:gap-1 sm:px-1 sm:text-[10px] lg:text-xs ${isActive ? "bg-white text-amber-900 shadow-sm" : "text-stone-600 hover:bg-white/70"}`}
-                >
-                  {registrationMode && index < TABS.length - 1 && (
-                    <span aria-hidden="true" className={`absolute left-1/2 right-[-50%] top-4 h-0.5 ${index < activeTabIndex ? "bg-emerald-800" : index === activeTabIndex ? "bg-emerald-800" : "bg-stone-200"}`} />
-                  )}
-                  {registrationMode ? (
-                    <>
-                      <span className={`relative z-10 grid h-8 w-8 place-items-center rounded-full transition sm:h-10 sm:w-10 ${isActive ? "bg-emerald-900 text-white" : isComplete ? "bg-emerald-100 text-emerald-900" : "bg-stone-200 text-stone-600"}`}>
-                        <Icon size={16} className="sm:h-[18px] sm:w-[18px]" />
-                      </span>
-                      <span className={`relative z-10 whitespace-nowrap text-[9px] font-semibold sm:text-xs ${isActive || isComplete ? "text-emerald-950" : "text-stone-600"}`}>{label}</span>
-                    </>
-                  ) : (
-                    <><Icon size={15} />{label}</>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {!registrationMode && tabNavigation}
 
           <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
 
