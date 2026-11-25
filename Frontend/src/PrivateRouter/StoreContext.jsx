@@ -107,7 +107,11 @@ export const StoreProvider = ({ children }) => {
         // Correctly parse images if they are stored as JSON strings
         const variantImage = getFirstStoredImage(selectedVariant?.images) || getFirstStoredImage(product.images);
         
-        const price = parseFloat(product.offer_price || product.price || 0);
+        const price = Number(product.final_selling_price) > 0
+            ? Number(product.final_selling_price)
+            : Number(product.offer_price) > 0
+                ? Number(product.offer_price)
+                : Number(product.mrp ?? product.price ?? 0);
 
         try {
             await api.post("/cart", {
@@ -170,6 +174,7 @@ export const StoreProvider = ({ children }) => {
             setCart([]);
         } catch (err) {
             console.error("Clear cart error:", err);
+            throw err;
         }
     };
 

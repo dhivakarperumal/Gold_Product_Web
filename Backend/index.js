@@ -16,6 +16,7 @@ const { initializeReviewModule } = require('./src/modules/reviewModule');
 const { initializeDealerModule } = require('./src/modules/dealerModule');
 const { initializeStoreModule } = require('./src/modules/storeModule');
 const { initializeBillingModule } = require('./src/modules/billingModule');
+const { initializeTackOrderModule } = require('./src/modules/tackOrderModule');
 const { initializeReceiptSettingsModule } = require('./src/modules/receiptSettingsModule');
 const { initializeHomeSectionModule } = require('./src/modules/homeSectionModule');
 const { initializeFundsModule } = require('./src/modules/fundsModule');
@@ -94,6 +95,7 @@ async function startServer() {
   await initializeDealerModule();
   await initializeStoreModule();
   await initializeBillingModule();
+  await initializeTackOrderModule();
   await initializeReceiptSettingsModule();
   await initializeHomeSectionModule();
   await initializeSuperAdminGoldShopModule();

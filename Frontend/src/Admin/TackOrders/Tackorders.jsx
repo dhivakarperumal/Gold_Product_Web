@@ -1,10 +1,31 @@
 import { useContext, useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
 import { FiArrowLeft, FiBox, FiMinus, FiPlus, FiStar, FiTag, FiTrash2 } from "react-icons/fi";
+
+function calculateOrderTotals(cart, gstIncluded, gstRate, discountType, discountValue) {
+  const subtotal = cart.reduce(
+    (total, item) => total + Number(item.total_price ?? Number(item.price || 0) * Number(item.quantity || 0)),
+    0
+  );
+  const gstPercent = Math.min(100, Math.max(0, Number(gstRate) || 0));
+  const gstAmount = gstIncluded ? subtotal * gstPercent / 100 : 0;
+  const requestedDiscount = Math.max(0, Number(discountValue) || 0);
+  const discount = Math.min(
+    subtotal,
+    discountType === "Percent" ? subtotal * Math.min(requestedDiscount, 100) / 100 : requestedDiscount
+  );
+  return {
+    subtotal,
+    gstAmount,
+    discount,
+    total: Math.max(0, subtotal + gstAmount - discount)
+  };
+}
 
 function OrderSummary({
   cart,
@@ -21,23 +42,19 @@ function OrderSummary({
   setDiscountValue,
   advanceAmount,
   setAdvanceAmount,
+  submitting = false,
+  savedOrder = null,
   onNext,
-  onBack,
   orderStep
 }) {
   const itemCount = cart.reduce((total, item) => total + Number(item.quantity || 0), 0);
-  const subtotal = cart.reduce(
-    (total, item) => total + Number(item.total_price ?? Number(item.price || 0) * Number(item.quantity || 0)),
-    0
+  const { subtotal, gstAmount, discount, total } = calculateOrderTotals(
+    cart,
+    gstIncluded,
+    gstRate,
+    discountType,
+    discountValue
   );
-  const gstPercent = Math.min(100, Math.max(0, Number(gstRate) || 0));
-  const gstAmount = gstIncluded ? subtotal * gstPercent / 100 : 0;
-  const requestedDiscount = Math.max(0, Number(discountValue) || 0);
-  const discount = Math.min(
-    subtotal,
-    discountType === "Percent" ? subtotal * Math.min(requestedDiscount, 100) / 100 : requestedDiscount
-  );
-  const total = Math.max(0, subtotal + gstAmount - discount);
   const advance = Math.min(total, Math.max(0, Number(advanceAmount) || 0));
   const balanceDue = total - advance;
 
@@ -117,121 +134,137 @@ function OrderSummary({
       </div>
 
       <div className="mt-4 shrink-0 space-y-3 border-t border-white/15 pt-4">
-        <div className="flex justify-between text-sm">
-          <span className="text-white/65">Subtotal</span>
-          <span className="font-semibold">{formatCurrency(subtotal)}</span>
-        </div>
+        {orderStep === "details" && (
+          <>
+            <div className="flex justify-between text-sm">
+              <span className="text-white/65">Subtotal</span>
+              <span className="font-semibold">{formatCurrency(subtotal)}</span>
+            </div>
 
-        <div>
-          <p className="mb-2 text-sm font-bold">GST for this order</p>
-          <div className="grid grid-cols-2 gap-2">
-            {[true, false].map((included) => (
-              <button
-                key={String(included)}
-                type="button"
-                aria-pressed={gstIncluded === included}
-                onClick={() => setGstIncluded(included)}
-                className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${
-                  gstIncluded === included
-                    ? "border-orange-400 bg-orange-500/20 text-orange-200"
-                    : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
-                }`}
-              >
-                {included ? "Include GST" : "Exclude GST"}
-              </button>
-            ))}
-          </div>
-        </div>
+            <div>
+              <p className="mb-2 text-sm font-bold">GST for this order</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[true, false].map((included) => (
+                  <button
+                    key={String(included)}
+                    type="button"
+                    aria-pressed={gstIncluded === included}
+                    onClick={() => setGstIncluded(included)}
+                    className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${
+                      gstIncluded === included
+                        ? "border-orange-400 bg-orange-500/20 text-orange-200"
+                        : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
+                    }`}
+                  >
+                    {included ? "Include GST" : "Exclude GST"}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <label className="flex items-center justify-between gap-3 text-sm">
-          <span className="text-white/65">GST rate</span>
-          <span className="flex items-center gap-2">
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={gstRate}
-              onChange={(event) => setGstRate(event.target.value)}
-              className="w-20 rounded-lg border border-white/15 bg-white/10 px-2 py-1.5 text-right font-bold text-white outline-none focus:border-orange-400"
-              aria-label="GST rate percentage"
-            />
-            <span>%</span>
-          </span>
-        </label>
-        <div className="flex justify-between gap-2 text-xs text-white/55">
-          <span>GST on subtotal (before discount)</span>
-          <span>{formatCurrency(gstAmount)}</span>
-        </div>
+            <label className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-white/65">GST rate</span>
+              <span className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={gstRate}
+                  onChange={(event) => setGstRate(event.target.value)}
+                  className="w-20 rounded-lg border border-white/15 bg-white/10 px-2 py-1.5 text-right font-bold text-white outline-none focus:border-orange-400"
+                  aria-label="GST rate percentage"
+                />
+                <span>%</span>
+              </span>
+            </label>
+            <div className="flex justify-between gap-2 text-xs text-white/55">
+              <span>GST on subtotal (before discount)</span>
+              <span>{formatCurrency(gstAmount)}</span>
+            </div>
 
-        <div>
-          <p className="mb-2 text-sm font-bold">Discount</p>
-          <div className="flex gap-2">
-            <select
-              value={discountType}
-              onChange={(event) => setDiscountType(event.target.value)}
-              aria-label="Discount type"
-              className="min-w-0 flex-1 rounded-lg border border-white/15 bg-[#4b3021] px-2 py-2 text-sm text-white outline-none focus:border-orange-400"
-            >
-              <option value="Percent">Percent</option>
-              <option value="Fixed">Fixed amount</option>
-            </select>
-            <input
-              type="number"
-              min="0"
-              max={discountType === "Percent" ? "100" : undefined}
-              step="0.01"
-              value={discountValue}
-              onChange={(event) => setDiscountValue(event.target.value)}
-              aria-label={discountType === "Percent" ? "Discount percentage" : "Discount amount"}
-              className="w-24 rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-right text-sm font-bold text-white outline-none focus:border-orange-400"
-            />
-            <span className="self-center text-sm">{discountType === "Percent" ? "%" : ""}</span>
-          </div>
-        </div>
-        <div className="flex justify-between text-xs text-white/55">
-          <span>Discount applied</span>
-          <span>-{formatCurrency(discount)}</span>
-        </div>
+            <div>
+              <p className="mb-2 text-sm font-bold">Discount</p>
+              <div className="flex gap-2">
+                <select
+                  value={discountType}
+                  onChange={(event) => setDiscountType(event.target.value)}
+                  aria-label="Discount type"
+                  className="min-w-0 flex-1 rounded-lg border border-white/15 bg-[#4b3021] px-2 py-2 text-sm text-white outline-none focus:border-orange-400"
+                >
+                  <option value="Percent">Percent</option>
+                  <option value="Fixed">Fixed amount</option>
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  max={discountType === "Percent" ? "100" : undefined}
+                  step="0.01"
+                  value={discountValue}
+                  onChange={(event) => setDiscountValue(event.target.value)}
+                  aria-label={discountType === "Percent" ? "Discount percentage" : "Discount amount"}
+                  className="w-24 rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-right text-sm font-bold text-white outline-none focus:border-orange-400"
+                />
+                <span className="self-center text-sm">{discountType === "Percent" ? "%" : ""}</span>
+              </div>
+            </div>
+            <div className="flex justify-between text-xs text-white/55">
+              <span>Discount applied</span>
+              <span>-{formatCurrency(discount)}</span>
+            </div>
 
-        <div className="flex items-center justify-between border-t border-white/15 pt-3">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-orange-200">Grand Total</span>
-          <span className="text-2xl font-black">{formatCurrency(total)}</span>
-        </div>
+            <div className="flex items-center justify-between border-t border-white/15 pt-3">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-orange-200">Grand Total</span>
+              <span className="text-2xl font-black">{formatCurrency(total)}</span>
+            </div>
 
-        <label className="block text-sm font-semibold text-white/75">
-          Advance amount
-          <input
-            type="number"
-            min="0"
-            max={total}
-            step="0.01"
-            value={advanceAmount === "" ? "" : advance}
-            onChange={(event) => {
-              const value = event.target.value;
-              setAdvanceAmount(
-                value === "" ? "" : String(Math.min(total, Math.max(0, Number(value) || 0)))
-              );
-            }}
-            aria-label="Advance amount"
-            className="mt-1 w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-right font-bold text-white outline-none focus:border-orange-400"
-          />
-        </label>
+            <label className="flex items-center justify-between gap-3 text-sm font-semibold text-white/75">
+              Advance amount
+              <input
+                type="number"
+                min="0"
+                max={total}
+                step="0.01"
+                value={advanceAmount === "" ? "" : advance}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setAdvanceAmount(
+                    value === "" ? "" : String(Math.min(total, Math.max(0, Number(value) || 0)))
+                  );
+                }}
+                aria-label="Advance amount"
+                className="min-w-0 flex-1 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-right font-bold text-white outline-none focus:border-orange-400"
+              />
+            </label>
 
-        <div className="flex items-center justify-between border-t border-white/15 pt-3 text-sm">
-          <span className="font-bold text-orange-200">Balance due</span>
-          <span className="font-extrabold">{formatCurrency(balanceDue)}</span>
-        </div>
+            <div className="flex items-center justify-between border-t border-white/15 pt-3 text-sm">
+              <span className="font-bold text-orange-200">Balance due</span>
+              <span className="font-extrabold">{formatCurrency(balanceDue)}</span>
+            </div>
+          </>
+        )}
 
-        <button
-          type="button"
-          onClick={orderStep === "products" ? onNext : onBack}
-          disabled={orderStep === "products" && cart.length === 0}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {orderStep === "products" ? "Next Details" : "Back to Products"}
-          {orderStep === "products" ? <FiArrowLeft className="rotate-180" aria-hidden="true" /> : <FiArrowLeft aria-hidden="true" />}
-        </button>
+        {orderStep === "products" ? (
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={cart.length === 0}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next Details
+            <FiArrowLeft className="rotate-180" aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            form="tack-order-form"
+            disabled={submitting || Boolean(savedOrder) || cart.length === 0}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? "Adding Tack Order..." : "Add Tack Order"}
+            {!submitting && <FiPlus aria-hidden="true" />}
+          </button>
+        )}
       </div>
     </aside>
   );
@@ -239,7 +272,7 @@ function OrderSummary({
 
 const TackOrders = () => {
   const { tackOrdersSearch: search } = useOutletContext();
-  const { cart, loadingCart, addToCart, removeFromCart, updateCartQuantity } = useContext(StoreContext);
+  const { cart, loadingCart, addToCart, removeFromCart, updateCartQuantity, clearCart } = useContext(StoreContext);
   const [products, setProducts] = useState([]);
   const [retryCount, setRetryCount] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
@@ -252,6 +285,8 @@ const TackOrders = () => {
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [savedOrder, setSavedOrder] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -309,21 +344,52 @@ const TackOrders = () => {
     ? products
     : products.filter((product) => product.category === selectedCategory);
 
+  const handleCreateTackOrder = async (event) => {
+    event.preventDefault();
+    if (submitting || savedOrder) return;
+
+    setSubmitting(true);
+    try {
+      const { total } = calculateOrderTotals(cart, gstIncluded, gstRate, discountType, discountValue);
+      const { data } = await api.post("/tack-orders", {
+        customer,
+        items: cart.map((item) => ({
+          product_id: Number(item.product_id),
+          quantity: Number(item.quantity),
+          variant_color: item.variant_color ?? item.colorName ?? "",
+          variant_size: item.variant_size ?? item.size ?? ""
+        })),
+        gst_included: gstIncluded,
+        gst_rate: Number(gstRate),
+        discount_type: discountType,
+        discount_value: Number(discountValue) || 0,
+        advance_amount: Math.min(total, Math.max(0, Number(advanceAmount) || 0))
+      });
+
+      try {
+        await clearCart();
+      } catch (clearError) {
+        console.error("Tack order created but the cart could not be cleared:", clearError);
+        setSavedOrder(data);
+        toast.error(`Tack order ${data.order_no} was created, but the cart could not be cleared.`);
+        return;
+      }
+
+      toast.success(`Tack order ${data.order_no} added.`);
+      setCustomer({ name: "", phone: "", email: "", address: "" });
+      setAdvanceAmount("");
+      setDiscountValue("0");
+      setOrderStep("products");
+    } catch (submitError) {
+      console.error("Failed to create tack order:", submitError);
+      toast.error(submitError.response?.data?.message || "Could not add tack order.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <section className="mt-0 flex h-[90vh] min-h-0 flex-col bg-[#fff8ef] px-2 pt-4 pb-0 sm:pt-6">
-      {orderStep === "details" && (
-        <div className="mb-3">
-          <button
-            type="button"
-            onClick={() => setOrderStep("products")}
-            aria-label="Back to products"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-700 shadow-sm"
-          >
-            <FiArrowLeft aria-hidden="true" />
-          </button>
-        </div>
-      )}
-
       {orderStep === "products" ? (
       <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[190px_minmax(0,1fr)_360px] xl:items-stretch">
         <aside className="hidden min-h-0 overflow-y-auto rounded-2xl border border-orange-100 bg-white p-3 shadow-sm xl:block">
@@ -526,20 +592,24 @@ const TackOrders = () => {
           setAdvanceAmount={setAdvanceAmount}
           orderStep={orderStep}
           onNext={() => setOrderStep("details")}
-          onBack={() => setOrderStep("products")}
         />
       </div>
       ) : (
         <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_360px]">
           <form
-            onSubmit={(event) => event.preventDefault()}
+            id="tack-order-form"
+            onSubmit={handleCreateTackOrder}
             className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm sm:p-7"
           >
             <div className="mb-6">
-              <p className="text-xs font-extrabold uppercase tracking-widest text-orange-600">Step 2 of 2</p>
               <h2 className="mt-1 text-xl font-extrabold text-slate-800">Customer Details</h2>
               <p className="mt-1 text-sm text-slate-500">Enter the customer information for this shop order.</p>
             </div>
+            {savedOrder && (
+              <p role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Tack order {savedOrder.order_no} was created, but the cart could not be cleared. Refresh the cart before creating another order.
+              </p>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="text-sm font-semibold text-slate-700">
                 Customer name *
@@ -604,9 +674,10 @@ const TackOrders = () => {
             setDiscountValue={setDiscountValue}
             advanceAmount={advanceAmount}
             setAdvanceAmount={setAdvanceAmount}
+            submitting={submitting}
+            savedOrder={savedOrder}
             orderStep={orderStep}
             onNext={() => setOrderStep("details")}
-            onBack={() => setOrderStep("products")}
           />
         </div>
       )}
