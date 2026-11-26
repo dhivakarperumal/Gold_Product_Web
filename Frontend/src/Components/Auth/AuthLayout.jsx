@@ -21,7 +21,7 @@ export default function AuthLayout({
     return (
       <main className="min-h-screen bg-white lg:h-screen lg:overflow-hidden">
         <div className="flex min-h-screen w-full bg-white lg:h-full lg:min-h-0 lg:overflow-hidden">
-          <aside className={`relative hidden min-h-full flex-none flex-col justify-between overflow-hidden bg-[#063d2c] p-10 text-white lg:flex xl:p-14 ${wideFormPanel ? "lg:w-[39%]" : "lg:w-[62%]"}`}>
+          <aside className={`relative hidden min-h-full flex-none flex-col justify-between overflow-hidden bg-[#063d2c] p-10 text-white lg:flex xl:p-14 ${wideFormPanel ? "lg:w-1/2" : "lg:w-[62%]"}`}>
             <img
               src="/images/loginbanner.png"
               alt=""
@@ -75,7 +75,7 @@ export default function AuthLayout({
             </div>
           </aside>
 
-          <section className={`flex w-full min-w-0 flex-col bg-white lg:h-full lg:min-h-0 lg:flex-none lg:rounded-l-[5rem] ${wideFormPanel ? "px-6 py-4 sm:px-12 sm:py-5 lg:ml-0 lg:px-14 lg:py-5 xl:px-16 lg:w-[61%]" : "px-5 py-5 sm:px-8 sm:py-7 lg:ml-0 lg:px-10 lg:py-8 xl:px-14 lg:w-[38%]"}`}>
+          <section className={`flex w-full min-w-0 flex-col bg-white lg:h-full lg:min-h-0 lg:flex-none lg:rounded-l-[5rem] ${wideFormPanel ? "px-6 py-4 sm:px-12 sm:py-5 lg:ml-0 lg:px-14 lg:py-5 xl:px-16 lg:w-1/2" : "px-5 py-5 sm:px-8 sm:py-7 lg:ml-0 lg:px-10 lg:py-8 xl:px-14 lg:w-[38%]"}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 lg:hidden">
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#063d2c] text-amber-300">
