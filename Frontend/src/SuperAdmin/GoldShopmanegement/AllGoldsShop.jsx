@@ -156,7 +156,7 @@ function Modal({ title, onClose, children, footer, wide = false }) {
           </button>
         </header>
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto overscroll-contain p-4 sm:p-6">
-          <div className="my-auto w-full">{children}</div>
+          <div className="my-4 w-full">{children}</div>
         </div>
         {footer && (
           <footer className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-[#fbfaf7] px-4 py-4 sm:px-5">

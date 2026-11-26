@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "../../api";
 import {
     FiCalendar,
@@ -6,7 +6,6 @@ import {
     FiChevronRight,
     FiEdit2,
     FiEye,
-    FiFilter,
     FiGrid,
     FiList,
     FiMail,
@@ -21,11 +20,20 @@ import {
     FiX,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
-import { Link, useLocation } from "react-router-dom";
-import DateRangeFilter from "../Components/DateRangeFilter";
-import useAdminCachedList from "../useAdminCachedList";
 
 const PAGE_SIZE = 8;
+const DATE_RANGE_OPTIONS = [
+    ["all", "All Time"],
+    ["today", "Today"],
+    ["yesterday", "Yesterday"],
+    ["this_week", "This Week"],
+    ["last_week", "Last Week"],
+    ["this_month", "This Month"],
+    ["last_month", "Last Month"],
+    ["this_year", "This Year"],
+    ["last_year", "Last Year"],
+    ["custom", "Custom Date Range"],
+];
 const superAdminStatTones = {
     forest: {
         card: "border-[#2F6B59] border-l-emerald-400 bg-[#123B32]",
@@ -76,8 +84,99 @@ const getInitials = (name) =>
         .map((part) => part[0]?.toUpperCase())
         .join("");
 
+const dateString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+
+const shiftDays = (date, days) => {
+    const shifted = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    shifted.setDate(shifted.getDate() + days);
+    return shifted;
+};
+
+const resolveDatePreset = (preset, now = new Date()) => {
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekday = (today.getDay() + 6) % 7;
+    const ranges = {
+        all: null,
+        today: [today, today],
+        yesterday: [shiftDays(today, -1), shiftDays(today, -1)],
+        this_week: [shiftDays(today, -weekday), shiftDays(today, 6 - weekday)],
+        last_week: [shiftDays(today, -weekday - 7), shiftDays(today, -weekday - 1)],
+        this_month: [new Date(today.getFullYear(), today.getMonth(), 1), new Date(today.getFullYear(), today.getMonth() + 1, 0)],
+        last_month: [new Date(today.getFullYear(), today.getMonth() - 1, 1), new Date(today.getFullYear(), today.getMonth(), 0)],
+        this_year: [new Date(today.getFullYear(), 0, 1), new Date(today.getFullYear(), 11, 31)],
+        last_year: [new Date(today.getFullYear() - 1, 0, 1), new Date(today.getFullYear() - 1, 11, 31)],
+    };
+    const range = ranges[preset];
+    return range
+        ? { preset, startDate: dateString(range[0]), endDate: dateString(range[1]) }
+        : { preset: "all", startDate: "", endDate: "" };
+};
+
+function SuperAdminDateRangeFilter({ onApply }) {
+    const [preset, setPreset] = useState("all");
+    const [customRange, setCustomRange] = useState({ startDate: "", endDate: "" });
+    const [error, setError] = useState("");
+
+    const selectPreset = (value) => {
+        setPreset(value);
+        setError("");
+        if (value !== "custom") onApply(resolveDatePreset(value));
+    };
+
+    const applyCustomRange = () => {
+        if (!customRange.startDate || !customRange.endDate) {
+            setError("Choose both start and end dates.");
+            return;
+        }
+        if (customRange.startDate > customRange.endDate) {
+            setError("Start date cannot be later than end date.");
+            return;
+        }
+        setError("");
+        onApply({ preset: "custom", ...customRange });
+    };
+
+    const clearFilter = () => {
+        setPreset("all");
+        setCustomRange({ startDate: "", endDate: "" });
+        setError("");
+        onApply(resolveDatePreset("all"));
+    };
+
+    return (
+        <div>
+            <label className="flex min-h-10 min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 focus-within:border-[#008577] focus-within:ring-2 focus-within:ring-emerald-800/10">
+                <FiCalendar size={16} className="shrink-0 text-[#008577]" />
+                <span className="sr-only">Filter users by date</span>
+                <select value={preset} onChange={(event) => selectPreset(event.target.value)} className="w-full bg-transparent py-2 text-slate-700 outline-none [&_option]:text-slate-900">
+                    {DATE_RANGE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+            </label>
+            {preset === "custom" && (
+                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
+                    <label className="text-xs font-semibold text-slate-600">
+                        Start Date
+                        <input type="date" value={customRange.startDate} onChange={(event) => setCustomRange((range) => ({ ...range, startDate: event.target.value }))} className="mt-1 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 focus:border-[#008577] focus:outline-none" />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-600">
+                        End Date
+                        <input type="date" value={customRange.endDate} min={customRange.startDate || undefined} onChange={(event) => setCustomRange((range) => ({ ...range, endDate: event.target.value }))} className="mt-1 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 focus:border-[#008577] focus:outline-none" />
+                    </label>
+                    <button type="button" onClick={applyCustomRange} className="min-h-10 rounded-lg bg-[#003B3B] px-4 text-sm font-bold text-white transition hover:bg-[#008577]">Apply Filter</button>
+                    <button type="button" onClick={clearFilter} className="min-h-10 rounded-lg border border-slate-200 px-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50">Clear Filter</button>
+                    {error && <p role="alert" className="text-xs font-semibold text-rose-600 sm:col-span-4">{error}</p>}
+                </div>
+            )}
+        </div>
+    );
+}
+
 const Usersmanagements = () => {
-    const isSuperAdminUsersPage = useLocation().pathname === "/superadmin/users";
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [viewMode, setViewMode] = useState("table");
@@ -97,16 +196,18 @@ const Usersmanagements = () => {
         role: "user",
         password: "",
     });
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(true);
+    const [error, setError] = useState(null);
+    const requestId = useRef(0);
 
-    const listCacheKey = `admin:users:${dateRange.startDate}:${dateRange.endDate}`;
-    const {
-        data: users,
-        setData: setUsers,
-        loading,
-        refreshing,
-        error,
-        refresh: fetchUsers
-    } = useAdminCachedList(listCacheKey, async () => {
+    const fetchUsers = useCallback(async () => {
+        const currentRequestId = ++requestId.current;
+        setLoading(true);
+        setRefreshing(true);
+        setError(null);
+        try {
             const response = await api.get("/auth/users", {
                 params: { startDate: dateRange.startDate, endDate: dateRange.endDate }
             });
@@ -119,21 +220,33 @@ const Usersmanagements = () => {
                         ? data.data
                         : null;
 
-            if (!records) {
-                throw new Error("The server returned an invalid customer list.");
-            }
-
+            if (!records) throw new Error("The server returned an invalid user list.");
             const normalizedUsers = records.map((user) => ({
                 ...user,
                 id: user.id ?? user.user_id,
-                name: user.name || user.username || "Customer",
+                name: user.name || user.username || "User",
                 email: user.email || "",
                 phone: user.phone || "",
                 role: String(user.role || "user").toLowerCase(),
                 status: getUserStatus(user),
             }));
+            if (requestId.current === currentRequestId) setUsers(normalizedUsers);
             return normalizedUsers;
-    }, []);
+        } catch (fetchError) {
+            if (requestId.current === currentRequestId) setError(fetchError);
+            throw fetchError;
+        } finally {
+            if (requestId.current === currentRequestId) {
+                setLoading(false);
+                setRefreshing(false);
+            }
+        }
+    }, [dateRange.endDate, dateRange.startDate]);
+
+    useEffect(() => {
+        fetchUsers().catch(() => {});
+        return () => { requestId.current += 1; };
+    }, [fetchUsers]);
 
     useEffect(() => {
         if (error) {
@@ -280,81 +393,44 @@ const Usersmanagements = () => {
     };
 
     const statCards = [
-        { label: "Total Customers", value: users.length, note: "Registered accounts", icon: FiUserPlus, color: "bg-emerald-100 text-emerald-700", tone: "forest" },
-        { label: "New Today", value: todayCount, note: "Joined today", icon: FiUserCheck, color: "bg-amber-100 text-amber-700", tone: "gold" },
-        { label: "Active Customers", value: activeCount, note: "Active accounts", icon: FiUser, color: "bg-sky-100 text-sky-700", tone: "blue" },
-        { label: "Inactive Customers", value: inactiveCount, note: "Inactive accounts", icon: FiUserX, color: "bg-rose-100 text-rose-600", tone: "rust" },
+        { label: "Total Customers", value: users.length, note: "Registered accounts", icon: FiUserPlus, tone: "forest" },
+        { label: "New Today", value: todayCount, note: "Joined today", icon: FiUserCheck, tone: "gold" },
+        { label: "Active Customers", value: activeCount, note: "Active accounts", icon: FiUser, tone: "blue" },
+        { label: "Inactive Customers", value: inactiveCount, note: "Inactive accounts", icon: FiUserX, tone: "rust" },
     ];
 
     return (
         <section className="min-h-screen bg-[#F4F7F6] px-0 py-1 text-slate-800">
             <div className="mx-auto max-w-[1600px] space-y-4">
-                {!isSuperAdminUsersPage && (
-                    <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-                        <div>
-                            <Link
-                                to="/admin/settings"
-                                className="mb-3 inline-flex items-center gap-2 rounded-lg bg-[#00695C] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#008577]"
-                            >
-                                <FiChevronLeft size={16} /> Back to Settings
-                            </Link>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <button
-                                type="button"
-                                onClick={openAddModal}
-                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#00695C] px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#008577]"
-                            >
-                                <FiPlus /> Add Customer
-                            </button>
-                        </div>
-                    </header>
-                )}
-
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    {statCards.map(({ label, value, note, icon: Icon, color, tone }) => {
-                        if (isSuperAdminUsersPage) {
-                            const colors = superAdminStatTones[tone];
-                            return (
-                                <article key={label} className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}>
-                                    <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-inner ${colors.icon}`}>
-                                        <Icon size={25} />
-                                    </span>
-                                    <div className="min-w-0 flex-1 pb-1">
-                                        <p className={`truncate text-sm font-semibold ${colors.label}`}>{label}</p>
-                                        {loading
-                                            ? <div className="mt-2 h-8 w-28 animate-pulse rounded bg-white/15" />
-                                            : <p className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-[28px]">{value.toLocaleString()}</p>}
-                                        <div className={`mt-2 flex min-h-5 items-center gap-1.5 text-xs ${colors.detail}`}>
-                                            {loading
-                                                ? <div className="h-3 w-24 animate-pulse rounded bg-white/15" />
-                                                : (
-                                                    <>
-                                                        <span className={`h-2 w-2 rounded-full ${colors.bars}`} />
-                                                        <span className="font-semibold">{note}</span>
-                                                    </>
-                                                )}
-                                        </div>
-                                    </div>
-                                    <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-8 items-end gap-1 opacity-90 ${colors.detail}`}>
-                                        <span className="h-3 w-1.5 rounded-t-sm bg-current" />
-                                        <span className="h-5 w-1.5 rounded-t-sm bg-current" />
-                                        <span className="h-4 w-1.5 rounded-t-sm bg-current" />
-                                        <span className="h-7 w-1.5 rounded-t-sm bg-current" />
-                                    </div>
-                                </article>
-                            );
-                        }
-
+                    {statCards.map(({ label, value, note, icon: Icon, tone }) => {
+                        const colors = superAdminStatTones[tone];
                         return (
-                            <article key={label} className="flex min-h-[88px] items-center gap-3 rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${color}`}>
-                                    <Icon size={22} />
+                            <article key={label} className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}>
+                                <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-inner ${colors.icon}`}>
+                                    <Icon size={25} />
+                                </span>
+                                <div className="min-w-0 flex-1 pb-1">
+                                    <p className={`truncate text-sm font-semibold ${colors.label}`}>{label}</p>
+                                    {loading
+                                        ? <div className="mt-2 h-8 w-28 animate-pulse rounded bg-white/15" />
+                                        : <p className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-[28px]">{value.toLocaleString()}</p>}
+                                    <div className={`mt-2 flex min-h-5 items-center gap-1.5 text-xs ${colors.detail}`}>
+                                        {loading
+                                            ? <div className="h-3 w-24 animate-pulse rounded bg-white/15" />
+                                            : (
+                                                <>
+                                                    <span className={`h-2 w-2 rounded-full ${colors.bars}`} />
+                                                    <span className="font-semibold">{note}</span>
+                                                </>
+                                            )}
+                                    </div>
                                 </div>
-                                <div className="min-w-0">
-                                    <p className="text-xs font-medium text-slate-500">{label}</p>
-                                    <p className="text-2xl font-extrabold leading-tight text-slate-900">{value.toLocaleString()}</p>
-                                    <p className="text-[11px] text-slate-400">{note}</p>
+                                <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-8 items-end gap-1 opacity-90 ${colors.detail}`}>
+                                    <span className="h-3 w-1.5 rounded-t-sm bg-current" />
+                                    <span className="h-5 w-1.5 rounded-t-sm bg-current" />
+                                    <span className="h-4 w-1.5 rounded-t-sm bg-current" />
+                                    <span className="h-7 w-1.5 rounded-t-sm bg-current" />
                                 </div>
                             </article>
                         );
@@ -373,42 +449,27 @@ const Usersmanagements = () => {
                             />
                         </label>
                         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                            <DateRangeFilter onApply={(range) => {
+                            <SuperAdminDateRangeFilter onApply={(range) => {
                                 setCurrentPage(1);
                                 setDateRange(range);
                             }} />
-                            {isSuperAdminUsersPage ? (
-                                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Filter customers by status">
-                                    {[
-                                        { value: "all", label: "All" },
-                                        { value: "active", label: "Active" },
-                                        { value: "inactive", label: "Inactive" },
-                                    ].map(({ value, label }) => (
-                                        <button
-                                            key={value}
-                                            type="button"
-                                            onClick={() => setStatusFilter(value)}
-                                            aria-pressed={statusFilter === value}
-                                            className={`rounded-md px-3 py-2 text-xs font-semibold transition ${statusFilter === value ? "bg-[#00695C] text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <label className="relative">
-                                    <FiFilter className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <select
-                                        value={statusFilter}
-                                        onChange={(event) => setStatusFilter(event.target.value)}
-                                        className="appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-8 pr-7 text-xs text-slate-600 outline-none focus:border-[#008577]"
+                            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Filter users by status">
+                                {[
+                                    { value: "all", label: "All" },
+                                    { value: "active", label: "Active" },
+                                    { value: "inactive", label: "Inactive" },
+                                ].map(({ value, label }) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setStatusFilter(value)}
+                                        aria-pressed={statusFilter === value}
+                                        className={`rounded-md px-3 py-2 text-xs font-semibold transition ${statusFilter === value ? "bg-[#00695C] text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}
                                     >
-                                        <option value="all">All Status</option>
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                    </select>
-                                </label>
-                            )}
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
                             <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Customer view mode">
                                 <button
                                     type="button"
@@ -431,15 +492,13 @@ const Usersmanagements = () => {
                                     <FiList size={15} />
                                 </button>
                             </div>
-                            {isSuperAdminUsersPage && (
-                                <button
-                                    type="button"
-                                    onClick={openAddModal}
-                                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#00695C] px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#008577]"
-                                >
-                                    <FiPlus /> Add Customer
-                                </button>
-                            )}
+                            <button
+                                type="button"
+                                onClick={openAddModal}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#00695C] px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#008577]"
+                            >
+                                <FiPlus /> Add User
+                            </button>
                         </div>
                     </div>
                     <section className="min-w-0 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
@@ -480,22 +539,18 @@ const Usersmanagements = () => {
                                             </td>
                                             <td className="px-3 py-3 text-xs capitalize text-slate-600">{user.role}</td>
                                             <td className="px-3 py-3">
-                                                {isSuperAdminUsersPage ? (
-                                                    <select
-                                                        value={user.status}
-                                                        onChange={(event) => void handleStatusChange(user, event.target.value)}
-                                                        onClick={(event) => event.stopPropagation()}
-                                                        disabled={refreshing || statusUpdatingUserId !== null}
-                                                        aria-label={`Change status for ${user.name}`}
-                                                        title="Change customer status"
-                                                        className={`rounded-md border px-2 py-1 text-[10px] font-bold outline-none transition disabled:cursor-wait disabled:opacity-60 ${user.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}
-                                                    >
-                                                        <option value="Active">Active</option>
-                                                        <option value="Inactive">Inactive</option>
-                                                    </select>
-                                                ) : (
-                                                    <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${user.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{user.status}</span>
-                                                )}
+                                                <select
+                                                    value={user.status}
+                                                    onChange={(event) => void handleStatusChange(user, event.target.value)}
+                                                    onClick={(event) => event.stopPropagation()}
+                                                    disabled={refreshing || statusUpdatingUserId !== null}
+                                                    aria-label={`Change status for ${user.name}`}
+                                                    title="Change user status"
+                                                    className={`rounded-md border px-2 py-1 text-[10px] font-bold outline-none transition disabled:cursor-wait disabled:opacity-60 ${user.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}
+                                                >
+                                                    <option value="Active">Active</option>
+                                                    <option value="Inactive">Inactive</option>
+                                                </select>
                                             </td>
                                             <td className="px-3 py-3 text-xs text-slate-500">{formatJoinDate(user.created_at, { day: "2-digit", month: "short", year: "numeric" })}</td>
                                             <td className="px-3 py-3">

@@ -24,6 +24,7 @@ const GoldShopDetails = React.lazy(() => import("./SuperAdmin/GoldShopmanegement
 const AllSubscriptionPlan = React.lazy(() => import("./SuperAdmin/SubscriptionPlans/AllSubscriptionPlan.jsx"));
 const RevenueReports = React.lazy(() => import("./SuperAdmin/SuperReport/RevenueReports.jsx"));
 const PaymentManagement = React.lazy(() => import("./SuperAdmin/Paymentmanegement/Payment.jsx"));
+const SuperAdminUsers = React.lazy(() => import("./SuperAdmin/Usermanagements/UsersManagements.jsx"));
 const Users = React.lazy(() => import("./Admin/Pages/Users.jsx"));
 const Category = React.lazy(() => import("./Admin/Categery/Category.jsx"));
 const Metals = React.lazy(() => import("./Admin/Metal Type/Metals.jsx"));
@@ -87,7 +88,7 @@ const router = createHashRouter([
     children: [
       { index: true, element: <SuperDashboard /> },
       { path: "profile", element: <SuperProfile /> },
-      { path: "users", element: <Users /> },
+      { path: "users", element: <SuperAdminUsers /> },
       { path: "goldshop", element: <AllGoldsShop /> },
       { path: "goldshop/:id", element: <GoldShopDetails /> },
       { path: "subscription-plans", element: <AllSubscriptionPlan /> },
