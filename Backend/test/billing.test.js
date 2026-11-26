@@ -617,7 +617,7 @@ test('reuses an existing advance bill and synchronizes its actual paid state', a
     ]);
   };
 
-  await retryWithExistingBill(100, 'Paid', 'Bill Completed');
+  await retryWithExistingBill(100, 'Paid', 'Completed');
   await retryWithExistingBill(25, 'Pending', 'Billing Pending');
 });
 
@@ -700,7 +700,7 @@ test('syncs linked-order completion when an edited bill becomes fully paid', asy
   }
   assert.equal(committed, true);
   const statusUpdate = executions.find(({ query }) => query.includes('UPDATE tack_orders'));
-  assert.deepEqual(statusUpdate.values, ['Paid', '0.00', 'Bill Completed', 42, 'shop-user-1']);
+  assert.deepEqual(statusUpdate.values, ['Paid', '0.00', 'Completed', 42, 'shop-user-1']);
 });
 
 test('updates linked tack-order payment status when a bill is paid or refunded', async () => {
@@ -754,7 +754,7 @@ test('updates linked tack-order payment status when a bill is paid or refunded',
     assert.equal(committed, true);
     const statusUpdate = executions.find(({ query }) => query.includes('UPDATE tack_orders'));
     const expectedBalance = paymentKind === 'PAYMENT' ? '0.00' : '10.00';
-    const expectedOrderStatus = paymentKind === 'PAYMENT' ? 'Bill Completed' : 'Billing Pending';
+    const expectedOrderStatus = paymentKind === 'PAYMENT' ? 'Completed' : 'Billing Pending';
     assert.deepEqual(statusUpdate.values, [
       expectedStatus,
       expectedBalance,

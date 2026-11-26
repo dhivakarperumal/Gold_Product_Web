@@ -250,7 +250,7 @@ test('lists only tack orders owned by the authenticated shop', async () => {
   assert.match(capturedQuery.query, /WHERE t\.user_id = \?/);
   assert.match(capturedQuery.query, /order_status/);
   assert.match(capturedQuery.query, /payment_status/);
-  assert.match(capturedQuery.query, /GREATEST\(b\.total_amount - b\.paid_amount, 0\) <= 0 THEN 'Bill Completed'/);
+  assert.match(capturedQuery.query, /GREATEST\(b\.total_amount - b\.paid_amount, 0\) <= 0 THEN 'Completed'/);
   assert.match(capturedQuery.query, /COALESCE\(GREATEST\(b\.total_amount - b\.paid_amount, 0\), t\.balance_due\) AS balance_due/);
   assert.match(capturedQuery.query, /COALESCE\(b\.paid_amount, GREATEST\(t\.total_amount - t\.balance_due, 0\)\) AS paid_amount/);
   assert.match(capturedQuery.query, /ORDER BY t\.created_at DESC, t\.id DESC/);

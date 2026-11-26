@@ -213,6 +213,23 @@ async function getTackOrders(req, res, next) {
   } catch (error) {
     return next(error);
   }
+
+  function validTackOrderId(value) {
+    const id = Number(value);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+  }
+
+  async function getTackOrder(req, res, next) {
+    const id = validTackOrderId(req.params.id);
+    if (!id) return res.status(400).json({ message: 'Tack order ID is invalid' });
+    try {
+      const order = await getTackOrderById(id, req.adminUser.user_id);
+      if (!order) return res.status(404).json({ message: 'Tack order not found' });
+      return res.json(order);
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
 
 async function patchTackOrderStatus(req, res, next) {
@@ -238,6 +255,7 @@ async function patchTackOrderStatus(req, res, next) {
 
 module.exports = {
   getTackOrders,
+  getTackOrder,
   normalizeTackOrder,
   patchTackOrderStatus,
   postTackOrder

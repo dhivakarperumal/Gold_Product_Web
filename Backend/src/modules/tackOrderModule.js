@@ -53,7 +53,12 @@ async function initializeTackOrderModule() {
     JOIN billings b ON b.source_tack_order_id = t.id AND b.user_id = t.user_id
     SET t.payment_status = CASE WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Paid' ELSE 'Pending' END,
         t.balance_due = GREATEST(b.total_amount - b.paid_amount, 0),
-        t.order_status = CASE WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Bill Completed' ELSE 'Billing Pending' END
+        t.order_status = CASE WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Completed' ELSE 'Billing Pending' END
+  `);
+  await pool.query(`
+    UPDATE tack_orders
+    SET order_status = 'Completed'
+    WHERE order_status = 'Bill Completed'
   `);
 }
 
@@ -113,9 +118,10 @@ async function listTackOrders(userId) {
     `SELECT t.id, t.order_no, t.customer, t.items, t.sub_total, t.gst_included, t.gst_rate, t.gst_amount,
        t.discount_type, t.discount_value, t.discount_amount, t.total_amount,
        CASE WHEN b.id IS NULL THEN t.order_status
-         WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Bill Completed' ELSE 'Billing Pending' END AS order_status,
+         WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Completed' ELSE 'Billing Pending' END AS order_status,
        CASE WHEN b.id IS NULL THEN t.payment_status
-         WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Paid' ELSE 'Pending' END AS payment_status,
+         WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Paid'
+         WHEN b.paid_amount > 0 THEN 'Partial' ELSE 'Pending' END AS payment_status,
        t.advance_amount,
        COALESCE(GREATEST(b.total_amount - b.paid_amount, 0), t.balance_due) AS balance_due,
        COALESCE(b.paid_amount, GREATEST(t.total_amount - t.balance_due, 0)) AS paid_amount,
@@ -148,13 +154,13 @@ async function updateTackOrderStatus(id, status, userId) {
   await pool.execute(
     `UPDATE tack_orders
      SET order_status = ?
-     WHERE id = ? AND user_id = ? AND order_status <> 'Bill Completed'`,
+     WHERE id = ? AND user_id = ? AND order_status NOT IN ('Completed', 'Bill Completed')`,
     [status, id, userId]
   );
   const order = await getTackOrderById(id, userId);
   if (!order) return null;
-  if (order.order_status === 'Bill Completed') {
-    const error = new Error('Bill Completed status is set automatically when the linked bill is fully paid');
+  if (order.order_status === 'Completed' || order.order_status === 'Bill Completed') {
+    const error = new Error('Completed status is set automatically when the linked bill is fully paid');
     error.code = 'TACK_ORDER_ALREADY_COMPLETED';
     throw error;
   }

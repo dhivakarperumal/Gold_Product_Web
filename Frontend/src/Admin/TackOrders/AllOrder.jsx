@@ -90,6 +90,7 @@ function getOrderDateKey(value) {
 
 function getPaymentStatus(order) {
   if (order.payment_status === "Paid") return "PAID";
+  if (order.payment_status === "Partial") return "PARTIAL";
   const balance = Number(order.balance_due);
   if (Number.isFinite(balance) && balance <= 0) return "PAID";
   const total = Number(order.total_amount);
@@ -381,21 +382,21 @@ export default function AllTackOrders() {
                         aria-label={`Order status for ${order.order_no}`}
                         value={orderStatus}
                         onChange={(event) => void updateOrderStatus(order.id, event.target.value)}
-                        disabled={orderStatus === "Bill Completed" || updatingOrderId === order.id}
+                        disabled={orderStatus === "Completed" || orderStatus === "Bill Completed" || updatingOrderId === order.id}
                         className={`rounded-full border px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 ${
-                          orderStatus === "Bill Completed"
+                          orderStatus === "Completed" || orderStatus === "Bill Completed"
                             ? "border-emerald-100 bg-emerald-50 text-emerald-700"
                             : "border-slate-200 bg-white text-slate-700"
                         }`}
                       >
-                        {!MANUAL_ORDER_STATUSES.includes(orderStatus) && orderStatus !== "Bill Completed" && (
+                        {!MANUAL_ORDER_STATUSES.includes(orderStatus) && orderStatus !== "Completed" && orderStatus !== "Bill Completed" && (
                           <option value={orderStatus}>{orderStatus}</option>
                         )}
                         {MANUAL_ORDER_STATUSES.map((status) => (
                           <option key={status} value={status}>{status}</option>
                         ))}
-                        <option value="Bill Completed" disabled={orderStatus !== "Bill Completed"}>
-                          Bill Completed (automatic)
+                        <option value="Completed" disabled={orderStatus !== "Completed" && orderStatus !== "Bill Completed"}>
+                          Completed (automatic)
                         </option>
                       </select>
                       <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${

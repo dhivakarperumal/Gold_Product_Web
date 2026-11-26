@@ -2,6 +2,26 @@ const { pool } = require('../config/db');
 const { getFundBalance, insertFundRecord } = require('./fundsModule');
 const { addDateRangeCondition } = require('../utils/dateRange');
 
+function getPaymentState(totalAmount, paidAmount) {
+  const balanceDue = Math.max(0, Number(totalAmount) - Number(paidAmount));
+  return {
+    balanceDue,
+    paymentStatus: balanceDue <= 0 ? 'Paid' : Number(paidAmount) > 0 ? 'Partial' : 'Pending',
+    orderStatus: balanceDue <= 0 ? 'Completed' : 'Billing Pending'
+  };
+}
+
+async function syncTackOrderPaymentState(connection, tackOrderId, userId, totalAmount, paidAmount) {
+  const state = getPaymentState(totalAmount, paidAmount);
+  await connection.execute(
+    `UPDATE tack_orders
+     SET payment_status = ?, balance_due = ?, order_status = ?
+     WHERE id = ? AND user_id = ?`,
+    [state.paymentStatus, state.balanceDue.toFixed(2), state.orderStatus, tackOrderId, userId]
+  );
+  return state;
+}
+
 async function insertFundRecordOnce(connection, entry) {
   try {
     await insertFundRecord(connection, entry);
@@ -123,6 +143,9 @@ async function listBillings(userId, dateRange = {}) {
   const [rows] = await pool.execute(`
     SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
       b.sub_total, b.discount_amount, b.gst_amount, b.gst_rate, b.tax_mode, b.total_amount, b.paid_amount, b.balance_due,
+      b.source_tack_order_id,
+      CASE WHEN b.paid_amount >= b.total_amount THEN 'Paid'
+        WHEN b.paid_amount > 0 THEN 'Partial' ELSE 'Pending' END AS payment_status,
       b.created_at, b.updated_at, b.created_by,
       COALESCE(NULLIF(creator.name, ''), creator.username, b.created_by) AS created_by_name,
       b.updated_by, COALESCE(NULLIF(updater.name, ''), updater.username, b.updated_by) AS updated_by_name
@@ -139,6 +162,9 @@ async function getBillingById(id, userId) {
   const [rows] = await pool.execute(
     `SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
        b.sub_total, b.discount_amount, b.gst_amount, b.gst_rate, b.tax_mode, b.total_amount, b.paid_amount, b.balance_due,
+       b.source_tack_order_id,
+       CASE WHEN b.paid_amount >= b.total_amount THEN 'Paid'
+         WHEN b.paid_amount > 0 THEN 'Partial' ELSE 'Pending' END AS payment_status,
        b.created_at, b.updated_at, b.created_by,
        COALESCE(NULLIF(creator.name, ''), creator.username, b.created_by) AS created_by_name,
        b.updated_by, COALESCE(NULLIF(updater.name, ''), updater.username, b.updated_by) AS updated_by_name
@@ -147,6 +173,25 @@ async function getBillingById(id, userId) {
      LEFT JOIN users updater ON updater.user_id = b.updated_by
      WHERE b.id = ? AND b.user_id = ?`,
     [id, userId]
+  );
+  return rows[0] || null;
+}
+
+async function getBillingByTackOrderId(tackOrderId, userId) {
+  const [rows] = await pool.execute(
+    `SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
+       b.sub_total, b.discount_amount, b.gst_amount, b.gst_rate, b.tax_mode,
+       b.total_amount, b.paid_amount,
+       GREATEST(b.total_amount - b.paid_amount, 0) AS balance_due,
+       b.source_tack_order_id,
+       CASE WHEN b.paid_amount >= b.total_amount THEN 'Paid'
+         WHEN b.paid_amount > 0 THEN 'Partial' ELSE 'Pending' END AS payment_status,
+       b.created_at, b.updated_at
+     FROM billings b
+     WHERE b.source_tack_order_id = ? AND b.user_id = ?
+     ORDER BY b.id DESC
+     LIMIT 1`,
+    [tackOrderId, userId]
   );
   return rows[0] || null;
 }
@@ -167,7 +212,7 @@ async function getBillingProductsByIds(productIds, createdByUserId) {
 
 async function createBilling(billing, userId, initialPayment = null) {
   const paidAmount = initialPayment ? Number(initialPayment.amount) : 0;
-  const balanceDue = Math.max(0, Number(billing.total_amount) - paidAmount);
+  const { balanceDue } = getPaymentState(billing.total_amount, paidAmount);
   const values = [
     billing.invoice_no,
     userId,
@@ -201,6 +246,42 @@ async function createBilling(billing, userId, initialPayment = null) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    if (billing.source_tack_order_id != null) {
+      const [orders] = await connection.execute(
+        'SELECT id FROM tack_orders WHERE id = ? AND user_id = ? FOR UPDATE',
+        [billing.source_tack_order_id, userId]
+      );
+      if (!orders.length) {
+        const error = new Error('Tack order not found');
+        error.code = 'TACK_ORDER_NOT_FOUND';
+        throw error;
+      }
+      const [existingBills] = await connection.execute(
+        `SELECT id, total_amount, paid_amount
+         FROM billings
+         WHERE source_tack_order_id = ? AND user_id = ?
+         ORDER BY id DESC
+         LIMIT 1 FOR UPDATE`,
+        [billing.source_tack_order_id, userId]
+      );
+      if (existingBills.length) {
+        const existingBill = existingBills[0];
+        const state = getPaymentState(existingBill.total_amount, existingBill.paid_amount);
+        await connection.execute(
+          'UPDATE billings SET balance_due = ? WHERE id = ? AND user_id = ?',
+          [state.balanceDue.toFixed(2), existingBill.id, userId]
+        );
+        await syncTackOrderPaymentState(
+          connection,
+          billing.source_tack_order_id,
+          userId,
+          existingBill.total_amount,
+          existingBill.paid_amount
+        );
+        await connection.commit();
+        return { ...(await getBillingById(existingBill.id, userId)), already_exists: true };
+      }
+    }
     if (initialPayment) {
       await getFundBalance(connection, initialPayment.created_by_user_id, true);
     }
@@ -244,7 +325,7 @@ async function createBilling(billing, userId, initialPayment = null) {
               [result.insertId, userId]
             );
             const existingPaidAmount = Number(existingBill.paid_amount);
-            const existingBalanceDue = Math.max(0, Number(existingBill.total_amount) - existingPaidAmount);
+            const { balanceDue: existingBalanceDue } = getPaymentState(existingBill.total_amount, existingPaidAmount);
             await connection.execute(
               'UPDATE billings SET source_tack_order_id = ?, balance_due = ? WHERE id = ? AND user_id = ?',
               [
@@ -254,17 +335,12 @@ async function createBilling(billing, userId, initialPayment = null) {
                 userId
               ]
             );
-            await connection.execute(
-              `UPDATE tack_orders
-               SET payment_status = ?, balance_due = ?, order_status = ?
-               WHERE id = ? AND user_id = ?`,
-              [
-                existingBalanceDue <= 0 ? 'Paid' : 'Pending',
-                existingBalanceDue.toFixed(2),
-                existingBalanceDue <= 0 ? 'Bill Completed' : 'Billing Pending',
-                billing.source_tack_order_id,
-                userId
-              ]
+            await syncTackOrderPaymentState(
+              connection,
+              billing.source_tack_order_id,
+              userId,
+              existingBill.total_amount,
+              existingPaidAmount
             );
             await connection.commit();
             const savedBill = await getBillingById(existingBill.id, userId);
@@ -292,17 +368,12 @@ async function createBilling(billing, userId, initialPayment = null) {
       });
     }
     if (billing.source_tack_order_id != null) {
-      await connection.execute(
-        `UPDATE tack_orders
-         SET payment_status = ?, balance_due = ?, order_status = ?
-         WHERE id = ? AND user_id = ?`,
-        [
-          balanceDue <= 0 ? 'Paid' : 'Pending',
-          balanceDue.toFixed(2),
-          balanceDue <= 0 ? 'Bill Completed' : 'Billing Pending',
-          billing.source_tack_order_id,
-          userId
-        ]
+      await syncTackOrderPaymentState(
+        connection,
+        billing.source_tack_order_id,
+        userId,
+        billing.total_amount,
+        paidAmount
       );
     }
     await connection.commit();
@@ -329,7 +400,7 @@ async function updateBilling(id, billing, userId) {
     }
 
     const bill = bills[0];
-    const balanceDue = Math.max(0, Number(billing.total_amount) - Number(bill.paid_amount));
+    const { balanceDue } = getPaymentState(billing.total_amount, bill.paid_amount);
     await connection.execute(
       `UPDATE billings
        SET customers = ?, products = ?, exchanges = ?, payment_type = ?,
@@ -354,17 +425,12 @@ async function updateBilling(id, billing, userId) {
       ]
     );
     if (bill.source_tack_order_id != null) {
-      await connection.execute(
-        `UPDATE tack_orders
-         SET payment_status = ?, balance_due = ?, order_status = ?
-         WHERE id = ? AND user_id = ?`,
-        [
-          balanceDue <= 0 ? 'Paid' : 'Pending',
-          balanceDue.toFixed(2),
-          balanceDue <= 0 ? 'Bill Completed' : 'Billing Pending',
-          bill.source_tack_order_id,
-          userId
-        ]
+      await syncTackOrderPaymentState(
+        connection,
+        bill.source_tack_order_id,
+        userId,
+        billing.total_amount,
+        bill.paid_amount
       );
     }
     await connection.commit();
@@ -392,6 +458,14 @@ async function recordBillingPayment(id, payment, userId) {
     }
     const bill = bills[0];
     const currentPaid = Number(bill.paid_amount);
+      if (payment.payment_kind === 'PAYMENT') {
+        const balanceDue = Math.max(0, Number(bill.total_amount) - currentPaid);
+        if (Number(payment.amount) > balanceDue) {
+          const error = new Error('Payment amount cannot exceed the remaining bill balance');
+          error.code = 'PAYMENT_EXCEEDS_BALANCE';
+          throw error;
+        }
+      }
     if (payment.payment_kind === 'REFUND' && Number(payment.amount) > currentPaid) {
       const error = new Error('Refund cannot exceed the amount collected for this bill');
       error.code = 'REFUND_EXCEEDS_PAID';
@@ -431,7 +505,7 @@ async function recordBillingPayment(id, payment, userId) {
       admin_name: payment.admin_name
     });
     const paidAmount = currentPaid + (payment.payment_kind === 'PAYMENT' ? Number(payment.amount) : -Number(payment.amount));
-    const balanceDue = Math.max(0, Number(bill.total_amount) - paidAmount);
+    const { balanceDue, paymentStatus, orderStatus } = getPaymentState(bill.total_amount, paidAmount);
     await connection.execute(
       'UPDATE billings SET paid_amount = ?, balance_due = GREATEST(total_amount - ?, 0), updated_by = ? WHERE id = ? AND user_id = ?',
       [paidAmount.toFixed(2), paidAmount.toFixed(2), payment.updated_by || null, id, userId]
@@ -441,13 +515,7 @@ async function recordBillingPayment(id, payment, userId) {
         `UPDATE tack_orders
          SET payment_status = ?, balance_due = ?, order_status = ?
          WHERE id = ? AND user_id = ?`,
-        [
-          balanceDue <= 0 ? 'Paid' : 'Pending',
-          balanceDue.toFixed(2),
-          balanceDue <= 0 ? 'Bill Completed' : 'Billing Pending',
-          bill.source_tack_order_id,
-          userId
-        ]
+        [paymentStatus, balanceDue.toFixed(2), orderStatus, bill.source_tack_order_id, userId]
       );
     }
     await connection.commit();
@@ -469,6 +537,7 @@ module.exports = {
   createBilling,
   deleteBilling,
   getBillingById,
+  getBillingByTackOrderId,
   getBillingProductsByIds,
   initializeBillingModule,
   listBillings,

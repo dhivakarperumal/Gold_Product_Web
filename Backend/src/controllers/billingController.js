@@ -3,6 +3,7 @@ const {
   createBilling,
   deleteBilling,
   getBillingById,
+  getBillingByTackOrderId,
   getBillingProductsByIds,
   listBillings,
   recordBillingPayment,
@@ -340,6 +341,18 @@ async function getBillings(req, res, next) {
   } catch (error) {
     return next(error);
   }
+
+  async function getBillingByTackOrder(req, res, next) {
+    const tackOrderId = validBillingId(req.params.tackOrderId);
+    if (!tackOrderId) return res.status(400).json({ message: 'Invalid tack order ID' });
+    try {
+      const bill = await getBillingByTackOrderId(tackOrderId, req.adminUser.user_id);
+      if (!bill) return res.status(404).json({ message: 'No bill found for this tack order' });
+      return res.json(bill);
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
 
 async function postBilling(req, res, next) {
@@ -413,6 +426,7 @@ async function postBilling(req, res, next) {
     const savedBill = await createBilling(billing, req.adminUser.user_id, initialPayment);
     return res.status(savedBill.already_exists ? 200 : 201).json(savedBill);
   } catch (error) {
+    if (error.code === 'TACK_ORDER_NOT_FOUND') return res.status(404).json({ message: error.message });
     if (error.code === 'TACK_ORDER_ADVANCE_ALREADY_TRANSFERRED') {
       return res.status(409).json({ message: 'This tack order advance has already been transferred to a bill' });
     }
@@ -511,7 +525,7 @@ async function postBillingPayment(req, res, next) {
     if (error.code === 'FUND_ADMIN_NOT_FOUND') {
       return res.status(403).json({ message: 'A valid admin account is required to record this fund movement' });
     }
-    if (['REFUND_EXCEEDS_PAID', 'INSUFFICIENT_FUNDS'].includes(error.code)) {
+    if (['REFUND_EXCEEDS_PAID', 'INSUFFICIENT_FUNDS', 'PAYMENT_EXCEEDS_BALANCE'].includes(error.code)) {
       return res.status(409).json({ message: error.message });
     }
     if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: 'This billing payment has already been recorded' });
@@ -521,6 +535,7 @@ async function postBillingPayment(req, res, next) {
 
 module.exports = {
   getBillings,
+  getBillingByTackOrder,
   mapSelectedProducts,
   normalizeExchangeItems,
   normalizeBilling,

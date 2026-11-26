@@ -584,6 +584,12 @@ export default function BillingManagement() {
   useEffect(() => { loadBills(); }, [loadBills]);
   useEffect(() => { loadCatalogProducts(); }, [loadCatalogProducts]);
   useEffect(() => {
+    const tackOrderId = tackOrderPrefill?.sourceId;
+    if (!tackOrderId || loading) return;
+    const linkedBill = bills.find((bill) => Number(bill.source_tack_order_id) === Number(tackOrderId));
+    if (linkedBill) setViewingBill(linkedBill);
+  }, [bills, loading, tackOrderPrefill?.sourceId]);
+  useEffect(() => {
     if (location.state?.tackOrderToBill) {
       navigate(location.pathname, { replace: true, state: null });
     }
@@ -1673,7 +1679,7 @@ export default function BillingManagement() {
             </header>
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               <label className={labelClass}>Amount received (₹)
-                <input className={inputClass} type="number" required min="0.01" max={billPayment.payment_kind === "REFUND" ? Number(billPayment.bill.paid_amount) : undefined} step="0.01" value={billPayment.amount} onChange={(event) => setBillPayment({ ...billPayment, amount: event.target.value })} />
+                <input className={inputClass} type="number" required min="0.01" max={billPayment.payment_kind === "REFUND" ? Number(billPayment.bill.paid_amount) : Number(billPayment.bill.balance_due)} step="0.01" value={billPayment.amount} onChange={(event) => setBillPayment({ ...billPayment, amount: event.target.value })} />
               </label>
               <label className={labelClass}>Payment method
                 <select className={inputClass} value={billPayment.payment_method} onChange={(event) => setBillPayment({ ...billPayment, payment_method: event.target.value })}>
@@ -1686,7 +1692,7 @@ export default function BillingManagement() {
               <label className={`${labelClass} sm:col-span-2`}>Reference number / transaction ID
                 <input className={inputClass} maxLength={100} value={billPayment.reference_number} onChange={(event) => setBillPayment({ ...billPayment, reference_number: event.target.value })} />
               </label>
-              {billPayment.payment_kind === "PAYMENT" && Number(billPayment.amount) > Number(billPayment.bill.balance_due) && <p className="text-xs text-amber-700 sm:col-span-2">Amount exceeds the invoice balance; the extra amount will be recorded as customer advance.</p>}
+              {billPayment.payment_kind === "PAYMENT" && Number(billPayment.amount) > Number(billPayment.bill.balance_due) && <p className="text-xs text-rose-700 sm:col-span-2">Amount cannot exceed the remaining balance.</p>}
               <p className="text-xs text-slate-500 sm:col-span-2">The invoice and fund ledger are updated together after confirmation. Unpaid invoice amounts are not counted as received funds.</p>
             </div>
             <footer className="flex justify-end gap-2 border-t border-slate-100 p-5">
