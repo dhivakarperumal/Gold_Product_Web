@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, RefreshCw, Search, SlidersHorizontal, Star } from "lucide-react";
+import { Link } from "react-router-dom";
 import api from "../../api";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { formatCurrency } from "../../utils/currency";
@@ -481,10 +482,12 @@ const CustomerViewProducts = () => {
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
                                 {visibleProducts.map((product) => {
                                     const image = getProductImageUrl(product);
+                                    const productId = product.id ?? product.product_id;
                                     return (
-                                        <article
-                                            key={product.id ?? product.product_id ?? product.product_code}
-                                            className="group overflow-hidden rounded-xl border border-[#eadfce] bg-white shadow-sm transition hover:border-[#d8b46c] hover:shadow-md"
+                                        <Link
+                                            key={productId}
+                                            to={`/admin/customer-view-products/${productId}`}
+                                            className="group overflow-hidden rounded-xl border border-[#eadfce] bg-white shadow-sm transition hover:border-[#d8b46c] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174a38]"
                                         >
                                             <div className="relative aspect-square overflow-hidden bg-[#f6efe4]">
                                                 {image ? (
@@ -511,7 +514,7 @@ const CustomerViewProducts = () => {
                                                     {formatCurrency(getProductPrice(product))}
                                                 </p>
                                             </div>
-                                        </article>
+                                        </Link>
                                     );
                                 })}
                             </div>
