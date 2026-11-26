@@ -685,7 +685,7 @@ export default function AllGoldsShop() {
             <table className="w-full min-w-[1220px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
               <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
                 <tr>
-                  <th className="w-16 whitespace-nowrap rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Approval status</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
+                  <th className="w-16 whitespace-nowrap rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Approval status</th><th className="px-4 py-4">Review</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -706,20 +706,22 @@ export default function AllGoldsShop() {
                       <td className="px-4 py-4"><StatusBadge value={shop.payment_status || "unpaid"} /></td>
                       <td className="px-4 py-4"><StatusBadge value={approvalStatus(shop)} /></td>
                       <td className="px-4 py-4">
+                        {isPendingApproval ? (
+                          <div className="flex flex-col items-start gap-1">
+                            <button type="button" disabled={approvalSubmitting || rejectingShopId !== null} aria-label={`Approve ${shop.shop_name}`} onClick={() => approveShop(shop)} className="whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-50">
+                              {approvalSubmitting && pendingApproval?.id === shop.id ? "Approving…" : "Approve"}
+                            </button>
+                            <button type="button" disabled={approvalSubmitting || rejectingShopId !== null} aria-label={`Reject ${shop.shop_name}`} onClick={() => rejectShop(shop)} className="whitespace-nowrap rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:cursor-wait disabled:opacity-50">
+                              {rejectingShopId === shop.id ? "Rejecting…" : "Reject"}
+                            </button>
+                          </div>
+                        ) : "—"}
+                      </td>
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-1">
                           <button type="button" title="View details and confirm payment" aria-label={`View details and confirm payment for ${shop.shop_name}`} onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><Eye size={16} /></button>
                           <button type="button" title="Edit shop" aria-label={`Edit ${shop.shop_name}`} onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil size={16} /></button>
                           <button type="button" title="Change subscription" aria-label={`Change subscription for ${shop.shop_name}`} onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50"><CreditCard size={16} /></button>
-                          {isPendingApproval && (
-                            <>
-                              <button type="button" disabled={approvalSubmitting || rejectingShopId !== null} title="Approve and create login" aria-label={`Approve ${shop.shop_name}`} onClick={() => approveShop(shop)} className="whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-50">
-                                {approvalSubmitting && pendingApproval?.id === shop.id ? "Approving…" : "Approve"}
-                              </button>
-                              <button type="button" disabled={approvalSubmitting || rejectingShopId !== null} title="Reject this shop" aria-label={`Reject ${shop.shop_name}`} onClick={() => rejectShop(shop)} className="whitespace-nowrap rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:cursor-wait disabled:opacity-50">
-                                {rejectingShopId === shop.id ? "Rejecting…" : "Reject"}
-                              </button>
-                            </>
-                          )}
                           <button type="button" title={canActivate || shop.status === "active" ? action : "Approval and a current paid subscription are required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>
                           <button type="button" title="Archive shop" aria-label={`Archive ${shop.shop_name}`} onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50"><Trash2 size={16} /></button>
                         </div>
