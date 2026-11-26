@@ -587,13 +587,12 @@ export default function PaymentManagement() {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-gradient-to-r from-[#07564B] via-[#064A41] to-[#043D37] text-emerald-50 font-bold border-b border-white/10 uppercase tracking-wider">
-                <th className="py-3 px-4 w-12 text-center">S.No</th>
-                <th className="py-3 px-4">Transaction ID</th>
+                <th className="py-3 px-4">S ID</th>
                 <th className="py-3 px-4">Shop Name</th>
-                <th className="py-3 px-4">Shop ID</th>
-                <th className="py-3 px-4">Owner Name</th>
-                <th className="py-3 px-4">Subscription Plan</th>
-                <th className="py-3 px-4 text-right">Payment Amount</th>
+                <th className="py-3 px-4">Name</th>
+                <th className="py-3 px-4">Transaction ID</th>
+                <th className="py-3 px-4">Plan</th>
+                <th className="py-3 px-4 text-right">Amount</th>
                 <th className="py-3 px-4">Payment Date</th>
                 <th className="py-3 px-4 text-center">Payment Status</th>
                 <th className="py-3 px-4 text-center">Action</th>
@@ -603,14 +602,14 @@ export default function PaymentManagement() {
               {loadingList ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={10} className="py-4 px-4">
+                    <td colSpan={9} className="py-4 px-4">
                       <div className="h-4 bg-slate-100 rounded w-full" />
                     </td>
                   </tr>
                 ))
               ) : payments.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     <Wallet className="h-10 w-10 mx-auto mb-2 text-slate-300 stroke-[1.5]" />
                     <p className="text-sm font-semibold text-slate-600">No payment records found</p>
                     <p className="text-xs text-slate-400 mt-1">Try modifying search filters</p>
@@ -619,8 +618,23 @@ export default function PaymentManagement() {
               ) : (
                 payments.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 text-center font-semibold text-slate-500">
-                      {p.sNo}
+                    {/* Shop ID */}
+                    <td className="py-3.5 px-4">
+                      <span className="font-mono text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                        {p.shopCode}
+                      </span>
+                    </td>
+
+                    {/* Shop Name */}
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-900">{p.shopName}</div>
+                      <div className="mt-0.5 text-[10px] font-medium text-slate-400">{p.email || "Email not provided"}</div>
+                    </td>
+
+                    {/* Owner Name */}
+                    <td className="py-3.5 px-4 text-slate-700">
+                      <div>{p.ownerName}</div>
+                      <div className="text-[10px] text-slate-400">{p.mobile}</div>
                     </td>
 
                     {/* Transaction ID */}
@@ -644,24 +658,6 @@ export default function PaymentManagement() {
                           </button>
                         )}
                       </div>
-                    </td>
-
-                    {/* Shop Name */}
-                    <td className="py-3.5 px-4 font-bold text-slate-900">
-                      {p.shopName}
-                    </td>
-
-                    {/* Shop ID */}
-                    <td className="py-3.5 px-4">
-                      <span className="font-mono text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                        {p.shopCode}
-                      </span>
-                    </td>
-
-                    {/* Owner Name */}
-                    <td className="py-3.5 px-4 text-slate-700">
-                      <div>{p.ownerName}</div>
-                      <div className="text-[10px] text-slate-400">{p.mobile}</div>
                     </td>
 
                     {/* Subscription Plan */}
