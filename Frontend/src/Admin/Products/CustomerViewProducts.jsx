@@ -24,6 +24,14 @@ const PRICE_SLIDER_CLASS = "pointer-events-none absolute inset-0 h-5 w-full appe
 const getProductPrice = (product) =>
     Number(product.offer_price ?? product.final_selling_price ?? product.mrp ?? 0);
 
+const getDiscount = (product) => {
+    const mrp = Number(product.mrp || 0);
+    if (Number(product.discount) > 0) return Number(product.discount);
+    return mrp > 0
+        ? Math.max(0, Math.round(((mrp - getProductPrice(product)) / mrp) * 100))
+        : 0;
+};
+
 const productIsInStock = (product) =>
     Number(product.total_stock ?? product.stock ?? 0) > 0;
 
