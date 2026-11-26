@@ -410,7 +410,8 @@ async function postBilling(req, res, next) {
         admin_name: req.adminUser.name || req.adminUser.username
       };
     }
-    return res.status(201).json(await createBilling(billing, req.adminUser.user_id, initialPayment));
+    const savedBill = await createBilling(billing, req.adminUser.user_id, initialPayment);
+    return res.status(savedBill.already_exists ? 200 : 201).json(savedBill);
   } catch (error) {
     if (error.code === 'TACK_ORDER_ADVANCE_ALREADY_TRANSFERRED') {
       return res.status(409).json({ message: 'This tack order advance has already been transferred to a bill' });

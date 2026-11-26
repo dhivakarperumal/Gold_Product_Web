@@ -536,6 +536,91 @@ test('rejects a conflicting existing fund entry instead of masking it', async ()
   assert.equal(rolledBack, true);
 });
 
+test('reuses an existing advance bill and synchronizes its actual paid state', async () => {
+  const originalExecute = pool.execute;
+  const originalGetConnection = pool.getConnection;
+
+  const retryWithExistingBill = async (existingPaidAmount, expectedPaymentStatus, expectedOrderStatus) => {
+    const executions = [];
+    let committed = false;
+    const connection = {
+      beginTransaction: async () => {},
+      commit: async () => { committed = true; },
+      rollback: async () => {},
+      release: () => {},
+      execute: async (query, values) => {
+        executions.push({ query, values });
+        if (query.includes('INSERT INTO billings')) return [{ insertId: 88 }, []];
+        if (query.includes('SELECT user_id FROM users')) return [[{ user_id: 'shop-user-1' }], []];
+        if (query.includes('AS balance')) return [[{ balance: 0 }], []];
+        if (query.includes('INSERT INTO billing_payments')) {
+          const duplicateError = new Error('Duplicate payment idempotency key');
+          duplicateError.code = 'ER_DUP_ENTRY';
+          throw duplicateError;
+        }
+        if (query.includes('FROM billing_payments p')) {
+          return [[{
+            id: 50,
+            invoice_no: 'BILL-EXISTING',
+            total_amount: 100,
+            paid_amount: existingPaidAmount,
+            source_tack_order_id: 42,
+            reference_number: 'TACK-TEST'
+          }], []];
+        }
+        return [{ affectedRows: 1 }, []];
+      }
+    };
+    pool.getConnection = async () => connection;
+    pool.execute = async () => [[{ id: 50, invoice_no: 'BILL-EXISTING' }], []];
+    try {
+      const savedBill = await createBilling({
+        invoice_no: 'BILL-RETRY-EXISTING',
+        customers: [{ name: 'A Customer' }],
+        products: [],
+        exchanges: [],
+        payment_type: 'FULL_PAYMENT',
+        sub_total: 100,
+        discount_amount: 0,
+        gst_amount: 0,
+        total_amount: 100,
+        source_tack_order_id: 42
+      }, 'shop-user-1', {
+        amount: 25,
+        payment_method: 'Other',
+        payment_date: '2026-01-01 12:00:00',
+        reference_number: 'TACK-TEST',
+        idempotency_key: 'tack-order-advance:shop-user-1:42',
+        created_by: 7,
+        updated_by: 'shop-user-1',
+        created_by_user_id: 'shop-user-1',
+        admin_name: 'Shop Admin'
+      });
+      assert.equal(savedBill.id, 50);
+      assert.equal(savedBill.already_exists, true);
+    } finally {
+      pool.execute = originalExecute;
+      pool.getConnection = originalGetConnection;
+    }
+
+    assert.equal(committed, true);
+    const cleanup = executions.find(({ query }) => query.includes('DELETE FROM billings'));
+    assert.deepEqual(cleanup.values, [88, 'shop-user-1']);
+    const statusUpdate = executions.find(({ query }) => query.includes('UPDATE tack_orders'));
+    const balanceDue = (100 - existingPaidAmount).toFixed(2);
+    assert.deepEqual(statusUpdate.values, [
+      expectedPaymentStatus,
+      balanceDue,
+      expectedOrderStatus,
+      42,
+      'shop-user-1'
+    ]);
+  };
+
+  await retryWithExistingBill(100, 'Paid', 'Bill Completed');
+  await retryWithExistingBill(25, 'Pending', 'Billing Pending');
+});
+
 test('sets a linked order to Billing Pending when a bill is created without an advance', async () => {
   const originalExecute = pool.execute;
   const originalGetConnection = pool.getConnection;

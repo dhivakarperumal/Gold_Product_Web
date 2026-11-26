@@ -224,6 +224,53 @@ async function createBilling(billing, userId, initialPayment = null) {
         );
       } catch (error) {
         if (error.code === 'ER_DUP_ENTRY') {
+          const [existingBills] = await connection.execute(
+            `SELECT b.id, b.invoice_no, b.total_amount, b.paid_amount, b.source_tack_order_id,
+                p.reference_number
+             FROM billing_payments p
+             JOIN billings b ON b.id = p.billing_id
+             WHERE p.idempotency_key = ? AND p.payment_kind = 'PAYMENT' AND b.user_id = ?
+             FOR UPDATE`,
+            [initialPayment.idempotency_key, userId]
+          );
+          const existingBill = existingBills[0];
+          const belongsToOrder = existingBill
+            && (Number(existingBill.source_tack_order_id) === Number(billing.source_tack_order_id)
+              || (existingBill.source_tack_order_id == null
+                && existingBill.reference_number === initialPayment.reference_number));
+          if (belongsToOrder) {
+            await connection.execute(
+              'DELETE FROM billings WHERE id = ? AND user_id = ?',
+              [result.insertId, userId]
+            );
+            const existingPaidAmount = Number(existingBill.paid_amount);
+            const existingBalanceDue = Math.max(0, Number(existingBill.total_amount) - existingPaidAmount);
+            await connection.execute(
+              'UPDATE billings SET source_tack_order_id = ?, balance_due = ? WHERE id = ? AND user_id = ?',
+              [
+                billing.source_tack_order_id,
+                existingBalanceDue.toFixed(2),
+                existingBill.id,
+                userId
+              ]
+            );
+            await connection.execute(
+              `UPDATE tack_orders
+               SET payment_status = ?, balance_due = ?, order_status = ?
+               WHERE id = ? AND user_id = ?`,
+              [
+                existingBalanceDue <= 0 ? 'Paid' : 'Pending',
+                existingBalanceDue.toFixed(2),
+                existingBalanceDue <= 0 ? 'Bill Completed' : 'Billing Pending',
+                billing.source_tack_order_id,
+                userId
+              ]
+            );
+            await connection.commit();
+            const savedBill = await getBillingById(existingBill.id, userId);
+            return { ...savedBill, already_exists: true };
+          }
+
           const duplicateError = new Error('This tack order advance has already been transferred to a bill');
           duplicateError.code = 'TACK_ORDER_ADVANCE_ALREADY_TRANSFERRED';
           throw duplicateError;

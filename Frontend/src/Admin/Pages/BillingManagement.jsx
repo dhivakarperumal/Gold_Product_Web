@@ -1095,8 +1095,12 @@ export default function BillingManagement() {
         await api.put(`/billings/${editingBillId}`, billingPayload);
         toast.success("Bill updated.");
       } else {
-        await api.post("/billings", billingPayload);
-        toast.success("Bill saved.");
+        const { data } = await api.post("/billings", billingPayload);
+        toast.success(data.already_exists
+          ? Number(data.balance_due) <= 0
+            ? "This tack order already has a fully paid bill; it is marked Bill Completed."
+            : `This tack order already has a bill with ${currency(data.balance_due)} due; it remains Pending.`
+          : "Bill saved.");
       }
       resetForm();
       setShowForm(false);
