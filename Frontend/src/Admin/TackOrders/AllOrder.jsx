@@ -183,9 +183,11 @@ export default function AllTackOrders() {
       }
     };
 
+    window.addEventListener("focus", loadOrders);
     void loadOrders();
     return () => {
       active = false;
+      window.removeEventListener("focus", loadOrders);
     };
   }, [retryCount]);
 
@@ -363,6 +365,9 @@ export default function AllTackOrders() {
               const itemCount = order.items.reduce((total, item) => total + Number(item.quantity || 0), 0);
               const orderStatus = order.order_status || "Order Placed";
               const paymentStatus = order.payment_status || "Pending";
+              const paidAmount = Number.isFinite(Number(order.paid_amount))
+                ? Number(order.paid_amount)
+                : Math.max(0, Number(order.total_amount) - Number(order.balance_due));
 
               return (
                 <article key={order.id} className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
@@ -474,7 +479,7 @@ export default function AllTackOrders() {
                           <span>Discount</span><span>-{formatCurrency(order.discount_amount)}</span>
                         </div>
                         <div className="flex justify-between gap-2 text-white/65">
-                          <span>Advance</span><span>{formatCurrency(order.advance_amount)}</span>
+                          <span>Paid amount</span><span>{formatCurrency(paidAmount)}</span>
                         </div>
                         <div className="flex justify-between gap-2 border-t border-white/15 pt-2 font-extrabold text-orange-200">
                           <span>Balance due</span><span>{formatCurrency(order.balance_due)}</span>

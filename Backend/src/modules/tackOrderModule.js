@@ -110,12 +110,24 @@ async function createTackOrder(tackOrder, userId) {
 
 async function listTackOrders(userId) {
   const [rows] = await pool.execute(
-    `SELECT id, order_no, customer, items, sub_total, gst_included, gst_rate, gst_amount,
-       discount_type, discount_value, discount_amount, total_amount, order_status, payment_status, advance_amount,
-       balance_due, created_at
-     FROM tack_orders
-     WHERE user_id = ?
-     ORDER BY created_at DESC, id DESC`,
+    `SELECT t.id, t.order_no, t.customer, t.items, t.sub_total, t.gst_included, t.gst_rate, t.gst_amount,
+       t.discount_type, t.discount_value, t.discount_amount, t.total_amount,
+       CASE WHEN b.id IS NULL THEN t.order_status
+         WHEN b.balance_due <= 0 THEN 'Bill Completed' ELSE 'Billing Pending' END AS order_status,
+       CASE WHEN b.id IS NULL THEN t.payment_status
+         WHEN b.balance_due <= 0 THEN 'Paid' ELSE 'Pending' END AS payment_status,
+       t.advance_amount,
+       COALESCE(b.balance_due, t.balance_due) AS balance_due,
+       COALESCE(b.paid_amount, GREATEST(t.total_amount - t.balance_due, 0)) AS paid_amount,
+       t.created_at
+     FROM tack_orders t
+     LEFT JOIN billings b ON b.id = (
+       SELECT MAX(source_bill.id)
+       FROM billings source_bill
+       WHERE source_bill.source_tack_order_id = t.id AND source_bill.user_id = t.user_id
+     )
+     WHERE t.user_id = ?
+     ORDER BY t.created_at DESC, t.id DESC`,
     [userId]
   );
   return rows;

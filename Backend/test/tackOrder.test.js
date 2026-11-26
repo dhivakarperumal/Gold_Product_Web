@@ -247,10 +247,11 @@ test('lists only tack orders owned by the authenticated shop', async () => {
   } finally {
     pool.execute = originalExecute;
   }
-  assert.match(capturedQuery.query, /WHERE user_id = \?/);
+  assert.match(capturedQuery.query, /WHERE t\.user_id = \?/);
   assert.match(capturedQuery.query, /order_status/);
   assert.match(capturedQuery.query, /payment_status/);
-  assert.match(capturedQuery.query, /ORDER BY created_at DESC, id DESC/);
+  assert.match(capturedQuery.query, /COALESCE\(b\.paid_amount, GREATEST\(t\.total_amount - t\.balance_due, 0\)\) AS paid_amount/);
+  assert.match(capturedQuery.query, /ORDER BY t\.created_at DESC, t\.id DESC/);
   assert.deepEqual(capturedQuery.values, ['shop-user-1']);
 });
 
