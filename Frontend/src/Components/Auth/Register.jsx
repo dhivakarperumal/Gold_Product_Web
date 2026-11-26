@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, LoaderCircle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { LoaderCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 import AuthLayout from "./AuthLayout";
@@ -13,7 +13,6 @@ function Register() {
   const [plansError, setPlansError] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -42,7 +41,8 @@ function Register() {
       formData.append("payload", JSON.stringify({ ...shop, credentials, subscription }));
       if (documents?.profilePhoto) formData.append("profilePhoto", documents.profilePhoto);
       await api.post("/auth/shop-registration", formData);
-      setSubmitted(true);
+      toast.success("Registration submitted. You can sign in after approval.");
+      navigate("/login", { state: { identifier: shop.email } });
     } catch (error) {
       console.error("Could not submit shop registration.", { status: error.response?.status });
       toast.error(error.response?.data?.message || "Could not submit your registration.");
@@ -50,34 +50,6 @@ function Register() {
       setSubmitting(false);
     }
   };
-
-  if (submitted) {
-    return (
-      <AuthLayout
-        eyebrow="Application received"
-        title="Registration submitted"
-        subtitle="Your gold shop details are now with our review team."
-        alternatePrompt="Already registered?"
-        alternateLabel="Sign in"
-        alternateTo="/login"
-        contentClassName="mx-auto max-w-lg"
-        hideFooter
-        splitLayout
-        wideFormPanel
-        fixedHeight
-      >
-        <section className="rounded-2xl border border-stone-200 bg-white p-7 text-center shadow-sm sm:p-9">
-          <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-600" aria-hidden="true" />
-          <p className="mt-3 text-sm leading-6 text-stone-600">
-            Your gold shop details are waiting for Super Admin approval. You can sign in after your registration is approved.
-          </p>
-          <Link to="/login" className="mt-6 inline-flex rounded-xl bg-stone-900 px-5 py-3 text-sm font-bold text-white hover:bg-stone-800">
-            Back to login
-          </Link>
-        </section>
-      </AuthLayout>
-    );
-  }
 
   if (plansLoading || plansError || plans.length === 0) {
     return (

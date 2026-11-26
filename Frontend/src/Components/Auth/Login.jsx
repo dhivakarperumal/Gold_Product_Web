@@ -1,6 +1,6 @@
 ﻿import { useState, useContext } from "react";
 import api from "../../api";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../PrivateRouter/AuthContext";
 import { toast } from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react";
@@ -16,6 +16,7 @@ const getPostLoginPath = (role) => {
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useContext(AuthContext);
   const [showPassword, setShowPassword] = useState(false);
   const [expiredTrialAccount, setExpiredTrialAccount] = useState(null);
@@ -25,7 +26,7 @@ function Login() {
   const [assistanceRequested, setAssistanceRequested] = useState(false);
 
   const [form, setForm] = useState({
-    identifier: "",
+    identifier: location.state?.identifier || "",
     password: "",
   });
 
@@ -123,6 +124,7 @@ function Login() {
                   name="identifier"
                   type="text"
                   placeholder="Enter your email or mobile number"
+                  value={form.identifier}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-[#008577] focus:ring-2 focus:ring-emerald-600/15"
                   required
