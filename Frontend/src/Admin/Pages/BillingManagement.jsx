@@ -1187,7 +1187,7 @@ export default function BillingManagement() {
               />
             </label>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
-              <DateRangeFilter onApply={setDateRange} />
+              <DateRangeFilter onApply={setDateRange} controlClassName="h-[52px] min-w-[190px] px-4" />
               <select
                 value={paymentFilter}
                 onChange={(event) => setPaymentFilter(event.target.value)}
