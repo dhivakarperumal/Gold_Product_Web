@@ -770,23 +770,24 @@ export default function AddGoldShop({
           </fieldset>
           </div>
 
-          <footer className={`flex shrink-0 justify-between gap-3 ${registrationMode ? "border-t border-stone-200 bg-white px-4 py-4 sm:px-6" : "border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6"}`}>
-            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-40 ${registrationMode ? "border border-emerald-600 bg-transparent text-emerald-950" : "border border-stone-300 text-stone-700"}`}>
-              {registrationMode && <ArrowLeft size={16} />}
-              Previous
-            </button>
-            {activeTabIndex === TABS.length - 1 ? (
-              <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-lg transition disabled:cursor-not-allowed disabled:opacity-60 ${registrationMode ? "bg-gradient-to-r from-[#064A41] to-[#008577] shadow-emerald-900/10 hover:from-[#043D37] hover:to-[#00695C]" : "bg-gradient-to-r from-amber-600 to-amber-500 shadow-amber-900/10 hover:from-amber-700 hover:to-amber-600"}`}>
-                {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                {isEditing ? "Save Changes" : "Save Gold Shop"}
-                {!submitting && <ArrowRight size={17} />}
+          {!registrationMode && (
+            <footer className="flex shrink-0 justify-between gap-3 border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6">
+              <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40">
+                Previous
               </button>
-            ) : (
-              <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 ${registrationMode ? "bg-gradient-to-r from-[#064A41] to-[#008577] shadow-md shadow-emerald-900/10" : "bg-stone-800"}`}>
-                Save &amp; Next <ArrowRight size={17} />
-              </button>
-            )}
-          </footer>
+              {activeTabIndex === TABS.length - 1 ? (
+                <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
+                  {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                  {isEditing ? "Save Changes" : "Save Gold Shop"}
+                  {!submitting && <ArrowRight size={17} />}
+                </button>
+              ) : (
+                <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-800 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                  Save &amp; Next <ArrowRight size={17} />
+                </button>
+              )}
+            </footer>
+          )}
         </form>
       </section>
     </div>
