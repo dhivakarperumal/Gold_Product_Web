@@ -11,6 +11,7 @@ export default function AuthLayout({
   contentClassName = "",
   fixedHeight = false,
   hideHeader = false,
+  hideFooter = false,
   minimalHeader = false,
   splitLayout = false,
   wideFormPanel = false,
@@ -104,12 +105,14 @@ export default function AuthLayout({
 
             <div className={`w-full flex-1 lg:min-h-0 lg:overflow-hidden ${contentClassName}`}>{children}</div>
 
-            <footer className="flex shrink-0 items-center justify-center gap-2 pt-5 text-center text-[11px] text-stone-500">
-              <ShieldCheck size={17} className="shrink-0 text-emerald-800" />
-              <span>Your data is safe with us</span>
-              <span className="mx-1 h-4 w-px bg-emerald-300" />
-              <span>Trusted by Gold Retailers Across India</span>
-            </footer>
+            {!hideFooter && (
+              <footer className="flex shrink-0 items-center justify-center gap-2 pt-5 text-center text-[11px] text-stone-500">
+                <ShieldCheck size={17} className="shrink-0 text-emerald-800" />
+                <span>Your data is safe with us</span>
+                <span className="mx-1 h-4 w-px bg-emerald-300" />
+                <span>Trusted by Gold Retailers Across India</span>
+              </footer>
+            )}
           </section>
         </div>
       </main>
