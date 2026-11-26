@@ -616,6 +616,14 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
             sub.trial_days, sub.trial_start_date, sub.trial_end_date,
             DATE_FORMAT(CURRENT_DATE(), '%Y-%m-%d') AS database_date,
             sub.payment_status, sub.subscription_status, sub.plan_id, sp.plan_name,
+            (SELECT p.id
+             FROM payments p
+             WHERE p.gold_shop_id = gs.id
+               AND p.subscription_id = sub.id
+               AND p.payment_status IN ('pending', 'unpaid')
+               AND sub.payment_status IN ('pending', 'unpaid')
+             ORDER BY p.id DESC
+             LIMIT 1) AS pending_payment_id,
             (sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()) AS subscription_is_current
      FROM gold_shops gs
      ${latestSubscriptionJoin()}

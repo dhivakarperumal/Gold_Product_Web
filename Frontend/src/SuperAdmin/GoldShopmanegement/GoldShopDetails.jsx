@@ -414,15 +414,16 @@ export default function GoldShopDetails() {
       ) : null}
 
       {paymentToConfirm && shop && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm">
-          <section role="dialog" aria-modal="true" aria-labelledby="confirm-shop-payment-title" className="w-full max-w-xl overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl">
-            <header className="flex items-center justify-between gap-4 bg-[#17241f] px-5 py-4 text-white">
+        <div className="fixed inset-0 z-[130] flex h-screen items-center justify-center overflow-hidden bg-slate-950/60 backdrop-blur-sm [height:100dvh]">
+          <section role="dialog" aria-modal="true" aria-labelledby="confirm-shop-payment-title" className="flex h-[90vh] min-h-0 w-full max-w-xl flex-col overflow-hidden rounded-none bg-[#fbfaf7] shadow-2xl sm:rounded-3xl [height:90dvh]">
+            <header className="flex shrink-0 items-center justify-between gap-4 bg-[#17241f] px-5 py-4 text-white">
               <h2 id="confirm-shop-payment-title" className="text-lg font-bold">Confirm subscription payment</h2>
               <button type="button" disabled={paymentSubmitting} onClick={() => setPaymentToConfirm(null)} aria-label="Close dialog" className="rounded-full p-2 text-white/70 hover:bg-white/10 disabled:opacity-50">
                 <X size={19} />
               </button>
             </header>
-            <form onSubmit={confirmPayment} className="space-y-4 p-5">
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto overscroll-contain p-5">
+            <form id="confirm-shop-payment-form" onSubmit={confirmPayment} className="my-auto w-full space-y-4">
               <p className="text-sm text-stone-600">Confirm only after verifying the payment was received.</p>
               <div className="rounded-xl border border-stone-200 bg-white p-3">
                 <p className="text-xs font-semibold text-stone-500">Amount received</p>
@@ -454,14 +455,15 @@ export default function GoldShopDetails() {
                   <option value="other">Other</option>
                 </select>
               </label>
-              <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
-                <button type="button" disabled={paymentSubmitting} onClick={() => setPaymentToConfirm(null)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-bold text-stone-700 disabled:opacity-50">Cancel</button>
-                <button type="submit" disabled={paymentSubmitting} className="inline-flex items-center gap-2 rounded-xl bg-[#00796B] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60">
-                  {paymentSubmitting && <LoaderCircle size={16} className="animate-spin" />}
-                  {paymentSubmitting ? "Confirming…" : "Confirm payment received"}
-                </button>
-              </div>
             </form>
+            </div>
+            <footer className="flex shrink-0 justify-end gap-2 border-t border-stone-200 bg-[#fbfaf7] px-5 py-4">
+              <button type="button" disabled={paymentSubmitting} onClick={() => setPaymentToConfirm(null)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-bold text-stone-700 disabled:opacity-50">Cancel</button>
+              <button type="submit" form="confirm-shop-payment-form" disabled={paymentSubmitting} className="inline-flex items-center gap-2 rounded-xl bg-[#00796B] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60">
+                {paymentSubmitting && <LoaderCircle size={16} className="animate-spin" />}
+                {paymentSubmitting ? "Confirming…" : "Confirm payment received"}
+              </button>
+            </footer>
           </section>
         </div>
       )}
