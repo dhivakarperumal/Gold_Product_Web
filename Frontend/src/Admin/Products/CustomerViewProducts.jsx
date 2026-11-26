@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import api from "../../api";
 import ProductCard from "../../Components/Home/ProductCard";
+import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { formatCurrency } from "../../utils/currency";
 
 const PRODUCTS_PAGE_SIZE = 100;
@@ -41,6 +42,7 @@ const CustomerViewProducts = () => {
     const [minimumPrice, setMinimumPrice] = useState("");
     const [maximumPrice, setMaximumPrice] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [filtersVisible, setFiltersVisible] = useState(true);
     const [openFilters, setOpenFilters] = useState({
         category: true,
         metal: true,
@@ -159,6 +161,7 @@ const CustomerViewProducts = () => {
         (activePage - 1) * PRODUCTS_PER_PAGE,
         activePage * PRODUCTS_PER_PAGE
     );
+    const topSearchProducts = products.filter((product) => product.name).slice(0, 8);
 
     const clearFilters = () => {
         setSearch("");
@@ -246,8 +249,8 @@ const CustomerViewProducts = () => {
                 </div>
             </header>
 
-            <div className="grid items-start gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
-                <aside className="h-fit rounded-xl border border-[#eee7dc] bg-white p-4 shadow-sm lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+            <div className={`grid items-start gap-5 ${filtersVisible ? "min-[480px]:grid-cols-[230px_minmax(0,1fr)]" : "min-[480px]:grid-cols-1"}`}>
+                <aside id="customer-product-filters" className={`${filtersVisible ? "block" : "hidden"} h-fit rounded-xl border border-[#eee7dc] bg-white p-4 shadow-sm min-[480px]:sticky min-[480px]:top-4 min-[480px]:max-h-[calc(100vh-2rem)] min-[480px]:overflow-y-auto`}>
                     <div className="mb-1 flex items-center justify-between">
                         <h2 className="flex items-center gap-2 font-serif text-lg font-bold text-[#29231c]">
                             <SlidersHorizontal size={15} className="text-[#174a38]" aria-hidden="true" />
@@ -359,6 +362,44 @@ const CustomerViewProducts = () => {
                 </aside>
 
                 <main className="min-w-0">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                        <h2 className="font-serif text-base font-bold text-[#29231c]">Top Searches</h2>
+                        <button
+                            type="button"
+                            onClick={() => setFiltersVisible((visible) => !visible)}
+                            aria-expanded={filtersVisible}
+                            aria-controls="customer-product-filters"
+                            className="flex shrink-0 items-center gap-2 rounded-lg border border-[#e8dfd1] bg-white px-3 py-2 text-xs font-semibold text-[#174a38] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
+                        >
+                            <SlidersHorizontal size={14} aria-hidden="true" />
+                            {filtersVisible ? "Hide Filters" : "Show Filters"}
+                        </button>
+                    </div>
+                    {topSearchProducts.length > 0 && (
+                        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+                            {topSearchProducts.map((product) => {
+                                const image = getProductImageUrl(product);
+                                const productKey = product.id ?? product.product_id ?? product.product_code ?? product.name;
+                                return (
+                                    <button
+                                        key={productKey}
+                                        type="button"
+                                        onClick={() => {
+                                            setSearch(product.name);
+                                            setCurrentPage(1);
+                                        }}
+                                        title={product.name}
+                                        className="flex min-w-0 items-center gap-2 rounded-lg border border-[#eee5d6] bg-white px-2 py-2 text-left text-[11px] font-medium text-[#514638] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
+                                    >
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#f8f2e8]">
+                                            {image && <img src={image} alt="" loading="lazy" className="h-full w-full object-contain" />}
+                                        </span>
+                                        <span className="min-w-0 truncate">{product.name}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                     <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                         <p className="text-xs text-[#81786b]" aria-live="polite">
                             {loading ? "Loading products..." : `Found ${filteredProducts.length} ${filteredProducts.length === 1 ? "product" : "products"}`}
