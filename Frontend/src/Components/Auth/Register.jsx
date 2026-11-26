@@ -61,6 +61,7 @@ function Register() {
         alternateLabel="Sign in"
         alternateTo="/login"
         contentClassName="mx-auto max-w-lg"
+        hideFooter
         splitLayout
         wideFormPanel
         fixedHeight
@@ -87,7 +88,9 @@ function Register() {
         alternatePrompt="Already have an account?"
         alternateLabel="Sign in"
         alternateTo="/login"
-        contentClassName="mx-auto max-w-md"
+        contentClassName="mx-auto w-full max-w-5xl"
+        hideFooter
+        minimalHeader
         splitLayout
         wideFormPanel
         fixedHeight
@@ -125,6 +128,9 @@ function Register() {
       alternatePrompt="Already have an account?"
       alternateLabel="Sign in"
       alternateTo="/login"
+      contentClassName="mx-auto w-full max-w-5xl"
+      hideFooter
+      minimalHeader
       splitLayout
       wideFormPanel
       fixedHeight

@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../../api";
 import { toast, Toaster } from "react-hot-toast";
 import { FaRupeeSign } from "react-icons/fa";
+import ProductCard from "../../Components/Home/ProductCard";
 import useGoldRates from "../../PrivateRouter/useGoldRates";
 import { formatCurrency } from "../../utils/currency";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
@@ -38,6 +39,7 @@ const AllProducts = () => {
     const [sortBy, setSortBy] = useState("created_at");
     const [sortOrder, setSortOrder] = useState("desc");
     const [currentPage, setCurrentPage] = useState(1);
+    const [activeTab, setActiveTab] = useState("manage");
     const itemsPerPage = 10;
 
     const currentCacheKey = JSON.stringify({
@@ -269,8 +271,34 @@ const AllProducts = () => {
         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-screen pb-20">
             <Toaster position="top-right" />
 
-           
-           
+            <div className="flex flex-wrap gap-2 rounded-2xl border border-gray-100 bg-white p-2 shadow-sm" role="tablist" aria-label="Product views">
+                {[
+                    { id: "manage", label: "Manage Products", icon: <FiList size={16} /> },
+                    { id: "customer", label: "Customer View", icon: <FiEye size={16} /> },
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === tab.id}
+                        onClick={() => {
+                            setActiveTab(tab.id);
+                            if (tab.id === "customer") {
+                                setStockFilter("");
+                                setLastPriceUpdateFilter("");
+                            }
+                        }}
+                        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+                            activeTab === tab.id
+                                ? "bg-[#003B3B] text-white shadow-sm"
+                                : "text-slate-500 hover:bg-gray-50 hover:text-slate-800"
+                        }`}
+                    >
+                        {tab.icon}
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
 
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-32 bg-white rounded-2xl border border-gray-100 shadow-sm">
@@ -280,7 +308,7 @@ const AllProducts = () => {
             ) : (
                 <>
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {activeTab === "manage" && <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
                             { label: "Total Products", value: stats.total, sub: "All jewelry products",    icon: <FiBox size={22} />,          gradient: "from-[#240046] to-[#7b2cbf]" },
                             { label: "Active",         value: stats.active, sub: "Active products",     icon: <FiCheckCircle />,             gradient: "from-emerald-400 to-teal-500" },
@@ -298,7 +326,7 @@ const AllProducts = () => {
                                 </div>
                             </div>
                         ))}
-                    </div>
+                    </div>}
 
                     {/* Filter Bar */}
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-center">
@@ -322,17 +350,21 @@ const AllProducts = () => {
                             <option value="">All purities</option>
                             {filterOptions.purities.map((purity) => <option key={purity} value={purity}>{purity}</option>)}
                         </select>
-                        <select value={stockFilter} onChange={(event) => setStockFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
-                            <option value="">All stock</option>
-                            <option value="in-stock">In stock</option>
-                            <option value="low-stock">Low stock</option>
-                            <option value="out-of-stock">Out of stock</option>
-                        </select>
-                        <select value={lastPriceUpdateFilter} onChange={(event) => setLastPriceUpdateFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
-                            <option value="">All price updates</option>
-                            <option value="updated">Price updated</option>
-                            <option value="not-updated">Never updated</option>
-                        </select>
+                        {activeTab === "manage" && (
+                            <>
+                                <select value={stockFilter} onChange={(event) => setStockFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
+                                    <option value="">All stock</option>
+                                    <option value="in-stock">In stock</option>
+                                    <option value="low-stock">Low stock</option>
+                                    <option value="out-of-stock">Out of stock</option>
+                                </select>
+                                <select value={lastPriceUpdateFilter} onChange={(event) => setLastPriceUpdateFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
+                                    <option value="">All price updates</option>
+                                    <option value="updated">Price updated</option>
+                                    <option value="not-updated">Never updated</option>
+                                </select>
+                            </>
+                        )}
                         <select value={`${sortBy}:${sortOrder}`} onChange={(event) => {
                             const [nextSortBy, nextSortOrder] = event.target.value.split(":");
                             setSortBy(nextSortBy);
@@ -346,6 +378,7 @@ const AllProducts = () => {
                             <option value="price_updated_at:desc">Recently price-updated</option>
                         </select>
                        <div className="flex items-center gap-3">
+                    {activeTab === "manage" && <>
                     <button
                         onClick={refreshPrices}
                         disabled={refreshingPrices}
@@ -362,6 +395,7 @@ const AllProducts = () => {
                             <FiGrid size={17} />
                         </button>
                     </div>
+                    </>}
                     <button
                         onClick={() => navigate("/admin/products/add")}
                         className="flex items-center gap-2 bg-[#003B3B] hover:bg-[#008577] text-white px-5 py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-[#003B3B]/20 active:scale-95"
@@ -371,7 +405,38 @@ const AllProducts = () => {
                 </div>
                     </div>
 
-                    {viewMode === "table" ? (
+                    {activeTab === "customer" ? (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                {currentItems.map((product) => (
+                                    <ProductCard key={product.id ?? product.product_id} product={product} />
+                                ))}
+                            </div>
+                            <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3">
+                                <p className="text-xs font-medium text-gray-500">
+                                    Showing {(currentPage - 1) * itemsPerPage + (currentItems.length ? 1 : 0)} to {Math.min(currentPage * itemsPerPage, pagination.total)} of {pagination.total} products
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
+                                        disabled={currentPage === 1}
+                                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:border-[#003B3B] disabled:opacity-40"
+                                    >
+                                        Previous
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:border-[#003B3B] disabled:opacity-40"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : viewMode === "table" ? (
                         /* Table View */
                         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                             <div className="overflow-x-auto">
