@@ -53,6 +53,7 @@ const getHeaderProductImage = (product) => {
 
 const pageTitles = {
   "/admin": "Dashboard",
+  "/admin/customer-view-products": "Customer View Product",
   "/admin/products/all": "All Products",
   "/admin/products/add": "Add Product",
   "/admin/products/edit": "Edit Product",
