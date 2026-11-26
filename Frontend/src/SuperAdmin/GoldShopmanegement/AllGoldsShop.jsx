@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
@@ -582,17 +583,17 @@ export default function AllGoldsShop() {
             <input value={search} onChange={(event) => { setLoading(true); setSearch(event.target.value); setPage(1); }} className="min-h-9 w-full rounded-lg border border-slate-200 pl-9 pr-3 text-xs outline-none focus:border-[#008577]" placeholder="Search by name, code, owner or mobile..." />
           </label>
           <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-            <select value={statusFilter} onChange={(event) => { setLoading(true); setStatusFilter(event.target.value); setPage(1); }} aria-label="Filter by operational shop status" className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#008577]">
+            <CustomSelect value={statusFilter} onChange={(event) => { setLoading(true); setStatusFilter(event.target.value); setPage(1); }} aria-label="Filter by operational shop status" className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#008577]">
               <option value="all">All statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="pending">Pending</option>
               <option value="suspended">Suspended</option>
-            </select>
-            <select value={planFilter} onChange={(event) => { setLoading(true); setPlanFilter(event.target.value); setPage(1); }} aria-label="Filter by subscription plan" className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#008577]">
+            </CustomSelect>
+            <CustomSelect value={planFilter} onChange={(event) => { setLoading(true); setPlanFilter(event.target.value); setPage(1); }} aria-label="Filter by subscription plan" className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#008577]">
               <option value="all">All plans</option>
               {planOptions.map((plan) => <option key={plan.id} value={plan.id}>{plan.displayName}</option>)}
-            </select>
+            </CustomSelect>
             <div className="flex overflow-hidden rounded-lg border border-slate-200">
               <button type="button" title="Table view" aria-label="Table view" onClick={() => setViewMode("table")} className={`inline-flex h-9 w-9 items-center justify-center ${viewMode === "table" ? "bg-slate-100 text-[#00796B]" : "text-slate-400"}`}><List size={16} /></button>
               <button type="button" title="Grid view" aria-label="Grid view" onClick={() => setViewMode("grid")} className={`inline-flex h-9 w-9 items-center justify-center ${viewMode === "grid" ? "bg-slate-100 text-[#00796B]" : "text-slate-400"}`}><LayoutGrid size={16} /></button>
@@ -782,7 +783,7 @@ export default function AllGoldsShop() {
             </label>
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
               Payment method
-              <select
+              <CustomSelect
                 required
                 value={paymentForm.paymentMethod}
                 onChange={(event) => setPaymentForm((current) => ({ ...current, paymentMethod: event.target.value }))}
@@ -793,7 +794,7 @@ export default function AllGoldsShop() {
                 <option value="cash">Cash</option>
                 <option value="card">Card</option>
                 <option value="other">Other</option>
-              </select>
+              </CustomSelect>
             </label>
             <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
               <button type="button" disabled={paymentSubmitting} onClick={() => setPaymentToConfirm(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:opacity-50">Cancel</button>
@@ -890,15 +891,15 @@ export default function AllGoldsShop() {
             <p className="text-sm text-stone-600">A new subscription starts as pending. The server calculates the amount and expiry. After verifying receipt, confirm payment from the shop’s payment history using its transaction/reference ID.</p>
             <label className="block text-xs font-semibold uppercase tracking-wide text-stone-600">
               Plan
-              <select className="mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm normal-case" value={subscriptionForm.planId} onChange={(event) => setSubscriptionForm((current) => ({ ...current, planId: event.target.value }))} required>
+              <CustomSelect className="mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm normal-case" value={subscriptionForm.planId} onChange={(event) => setSubscriptionForm((current) => ({ ...current, planId: event.target.value }))} required>
                 {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.plan_name}</option>)}
-              </select>
+              </CustomSelect>
             </label>
             <label className="block text-xs font-semibold uppercase tracking-wide text-stone-600">
               Duration
-              <select className="mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm normal-case" value={subscriptionForm.duration} onChange={(event) => setSubscriptionForm((current) => ({ ...current, duration: event.target.value }))}>
+              <CustomSelect className="mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm normal-case" value={subscriptionForm.duration} onChange={(event) => setSubscriptionForm((current) => ({ ...current, duration: event.target.value }))}>
                 <option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="half_yearly">Half-Yearly</option><option value="yearly">Yearly</option>
-              </select>
+              </CustomSelect>
             </label>
             <label className="block text-xs font-semibold uppercase tracking-wide text-stone-600">
               Start date

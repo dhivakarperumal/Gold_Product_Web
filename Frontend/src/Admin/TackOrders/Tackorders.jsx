@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useContext, useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -247,7 +248,7 @@ function OrderSummary({
             <div>
               <p className="mb-2 text-sm font-bold">Discount</p>
               <div className="flex gap-2">
-                <select
+                <CustomSelect
                   value={discountType}
                   onChange={(event) => setDiscountType(event.target.value)}
                   aria-label="Discount type"
@@ -255,7 +256,7 @@ function OrderSummary({
                 >
                   <option value="Percent">Percent</option>
                   <option value="Fixed">Fixed amount</option>
-                </select>
+                </CustomSelect>
                 <input
                   type="number"
                   min="0"
@@ -799,7 +800,7 @@ const TackOrders = () => {
               </label>
               <label className="text-sm font-semibold text-slate-700">
                 State
-                <select
+                <CustomSelect
                   autoComplete="address-level1"
                   value={customer.state}
                   onChange={(event) => setCustomer({ ...customer, state: event.target.value })}
@@ -809,7 +810,7 @@ const TackOrders = () => {
                   {INDIAN_STATES_AND_UTS.map((state) => (
                     <option key={state} value={state}>{state}</option>
                   ))}
-                </select>
+                </CustomSelect>
               </label>
               <label className="text-sm font-semibold text-slate-700">
                 PIN code

@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import api from "../../api";
@@ -248,7 +249,7 @@ const CustomerViewProducts = () => {
                         </button>
                         <label className="flex items-center gap-2 text-xs text-[#62594d]">
                             Sort by:
-                            <select
+                            <CustomSelect
                                 value={sortBy}
                                 onChange={(event) => {
                                     setCurrentPage(1);
@@ -261,7 +262,7 @@ const CustomerViewProducts = () => {
                                 <option value="price-low">Price: Low to High</option>
                                 <option value="price-high">Price: High to Low</option>
                                 <option value="name">Name: A to Z</option>
-                            </select>
+                            </CustomSelect>
                         </label>
                     </div>
                 </div>

@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useState } from "react";
 import { CalendarDays, RotateCcw } from "lucide-react";
 import { DATE_RANGE_OPTIONS, resolveDatePreset } from "./dateRange";
@@ -45,9 +46,9 @@ export default function DateRangeFilter({
         <label className={`flex min-h-10 min-w-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-semibold text-slate-700 focus-within:border-[#008577] focus-within:ring-2 focus-within:ring-emerald-800/10 ${controlClassName}`}>
           <CalendarDays size={16} className="shrink-0 text-[#008577]" />
           <span className="sr-only">Filter records by date</span>
-          <select value={preset} onChange={(event) => selectPreset(event.target.value)} className="w-full bg-transparent py-2 text-slate-700 outline-none [&_option]:text-slate-900">
+          <CustomSelect value={preset} onChange={(event) => selectPreset(event.target.value)} className="w-full bg-transparent py-2 text-slate-700 outline-none [&_option]:text-slate-900">
             {DATE_RANGE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
+          </CustomSelect>
         </label>
         {showActiveRangeDetails && preset !== "all" && preset !== "custom" && (
           <span className="text-xs font-medium text-slate-500">{resolveDatePreset(preset).startDate} – {resolveDatePreset(preset).endDate}</span>

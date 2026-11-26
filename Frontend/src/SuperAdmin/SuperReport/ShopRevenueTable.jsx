@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useState } from "react";
 import { Eye, Filter, Store, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
@@ -63,7 +64,7 @@ export default function ShopRevenueTable({
         <div className="flex justify-end">
           {/* Status Filter */}
           <div className="relative">
-            <select
+            <CustomSelect
               value={status}
               onChange={(e) => onStatusChange(e.target.value)}
               aria-label="Filter shops by payment status"
@@ -73,7 +74,7 @@ export default function ShopRevenueTable({
               <option value="paid">Paid</option>
               <option value="partial">Partial</option>
               <option value="pending">Pending / Due</option>
-            </select>
+            </CustomSelect>
           </div>
         </div>
       </div>

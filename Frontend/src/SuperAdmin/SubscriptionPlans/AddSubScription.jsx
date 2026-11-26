@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useMemo, useState } from "react";
 import { LoaderCircle, X } from "lucide-react";
 
@@ -141,7 +142,7 @@ export default function AddSubScription({ initialPlan = null, mode = "create", s
                 </div>
                 </section>
                 <div className="mt-3 space-y-3">
-                  <label className={labelClass}>Plan Status<select name="status" value={form.status} onChange={handleChange} className={inputClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
+                  <label className={labelClass}>Plan Status<CustomSelect name="status" value={form.status} onChange={handleChange} className={inputClass}><option value="active">Active</option><option value="inactive">Inactive</option></CustomSelect></label>
                 </div>
               
             </div>

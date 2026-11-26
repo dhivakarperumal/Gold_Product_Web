@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, CreditCard, Eye, EyeOff, FileText, LoaderCircle, MapPin, Store, UploadCloud, UserRound, X } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -650,10 +651,10 @@ export default function AddGoldShop({
                     <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="City" />
                     <label className={labelClass}>
                       State
-                      <select className={inputClass} name="state" value={form.state} onChange={handleChange}>
+                      <CustomSelect className={inputClass} name="state" value={form.state} onChange={handleChange}>
                         <option value="">Select state</option>
                         {INDIAN_STATES_AND_UTS.map((state) => <option key={state} value={state}>{state}</option>)}
-                      </select>
+                      </CustomSelect>
                     </label>
                     <Field label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.pincode} inputMode="numeric" maxLength={6} placeholder="6-digit pincode" />
                   </div>
@@ -713,19 +714,19 @@ export default function AddGoldShop({
                     <div className="grid gap-2 sm:grid-cols-2">
                       <label className={labelClass}>
                         Subscription plan<span className="ml-1 text-rose-600">*</span>
-                        <select className={`${inputClass} ${fieldErrors.planId ? "border-rose-500" : ""}`} name="planId" value={selectedPlanId} onChange={handleChange} aria-invalid={Boolean(fieldErrors.planId)}>
+                        <CustomSelect className={`${inputClass} ${fieldErrors.planId ? "border-rose-500" : ""}`} name="planId" value={selectedPlanId} onChange={handleChange} aria-invalid={Boolean(fieldErrors.planId)}>
                           {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.plan_name}</option>)}
-                        </select>
+                        </CustomSelect>
                         <span className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${fieldErrors.planId ? "text-rose-700" : "invisible"}`}>{fieldErrors.planId || " "}</span>
                       </label>
                       <label className={labelClass}>
                         Duration<span className="ml-1 text-rose-600">*</span>
-                        <select className={inputClass} name="duration" value={form.duration} onChange={handleChange}>
+                        <CustomSelect className={inputClass} name="duration" value={form.duration} onChange={handleChange}>
                           <option value="monthly">Monthly</option>
                           <option value="quarterly">Quarterly</option>
                           <option value="half_yearly">Half-Yearly</option>
                           <option value="yearly">Yearly</option>
-                        </select>
+                        </CustomSelect>
                       </label>
                       <div className={`rounded-xl p-3 ${registrationMode ? "bg-emerald-50" : "bg-amber-50"}`}><p className={labelClass}>Subscription price</p><p className={`mt-1 text-xl font-bold ${registrationMode ? "text-emerald-900" : "text-amber-900"}`}>{Number.isFinite(price) ? `₹${price.toLocaleString("en-IN")}` : "Not configured"}</p></div>
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Estimated end date</p><p className="mt-1 text-sm font-semibold text-stone-800">{endDate ? formatDate(endDate) : "Select a valid start date"}</p></div>

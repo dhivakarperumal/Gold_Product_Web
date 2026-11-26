@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
@@ -46,10 +47,10 @@ function Field({ label, value, onChange, type = "text", required = false, min, s
 function SelectField({ label, value, onChange, children, required = false }) {
   return <label className="block space-y-1.5">
     <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}{required && " *"}</span>
-    <select value={value ?? ""} onChange={onChange} required={required}
+    <CustomSelect value={value ?? ""} onChange={onChange} required={required}
       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#008577] focus:ring-2 focus:ring-emerald-800/10">
       {children}
-    </select>
+    </CustomSelect>
   </label>;
 }
 
@@ -530,9 +531,9 @@ const Dealers = () => {
             <input value={search} onChange={(event) => { setPage(1); setSearch(event.target.value); }} placeholder="Search dealers by name, ID, contact..." className="w-full rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 pl-12 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#008577] focus:bg-white" />
           </label>
           <div className="flex flex-wrap items-center gap-2 md:ml-auto">
-            <select aria-label="Filter dealers by status" value={statusFilter} onChange={(event) => { setPage(1); setStatusFilter(event.target.value); }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 outline-none focus:border-[#008577]">
+            <CustomSelect aria-label="Filter dealers by status" value={statusFilter} onChange={(event) => { setPage(1); setStatusFilter(event.target.value); }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 outline-none focus:border-[#008577]">
               <option value="All">Select Status</option><option>Active</option><option>Inactive</option><option>On Hold</option>
-            </select>
+            </CustomSelect>
             <DateRangeFilter className="shrink-0" onApply={(range) => { setPage(1); setDateRange(range); }} />
             <div role="group" aria-label="Dealer display mode" className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
               <button type="button" onClick={() => setViewMode("table")} aria-label="List view" aria-pressed={viewMode === "table"} className={`rounded-lg p-2.5 transition ${viewMode === "table" ? "bg-[#003B3B] text-white" : "text-slate-400 hover:text-slate-700"}`}><List size={18} /></button>

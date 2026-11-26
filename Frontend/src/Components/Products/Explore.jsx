@@ -1,3 +1,4 @@
+import CustomSelect from "../CustomSelect.jsx";
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -569,7 +570,7 @@ const Explore = () => {
               </div>
               <label className="flex items-center gap-2 text-xs text-[#62594d]">
                 Sort by:
-                <select
+                <CustomSelect
                   value={sortBy}
                   onChange={(event) => {
                     setCurrentPage(1);
@@ -578,7 +579,7 @@ const Explore = () => {
                   className="rounded-md border border-[#e8dfd1] bg-white px-2.5 py-2 text-xs text-[#30271b] outline-none focus:border-[#174a38]"
                 >
                   {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
+                </CustomSelect>
               </label>
             </div>
 

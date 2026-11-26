@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
@@ -161,7 +162,7 @@ const Billing = () => {
                         <div className="flex items-center gap-1 p-1 bg-gray-50 rounded-xl border border-gray-200">
                         <div className="flex items-center gap-2 px-2 border-r border-gray-200">
                             <FiFilter className="text-gray-400" size={16} />
-                            <select
+                            <CustomSelect
                                 value={statusFilter}
                                 onChange={(event) => setStatusFilter(event.target.value)}
                                 aria-label="Filter orders by payment status"
@@ -171,7 +172,7 @@ const Billing = () => {
                                 <option value="paid">Paid</option>
                                 <option value="pending">Pending</option>
                                 <option value="overdue">Overdue</option>
-                            </select>
+                            </CustomSelect>
                         </div>
                             <button
                             type="button"

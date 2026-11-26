@@ -23,6 +23,7 @@ import {
 import { toast } from "react-hot-toast";
 import { Link, useLocation } from "react-router-dom";
 import DateRangeFilter from "../Components/DateRangeFilter";
+import CustomSelect from "../../Components/CustomSelect";
 import useAdminCachedList from "../useAdminCachedList";
 
 const PAGE_SIZE = 8;
@@ -398,7 +399,8 @@ const Users = () => {
                             ) : (
                                 <label className="relative">
                                     <FiFilter className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <select
+                                    <CustomSelect
+                                        aria-label="Filter customers by status"
                                         value={statusFilter}
                                         onChange={(event) => setStatusFilter(event.target.value)}
                                         className="appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-8 pr-7 text-xs text-slate-600 outline-none focus:border-[#008577]"
@@ -406,7 +408,7 @@ const Users = () => {
                                         <option value="all">All Status</option>
                                         <option value="active">Active</option>
                                         <option value="inactive">Inactive</option>
-                                    </select>
+                                    </CustomSelect>
                                 </label>
                             )}
                             <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Customer view mode">
@@ -481,7 +483,7 @@ const Users = () => {
                                             <td className="px-3 py-3 text-xs capitalize text-slate-600">{user.role}</td>
                                             <td className="px-3 py-3">
                                                 {isSuperAdminUsersPage ? (
-                                                    <select
+                                                    <CustomSelect
                                                         value={user.status}
                                                         onChange={(event) => void handleStatusChange(user, event.target.value)}
                                                         onClick={(event) => event.stopPropagation()}
@@ -492,7 +494,7 @@ const Users = () => {
                                                     >
                                                         <option value="Active">Active</option>
                                                         <option value="Inactive">Inactive</option>
-                                                    </select>
+                                                    </CustomSelect>
                                                 ) : (
                                                     <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${user.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{user.status}</span>
                                                 )}
@@ -595,7 +597,7 @@ const Users = () => {
 
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-                    <form onSubmit={handleSaveUser} className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+                    <form onSubmit={handleSaveUser} className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl">
                         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
                             <div>
                                 <h2 className="text-lg font-extrabold text-slate-800">{isEditing ? "Edit Customer" : "Add Customer"}</h2>
@@ -622,15 +624,23 @@ const Users = () => {
                                     />
                                 </label>
                             ))}
-                            <label className="text-xs font-semibold text-slate-600">
-                                Role
-                                <select name="role" value={formData.role} onChange={(event) => setFormData((current) => ({ ...current, role: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-[#008577]">
-                                    <option value="user">Customer</option>
-                                    <option value="manager">Manager</option>
-                                    <option value="dealer">Dealer</option>
-                                    <option value="admin">Admin</option>
-                                </select>
-                            </label>
+                            <div className="text-xs font-semibold text-slate-600">
+                                <span>Role</span>
+                                <CustomSelect
+                                    aria-label="Role"
+                                    name="role"
+                                    value={formData.role}
+                                    onChange={(event) => setFormData((current) => ({ ...current, role: event.target.value }))}
+                                    className="mt-1.5 min-h-11 rounded-lg font-normal focus-visible:border-[#008577]"
+                                >
+                                    {[
+                                        { value: "user", label: "Customer" },
+                                        { value: "manager", label: "Manager" },
+                                        { value: "dealer", label: "Dealer" },
+                                        { value: "admin", label: "Admin" },
+                                    ].map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+                                </CustomSelect>
+                            </div>
                             {!isEditing && (
                                 <label className="text-xs font-semibold text-slate-600">
                                     Password *

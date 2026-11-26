@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiAlertCircle, FiCheck, FiCheckCircle, FiChevronLeft, FiChevronRight, FiEdit2, FiEye, FiGrid, FiLayers, FiList, FiPauseCircle, FiPlus, FiPrinter, FiSearch, FiTrash2 } from "react-icons/fi";
@@ -187,11 +188,11 @@ export default function AllLoans() {
         
         <div className="flex flex-wrap items-center justify-between gap-2 sm:ml-auto sm:justify-start sm:gap-3">
           <div> <DateRangeFilter onApply={(range) => { setCurrentPage(1); setDateRange(range); }} /></div>
-          <select aria-label="Filter loans by status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setCurrentPage(1); }}
+          <CustomSelect aria-label="Filter loans by status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setCurrentPage(1); }}
             className="min-w-[142px] rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-600 outline-none transition hover:border-slate-300 focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10">
             <option value="All">Select Status</option>
             {["Active", "Suspended", "Awaiting Gold Release", "Inactive", "Completed", "Pending"].map((status) => <option key={status} value={status}>{status}</option>)}
-          </select>
+          </CustomSelect>
           <div className="flex rounded-xl border border-slate-200 bg-slate-100/80 p-1">
             <button type="button" onClick={() => setViewMode("table")} aria-label="List view" aria-pressed={viewMode === "table"} className={`rounded-lg p-2.5 transition-all ${viewMode === "table" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiList size={17} /></button>
             <button type="button" onClick={() => setViewMode("grid")} aria-label="Card view" aria-pressed={viewMode === "grid"} className={`rounded-lg p-2.5 transition-all ${viewMode === "grid" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiGrid size={17} /></button>

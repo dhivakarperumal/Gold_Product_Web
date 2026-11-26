@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -127,13 +128,13 @@ function CustomerSelect({ label, name, value, onChange, options, required = fals
   return (
     <label className={labelClass}>
       {label}{required && <span className="ml-1 text-red-500">*</span>}
-      <select className={inputClass} name={name} value={value ?? ""} onChange={onChange} required={required}>
+      <CustomSelect className={inputClass} name={name} value={value ?? ""} onChange={onChange} required={required}>
         {options.map((option) => (
           <option key={option} value={option}>
             {option || `Select ${label.toLowerCase()}`}
           </option>
         ))}
-      </select>
+      </CustomSelect>
     </label>
   );
 }
@@ -593,9 +594,9 @@ export default function LoanCustomerManagement() {
             <DateRangeFilter onApply={setDateRange} />
             <label className="relative">
               <FiFilter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <select className={`${inputClass} mt-0 pl-9`} value={kycFilter} onChange={(event) => setKycFilter(event.target.value)}>
+              <CustomSelect className={`${inputClass} mt-0 pl-9`} value={kycFilter} onChange={(event) => setKycFilter(event.target.value)}>
                 {["All", "Pending", "Verified", "Rejected"].map((status) => <option key={status}>{status}</option>)}
-              </select>
+              </CustomSelect>
             </label>
            
             <div className="inline-flex shrink-0 rounded-lg border border-slate-200 p-1" role="group" aria-label="Customer view mode">
@@ -864,11 +865,11 @@ export default function LoanCustomerManagement() {
                   <>
                       <div className="space-y-2">
                         <label className={labelClass} htmlFor="kyc-document-type">1. Select document type</label>
-                        <select id="kyc-document-type" className={`${inputClass} mt-0`} value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
+                        <CustomSelect id="kyc-document-type" className={`${inputClass} mt-0`} value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
                           {DOCUMENT_TYPES.map((document) => (
                             <option key={document.value} value={document.value}>{document.label}</option>
                           ))}
-                        </select>
+                        </CustomSelect>
                         <p className={labelClass}>2. Upload front and back separately</p>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {DOCUMENT_SIDES.map((side) => {

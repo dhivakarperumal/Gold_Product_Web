@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAdmin } from "../../PrivateRouter/AdminContext";
@@ -234,7 +235,7 @@ const Reviews = () => {
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="relative">
-            <select
+            <CustomSelect
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               aria-label="Filter reviews by status"
@@ -244,11 +245,11 @@ const Reviews = () => {
               <option value="Pending">Pending</option>
               <option value="Published">Published</option>
               <option value="Flagged">Flagged</option>
-            </select>
+            </CustomSelect>
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none">▼</span>
           </div>
           <div className="relative">
-            <select
+            <CustomSelect
               value={selectedRating || ""}
               onChange={(e) => setSelectedRating(e.target.value ? Number(e.target.value) : null)}
               aria-label="Filter reviews by rating"
@@ -260,7 +261,7 @@ const Reviews = () => {
               <option value="3">3 Stars</option>
               <option value="2">2 Stars</option>
               <option value="1">1 Star</option>
-            </select>
+            </CustomSelect>
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none">▼</span>
           </div>
           <div className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1">

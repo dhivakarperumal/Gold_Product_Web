@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAdmin } from "../../PrivateRouter/AdminContext";
@@ -303,7 +304,7 @@ const StockDetails = () => {
                 </div>
                
              
-                <select
+                <CustomSelect
                     aria-label="Filter products by stock status"
                     value={statusFilter}
                     onChange={(event) => {
@@ -317,7 +318,7 @@ const StockDetails = () => {
                     <option>In Stock</option>
                     <option>Low Stock</option>
                     <option>Out of Stock</option>
-                </select>
+                </CustomSelect>
 
                 <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
                     <button

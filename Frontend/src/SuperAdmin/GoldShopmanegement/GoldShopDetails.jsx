@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
@@ -442,7 +443,7 @@ export default function GoldShopDetails() {
               </label>
               <label className="block text-xs font-semibold uppercase tracking-wide text-stone-600">
                 Payment method
-                <select
+                <CustomSelect
                   value={paymentForm.paymentMethod}
                   onChange={(event) => setPaymentForm((current) => ({ ...current, paymentMethod: event.target.value }))}
                   className="mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm normal-case"
@@ -452,7 +453,7 @@ export default function GoldShopDetails() {
                   <option value="cash">Cash</option>
                   <option value="card">Card</option>
                   <option value="other">Other</option>
-                </select>
+                </CustomSelect>
               </label>
               <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
                 <button type="button" disabled={paymentSubmitting} onClick={() => setPaymentToConfirm(null)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-bold text-stone-700 disabled:opacity-50">Cancel</button>

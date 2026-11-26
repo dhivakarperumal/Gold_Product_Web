@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useState } from "react";
 import { FiChevronLeft, FiChevronRight, FiEdit2, FiEye, FiPlus, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
@@ -370,7 +371,7 @@ export default function DailyGoldRate() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <label className="text-xs font-bold text-slate-600">Rate Date<input className={inputClassName} type="date" required value={form.rate_date} onChange={(event) => setField("rate_date", event.target.value)} /></label>
               <label className="text-xs font-bold text-slate-600">Effective From<input className={inputClassName} type="datetime-local" required value={form.effective_from} onChange={(event) => setField("effective_from", event.target.value)} /></label>
-              <label className="text-xs font-bold text-slate-600">Making Charge Type<select className={inputClassName} value={form.making_charge_type} onChange={(event) => setField("making_charge_type", event.target.value)}><option>Percentage</option><option>Fixed Amount</option></select></label>
+              <label className="text-xs font-bold text-slate-600">Making Charge Type<CustomSelect className={inputClassName} value={form.making_charge_type} onChange={(event) => setField("making_charge_type", event.target.value)}><option>Percentage</option><option>Fixed Amount</option></CustomSelect></label>
               <label className="text-xs font-bold text-slate-600">Default Making Charge ({form.making_charge_type === "Percentage" ? "%" : "₹"})<input className={inputClassName} type="number" min="0" step="0.01" required value={form.making_charge_value} onChange={(event) => setField("making_charge_value", event.target.value)} placeholder="0.00" /></label>
               <label className="text-xs font-bold text-slate-600">Wastage Percentage<input className={inputClassName} type="number" min="0" max="100" step="0.01" required value={form.wastage_percentage} onChange={(event) => setField("wastage_percentage", event.target.value)} placeholder="0.00" /></label>
             </div>
@@ -408,7 +409,7 @@ export default function DailyGoldRate() {
             </div>
             <label className="block text-xs font-bold text-slate-600">
               Reason for change
-              <select
+              <CustomSelect
                 className={inputClassName}
                 required
                 value={reasonOption}
@@ -422,7 +423,7 @@ export default function DailyGoldRate() {
                 <option value="Daily market price update">Daily market price update</option>
                 <option value="Market price correction">Market price correction</option>
                 <option value="Other">Other</option>
-              </select>
+              </CustomSelect>
             </label>
             {reasonOption === "Other" && (
               <label className="mt-4 block text-xs font-bold text-slate-600">

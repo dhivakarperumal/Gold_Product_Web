@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useMemo, useState } from "react";
 import api from "../../api";
 import { toast } from "react-hot-toast";
@@ -7,7 +8,6 @@ import imageCompression from "browser-image-compression";
 import {
   FiAlertCircle,
   FiCheckCircle,
-  FiChevronDown,
   FiEdit2,
   FiGrid,
   FiImage,
@@ -224,7 +224,7 @@ const Metals = () => {
         <div className="flex flex-wrap items-center gap-3">
           <label className="relative">
             <span className="sr-only">Filter by status</span>
-            <select
+            <CustomSelect
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
               className="appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-4 pr-10 text-sm font-semibold text-slate-600 outline-none transition focus:border-amber-400"
@@ -232,8 +232,7 @@ const Metals = () => {
               <option value="All">All Statuses</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
-            </select>
-            <FiChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            </CustomSelect>
           </label>
           <div className="flex items-center rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
             <button
@@ -468,14 +467,14 @@ const Metals = () => {
                   </div>
                   <label className="block text-sm font-semibold text-slate-700">
                     Status
-                    <select
+                    <CustomSelect
                       value={formData.status}
                       onChange={(event) => setFormData((current) => ({ ...current, status: event.target.value }))}
                       className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                     >
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
-                    </select>
+                    </CustomSelect>
                   </label>
                 </div>
               </div>

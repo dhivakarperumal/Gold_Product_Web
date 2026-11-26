@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useState, useEffect, useCallback, useId } from "react";
 import {
   Wallet,
@@ -493,7 +494,7 @@ export default function PaymentManagement() {
 
           {/* Filter by Payment Status */}
           <div>
-            <select
+            <CustomSelect
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
@@ -508,12 +509,12 @@ export default function PaymentManagement() {
               <option value="failed">Failed</option>
               <option value="refunded">Refunded</option>
               <option value="cancelled">Cancelled</option>
-            </select>
+            </CustomSelect>
           </div>
 
           {/* Filter by Subscription Plan */}
           <div>
-            <select
+            <CustomSelect
               value={planFilter}
               onChange={(e) => {
                 setPlanFilter(e.target.value);
@@ -528,12 +529,12 @@ export default function PaymentManagement() {
                   {p.plan_name}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
 
           {/* Filter by Payment Method */}
           <div>
-            <select
+            <CustomSelect
               value={methodFilter}
               onChange={(e) => {
                 setMethodFilter(e.target.value);
@@ -549,7 +550,7 @@ export default function PaymentManagement() {
               <option value="Credit Card">Credit Card</option>
               <option value="Debit Card">Debit Card</option>
               <option value="Payment Gateway">Payment Gateway</option>
-            </select>
+            </CustomSelect>
           </div>
 
           {/* Filter by Payment Date */}
@@ -1011,7 +1012,7 @@ export default function PaymentManagement() {
 
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Payment Method</label>
-                <select
+                <CustomSelect
                   value={approveForm.paymentMethod}
                   onChange={(e) => setApproveForm({ ...approveForm, paymentMethod: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-800 focus:border-[#07564B] focus:outline-none"
@@ -1022,7 +1023,7 @@ export default function PaymentManagement() {
                   <option value="Credit Card">Credit Card</option>
                   <option value="Debit Card">Debit Card</option>
                   <option value="Payment Gateway">Payment Gateway</option>
-                </select>
+                </CustomSelect>
               </div>
 
               <div>

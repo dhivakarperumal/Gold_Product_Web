@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
 import { useNavigate, useParams } from "react-router-dom";
@@ -130,12 +131,12 @@ const Field = ({ label, name, value, onChange, type = "text", placeholder = "", 
 const SelectField = ({ label, name, value, onChange, options, required = false }) => (
   <label className={labelClass}>
     {label}{required && <span className="ml-1 text-red-500">*</span>}
-    <select className={inputClass} name={name} value={value ?? ""} onChange={onChange} required={required}>
+    <CustomSelect className={inputClass} name={name} value={value ?? ""} onChange={onChange} required={required}>
       {options.map((option) => {
         const item = typeof option === "string" ? { value: option, label: option } : option;
         return <option key={item.value} value={item.value}>{item.label}</option>;
       })}
-    </select>
+    </CustomSelect>
   </label>
 );
 
@@ -613,11 +614,11 @@ const AddProducts = () => {
                 </p>
               </div>
               <label className={labelClass}>Offer Type
-                <select className={inputClass} name="offer_type" value={formData.offer_type} onChange={handleChange}>
+                <CustomSelect className={inputClass} name="offer_type" value={formData.offer_type} onChange={handleChange}>
                   <option value="None">No offer</option>
                   <option value="Percentage">Percentage discount</option>
                   <option value="Fixed Amount">Fixed amount discount</option>
-                </select>
+                </CustomSelect>
               </label>
               {formData.offer_type === "Percentage" && <Field label="Discount (%)" name="offer" type="number" min="0" max="100" step="0.01" value={formData.offer} onChange={handleChange} placeholder="5" />}
               {formData.offer_type === "Fixed Amount" && <Field label="Fixed Discount (₹)" name="fixed_discount_amount" type="number" min="0" step="0.01" value={formData.fixed_discount_amount} onChange={handleChange} placeholder="500" />}

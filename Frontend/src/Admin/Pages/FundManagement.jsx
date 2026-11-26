@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, LayoutGrid, List, Plus, Search, Wallet, X } from "lucide-react";
 import toast from "react-hot-toast";
@@ -177,7 +178,7 @@ function FundManagement() {
             onApply={(range) => { setDateRange(range); setPage(1); }}
             className="shrink-0"
           />
-          <select
+          <CustomSelect
             value={filters.transaction_type}
             onChange={(event) => updateFilter("transaction_type", event.target.value)}
             className="h-[52px] min-w-[160px] rounded-xl border border-slate-200 bg-slate-50/70 px-4 text-sm font-semibold text-slate-600 outline-none focus:border-[#00695C] focus:ring-2 focus:ring-emerald-100"
@@ -185,7 +186,7 @@ function FundManagement() {
           >
             <option value="ALL">All transaction types</option>
             {TRANSACTION_TYPES.map(([type, label]) => <option key={type} value={type}>{label}</option>)}
-          </select>
+          </CustomSelect>
           <div role="group" aria-label="Transaction view" className="flex h-[52px] items-center rounded-xl bg-slate-100 p-1">
             <button
               type="button"
@@ -319,9 +320,9 @@ function FundManagement() {
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               <label className="text-xs font-bold text-slate-600">
                 Transaction Type
-                <select required value={entry.transaction_type} onChange={(event) => setEntry({ ...entry, transaction_type: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal">
+                <CustomSelect required value={entry.transaction_type} onChange={(event) => setEntry({ ...entry, transaction_type: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal">
                   {TRANSACTION_TYPES.map(([type, label]) => <option key={type} value={type}>{label}</option>)}
-                </select>
+                </CustomSelect>
               </label>
               <label className="text-xs font-bold text-slate-600">
                 Transaction Date
@@ -333,9 +334,9 @@ function FundManagement() {
               </label>
               <label className="text-xs font-bold text-slate-600">
                 Payment Method
-                <select required value={entry.payment_method} onChange={(event) => setEntry({ ...entry, payment_method: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal">
+                <CustomSelect required value={entry.payment_method} onChange={(event) => setEntry({ ...entry, payment_method: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal">
                   {PAYMENT_METHODS.map((method) => <option key={method}>{method}</option>)}
-                </select>
+                </CustomSelect>
               </label>
               <label className="text-xs font-bold text-slate-600 sm:col-span-2">
                 Description

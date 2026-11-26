@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useState } from "react";
 import {
   FileText,
@@ -101,7 +102,7 @@ export default function PaymentHistoryTable({
         <div className="flex justify-end">
           {/* Status Filter */}
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <select
+            <CustomSelect
               value={status}
               onChange={(e) => onStatusChange(e.target.value)}
               aria-label="Filter transactions by payment status"
@@ -112,10 +113,10 @@ export default function PaymentHistoryTable({
               <option value="pending">Pending</option>
               <option value="failed">Failed</option>
               <option value="refunded">Refunded</option>
-            </select>
+            </CustomSelect>
 
             {/* Payment Method Filter */}
-            <select
+            <CustomSelect
               value={method}
               onChange={(e) => onMethodChange && onMethodChange(e.target.value)}
               aria-label="Filter transactions by payment method"
@@ -126,7 +127,7 @@ export default function PaymentHistoryTable({
               <option value="Net Banking">Net Banking</option>
               <option value="Card">Credit / Debit Card</option>
               <option value="Cash">Cash / Offline</option>
-            </select>
+            </CustomSelect>
           </div>
         </div>
       </div>

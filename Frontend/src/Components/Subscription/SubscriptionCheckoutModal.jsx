@@ -1,3 +1,4 @@
+import CustomSelect from "../CustomSelect.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { LoaderCircle, X } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -144,20 +145,20 @@ export default function SubscriptionCheckoutModal({
             <>
               <label className="block text-xs font-semibold text-slate-600">
                 Plan
-                <select required value={planId} onChange={(event) => setPlanId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
+                <CustomSelect required value={planId} onChange={(event) => setPlanId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
                   {plans.map((plan) => (
                     <option key={plan.id} value={plan.id}>{plan.plan_name}</option>
                   ))}
-                </select>
+                </CustomSelect>
               </label>
               <label className="block text-xs font-semibold text-slate-600">
                 Billing period
-                <select required value={duration} onChange={(event) => setDuration(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm capitalize text-slate-800">
+                <CustomSelect required value={duration} onChange={(event) => setDuration(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm capitalize text-slate-800">
                   <option value="monthly">Monthly</option>
                   <option value="quarterly">Quarterly</option>
                   <option value="half_yearly">Half-yearly</option>
                   <option value="yearly">Yearly</option>
-                </select>
+                </CustomSelect>
               </label>
               <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
                 <p className="text-xs font-semibold text-emerald-800">Amount due</p>

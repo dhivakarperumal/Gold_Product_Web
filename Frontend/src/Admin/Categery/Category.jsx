@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import api from "../../api";
@@ -19,7 +20,6 @@ import {
     FiLayers,
     FiFilter,
     FiDownload,
-    FiChevronDown
 } from "react-icons/fi";
 import imageCompression from "browser-image-compression";
 import { toast, Toaster } from "react-hot-toast";
@@ -311,7 +311,7 @@ const Category = () => {
                 
                 <div className="flex items-center gap-3">
                     <div className="relative">
-                        <select
+                        <CustomSelect
                             value={statusFilter}
                             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
                             className="appearance-none bg-white border border-gray-200 text-sm font-bold text-gray-600 pl-4 pr-10 py-2.5 rounded-xl outline-none focus:border-amber-400 cursor-pointer"
@@ -319,8 +319,7 @@ const Category = () => {
                             <option value="All">Select Status</option>
                             <option value="Active">Active</option>
                             <option value="Inactive">Inactive</option>
-                        </select>
-                        <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        </CustomSelect>
                     </div>
                    
                     <div className="flex items-center gap-3">

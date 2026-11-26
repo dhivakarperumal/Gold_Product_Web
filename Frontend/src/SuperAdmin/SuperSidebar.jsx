@@ -141,25 +141,27 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                 key={`${item.path}${item.search || ""}`}
                 to={item.search ? { pathname: item.path, search: item.search } : item.path}
                 end={item.exact}
+                aria-current={isActive ? "page" : undefined}
                 title={collapsed ? item.label : undefined}
                 onClick={() => {
                   if (isOpen) onClose();
                 }}
                 className={`
-                  group relative flex min-h-14 items-center gap-3 rounded-2xl border transition-all duration-200
+                  group relative flex min-h-14 items-center gap-3 rounded-2xl border transition-all duration-300
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/90 focus-visible:ring-offset-2 focus-visible:ring-offset-[#064A41]
                   ${collapsed ? "lg:justify-center lg:px-1 px-4" : "px-4"}
                   ${isActive
-                    ? "border-amber-200/50 bg-gradient-to-r from-[#D5A319] via-[#C18A09] to-[#A87908] text-[#123B32] shadow-[0_8px_20px_rgba(168,121,8,0.22)]"
+                    ? "border-amber-100/80 bg-gradient-to-r from-[#E2B02B] via-[#D4A017] to-[#B98208] text-[#123B32] shadow-[0_10px_26px_rgba(168,121,8,0.32)] ring-1 ring-inset ring-white/20"
                     : "border-transparent text-emerald-50/75 hover:translate-x-0.5 hover:border-white/[0.08] hover:bg-white/[0.07] hover:text-white"
                   }
                 `}
               >
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${isActive ? "bg-white/20" : "bg-white/[0.045] group-hover:bg-white/[0.09]"}`}>
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${isActive ? "scale-[1.03] bg-white/30 shadow-[inset_0_1px_2px_rgba(255,255,255,0.32)] ring-1 ring-inset ring-white/25" : "bg-white/[0.045] group-hover:bg-white/[0.09]"}`}>
                   <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-[#123B32]" : "text-emerald-100/75 group-hover:text-white"}`} />
                 </span>
-                <span className={`min-w-0 flex-1 text-sm font-semibold leading-snug tracking-wide ${collapsed ? "lg:hidden" : ""}`}>{item.label}</span>
+                <span className={`min-w-0 flex-1 text-sm leading-snug tracking-wide ${isActive ? "font-bold" : "font-semibold"} ${collapsed ? "lg:hidden" : ""}`}>{item.label}</span>
                 {isActive && (
-                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFF2B8] shadow-[0_0_8px_rgba(255,242,184,0.9)] ${collapsed ? "lg:hidden" : ""}`} />
+                  <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full bg-[#FFF8D6] shadow-[0_0_10px_rgba(255,248,214,0.95)] ring-4 ring-[#FFF2B8]/20 ${collapsed ? "lg:hidden" : ""}`} />
                 )}
               </NavLink>
             );

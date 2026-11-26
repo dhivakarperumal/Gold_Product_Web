@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FiAlertCircle, FiArrowLeft, FiCalendar, FiCheckCircle, FiChevronRight, FiEye, FiGrid, FiLayers, FiList, FiPlus, FiRefreshCw, FiSearch, FiShield, FiX } from "react-icons/fi";
@@ -145,9 +146,9 @@ export function LoanPaymentModal({ loan: loanRow, onClose, onLoanUpdated }) {
                       </span>
                     </label>
                     <label className="block text-sm font-semibold text-slate-700">Payment method
-                      <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} disabled={saving} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-[#008577]">
+                      <CustomSelect value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} disabled={saving} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-[#008577]">
                         {["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"].map((method) => <option key={method} value={method}>{method}</option>)}
-                      </select>
+                      </CustomSelect>
                     </label>
                     <label className="block text-sm font-semibold text-slate-700">Reference number <span className="font-normal text-slate-400">(optional)</span>
                       <input value={referenceNumber} onChange={(event) => setReferenceNumber(event.target.value)} maxLength={100} disabled={saving} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-700 outline-none focus:border-[#008577]" />
@@ -366,12 +367,12 @@ export default function LoanRenewal() {
           </label>
           <div className="flex flex-wrap items-center justify-between gap-2 sm:ml-auto sm:justify-start sm:gap-3">
             <DateRangeFilter onApply={(range) => { setLoading(true); setDateRange(range); }} />
-            <select aria-label="Filter loans by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}
+            <CustomSelect aria-label="Filter loans by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}
               className="min-w-[142px] rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-600 outline-none transition hover:border-slate-300 focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10">
               <option value="All">Select Status</option>
               <option value="Active">Active</option>
               <option value="Suspended">Suspended</option>
-            </select>
+            </CustomSelect>
             <div className="flex rounded-xl border border-slate-200 bg-slate-100/80 p-1">
               <button type="button" onClick={() => setViewMode("table")} aria-label="List view" aria-pressed={viewMode === "table"} className={`rounded-lg p-2.5 transition-all ${viewMode === "table" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiList size={17} /></button>
               <button type="button" onClick={() => setViewMode("card")} aria-label="Card view" aria-pressed={viewMode === "card"} className={`rounded-lg p-2.5 transition-all ${viewMode === "card" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiGrid size={17} /></button>
@@ -491,14 +492,14 @@ export default function LoanRenewal() {
             <form onSubmit={(event) => { event.preventDefault(); handleReviewAction("notice_sent"); }} className="space-y-3 rounded-xl border border-slate-200 p-4">
               <h3 className="text-sm font-bold text-slate-800">Record customer notice</h3>
               <label className="block text-xs font-semibold text-slate-600">Notice channel
-                <select value={noticeMethod} onChange={(event) => setNoticeMethod(event.target.value)} disabled={savingReview} className="mt-1 block min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm">
+                <CustomSelect value={noticeMethod} onChange={(event) => setNoticeMethod(event.target.value)} disabled={savingReview} className="mt-1 block min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm">
                   <option value="sms">SMS (send outside this app)</option>
                   <option value="whatsapp">WhatsApp (send outside this app)</option>
                   <option value="call">Phone call</option>
                   <option value="letter">Letter</option>
                   <option value="in_person">In person</option>
                   <option value="other">Other</option>
-                </select>
+                </CustomSelect>
               </label>
               <label className="block text-xs font-semibold text-slate-600">Customer message
                 <textarea required maxLength={4000} rows={3} value={customerMessage} onChange={(event) => setCustomerMessage(event.target.value)} disabled={savingReview} className="mt-1 block w-full rounded-lg border border-slate-200 p-3 text-sm font-normal text-slate-800" />
@@ -635,10 +636,10 @@ export default function LoanRenewal() {
                 </span>
               </label>
               <label className="block text-sm font-semibold text-slate-700">Payment method
-                <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} disabled={saving}
+                <CustomSelect value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} disabled={saving}
                   className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-[#008577]">
                   {["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"].map((method) => <option key={method} value={method}>{method}</option>)}
-                </select>
+                </CustomSelect>
               </label>
               <label className="block text-sm font-semibold text-slate-700">Reference number <span className="font-normal text-slate-400">(optional)</span>
                 <input value={referenceNumber} onChange={(event) => setReferenceNumber(event.target.value)} maxLength={100} disabled={saving}

@@ -1,3 +1,4 @@
+import CustomSelect from "../CustomSelect.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Clock3, FileText, ShieldCheck, UploadCloud } from "lucide-react";
 import toast from "react-hot-toast";
@@ -250,7 +251,7 @@ const CustomerKyc = () => {
                           <p className="truncate text-sm font-semibold text-slate-800">{item.file.name}</p>
                           <p className="text-xs text-slate-500">{(item.file.size / 1024).toFixed(0)} KB</p>
                         </div>
-                        <select
+                        <CustomSelect
                           value={item.documentType}
                           onChange={(event) => setUploadRows((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, documentType: event.target.value } : row))}
                           required
@@ -258,7 +259,7 @@ const CustomerKyc = () => {
                           aria-label={`Document type for ${item.file.name}`}
                         >
                           {allowedDocumentTypes.map((type) => <option key={type} value={type}>{documentLabels[type] || type}</option>)}
-                        </select>
+                        </CustomSelect>
                       </div>
                     ))}
                     <p className="text-right text-xs text-slate-500">Total selected: {(selectedSize / 1024).toFixed(0)} KB</p>

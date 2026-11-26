@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAdmin } from "../../PrivateRouter/AdminContext";
@@ -311,26 +312,26 @@ const AllProducts = () => {
                         </div>
                        
                     
-                        <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
+                        <CustomSelect value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
                             <option value="">All categories</option>
                             {filterOptions.categories.map((category) => <option key={category} value={category}>{category}</option>)}
-                        </select>
-                        <select value={purityFilter} onChange={(event) => setPurityFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
+                        </CustomSelect>
+                        <CustomSelect value={purityFilter} onChange={(event) => setPurityFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
                             <option value="">All purities</option>
                             {filterOptions.purities.map((purity) => <option key={purity} value={purity}>{purity}</option>)}
-                        </select>
-                        <select value={stockFilter} onChange={(event) => setStockFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
+                        </CustomSelect>
+                        <CustomSelect value={stockFilter} onChange={(event) => setStockFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
                             <option value="">All stock</option>
                             <option value="in-stock">In stock</option>
                             <option value="low-stock">Low stock</option>
                             <option value="out-of-stock">Out of stock</option>
-                        </select>
-                        <select value={lastPriceUpdateFilter} onChange={(event) => setLastPriceUpdateFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
+                        </CustomSelect>
+                        <CustomSelect value={lastPriceUpdateFilter} onChange={(event) => setLastPriceUpdateFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
                             <option value="">All price updates</option>
                             <option value="updated">Price updated</option>
                             <option value="not-updated">Never updated</option>
-                        </select>
-                        <select value={`${sortBy}:${sortOrder}`} onChange={(event) => {
+                        </CustomSelect>
+                        <CustomSelect value={`${sortBy}:${sortOrder}`} onChange={(event) => {
                             const [nextSortBy, nextSortOrder] = event.target.value.split(":");
                             setSortBy(nextSortBy);
                             setSortOrder(nextSortOrder);
@@ -341,7 +342,7 @@ const AllProducts = () => {
                             <option value="final_selling_price:desc">Price high-low</option>
                             <option value="total_stock:asc">Stock low-high</option>
                             <option value="price_updated_at:desc">Recently price-updated</option>
-                        </select>
+                        </CustomSelect>
                        <div className="flex items-center gap-3">
                     <button
                         onClick={refreshPrices}

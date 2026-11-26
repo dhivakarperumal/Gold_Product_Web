@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, ShieldCheck, Users, Clock3, CheckCircle2, XCircle, ChevronLeft, ChevronRight, FileText, X, LayoutGrid, List } from "lucide-react";
 import toast from "react-hot-toast";
@@ -208,10 +209,10 @@ const AdminKyc = () => {
               setDateRange(range);
               setPage(1);
             }} />
-            <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
+            <CustomSelect value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
               <option value="all">All statuses</option>
               {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            </CustomSelect>
             <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="KYC application view mode">
               <button type="button" onClick={() => setViewMode("card")} aria-label="Card view" title="Card view" aria-pressed={viewMode === "card"} className={`inline-flex h-9 w-9 items-center justify-center rounded-md transition ${viewMode === "card" ? "bg-[#008577] text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}>
                 <LayoutGrid size={16} />

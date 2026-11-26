@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useState, useEffect, useCallback, useId } from "react";
 import {
   BarChart3,
@@ -434,7 +435,7 @@ export default function RevenueReports() {
 
           <div className="flex w-full flex-col items-end gap-2 xl:w-auto xl:flex-row xl:items-center xl:shrink-0">
             <div className="flex w-full items-center gap-2 xl:w-auto">
-              <select
+              <CustomSelect
                 value={datePreset}
                 onChange={(e) => setDatePreset(e.target.value)}
                 aria-label="Filter revenue reports by period"
@@ -455,10 +456,10 @@ export default function RevenueReports() {
                     {preset.label}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
             </div>
 
-            <select
+            <CustomSelect
               value={selectedPlan}
               onChange={(e) => setSelectedPlan(e.target.value)}
               aria-label="Filter revenue reports by subscription plan"
@@ -470,9 +471,9 @@ export default function RevenueReports() {
                   {plan.plan_name}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
 
-            <select
+            <CustomSelect
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               aria-label="Filter revenue reports by payment status"
@@ -483,7 +484,7 @@ export default function RevenueReports() {
               <option value="pending">Pending Only</option>
               <option value="failed">Failed Only</option>
               <option value="refunded">Refunded Only</option>
-            </select>
+            </CustomSelect>
           </div>
         </div>
 

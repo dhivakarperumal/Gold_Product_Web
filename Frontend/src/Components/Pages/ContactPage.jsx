@@ -1,3 +1,4 @@
+import CustomSelect from "../CustomSelect.jsx";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -85,13 +86,13 @@ export default function ContactPage() {
               <label className="sr-only" htmlFor="contact-phone">Phone number</label>
               <input id="contact-phone" name="phone" type="tel" value={form.phone} onChange={updateField} className={inputClass} placeholder="Phone Number *" autoComplete="tel" required />
               <label className="sr-only" htmlFor="contact-subject">Subject</label>
-              <select id="contact-subject" name="subject" value={form.subject} onChange={updateField} className={inputClass} required>
+              <CustomSelect id="contact-subject" name="subject" value={form.subject} onChange={updateField} className={inputClass} required>
                 <option value="" disabled>Select Subject *</option>
                 <option value="Product enquiry">Product enquiry</option>
                 <option value="Order assistance">Order assistance</option>
                 <option value="Store visit">Store visit</option>
                 <option value="Other">Other</option>
-              </select>
+              </CustomSelect>
               <label className="sr-only" htmlFor="contact-message">Your message</label>
               <textarea id="contact-message" name="message" value={form.message} onChange={updateField} className={`${inputClass} min-h-28 resize-y`} placeholder="Your Message *" required />
               <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#edc264] to-[#d9a441] px-5 py-3 text-sm font-bold text-[#23382c] shadow-sm transition hover:brightness-105">

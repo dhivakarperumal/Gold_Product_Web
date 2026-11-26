@@ -616,7 +616,7 @@ export default function SuperDashboard() {
         </Panel>
       </section>
 
-      <section aria-label="Recent platform activity" className="grid items-start gap-4 xl:grid-cols-2">
+      <section aria-label="Recent platform activity" className="grid grid-cols-1 items-start gap-5">
         <Panel
           title="Recent Shop Registrations"
           subtitle="Latest onboarding activity and approval decisions"

@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiCalendar, FiChevronDown, FiChevronRight, FiCreditCard, FiDollarSign, FiEdit2, FiEye, FiGrid, FiImage, FiList, FiPlus, FiPrinter, FiRepeat, FiSave, FiSearch, FiTrash2, FiX } from "react-icons/fi";
@@ -197,7 +198,7 @@ function ItemFields({ item, onChange, onCategorySelect, onMetalSelect, categorie
         <div>
           <label className={labelClass}>
             Category<span className="ml-1 text-rose-500">*</span>
-            <select
+            <CustomSelect
               className={inputClass}
               value={item.category_is_other ? "__other__" : item.category}
               onChange={(event) => {
@@ -209,7 +210,7 @@ function ItemFields({ item, onChange, onCategorySelect, onMetalSelect, categorie
               <option value="">Choose category</option>
               {categories.map((category) => <option key={category.id || category.name} value={category.name}>{category.name}</option>)}
               <option value="__other__">Other</option>
-            </select>
+            </CustomSelect>
           </label>
           {item.category_is_other && (
             <input
@@ -229,7 +230,7 @@ function ItemFields({ item, onChange, onCategorySelect, onMetalSelect, categorie
       {exchange && (
         <label className={labelClass}>
           Metal Type<span className="ml-1 text-rose-500">*</span>
-          <select
+          <CustomSelect
             className={inputClass}
             value={item.metal_type}
             onChange={(event) => {
@@ -245,18 +246,18 @@ function ItemFields({ item, onChange, onCategorySelect, onMetalSelect, categorie
             {[...new Set(metalRates.map((rate) => rate.metal_type))].map((metalType) => (
               <option key={metalType} value={metalType}>{metalType}</option>
             ))}
-          </select>
+          </CustomSelect>
         </label>
       )}
       <label className={labelClass}>
         {item.metal_type || "Gold"} Purity<span className="ml-1 text-rose-500">*</span>
-        <select className={inputClass} value={item.purity} onChange={(event) => {
+        <CustomSelect className={inputClass} value={item.purity} onChange={(event) => {
           onChange("purity", event.target.value);
           if (exchange) onChange("rate_per_unit", "");
         }} required disabled={exchange && purityOptions.length === 0}>
           {purityOptions.length === 0 && <option value="">No active purity rates</option>}
           {purityOptions.map((purity) => <option key={purity}>{purity}</option>)}
-        </select>
+        </CustomSelect>
       </label>
       {exchange ? (
         <>
@@ -1188,7 +1189,7 @@ export default function BillingManagement() {
             </label>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
               <DateRangeFilter onApply={setDateRange} controlClassName="h-[52px] min-w-[190px] px-4" />
-              <select
+              <CustomSelect
                 value={paymentFilter}
                 onChange={(event) => setPaymentFilter(event.target.value)}
                 aria-label="Filter bills by payment type"
@@ -1197,7 +1198,7 @@ export default function BillingManagement() {
                 <option value="ALL">All Payment Types</option>
                 <option value="FULL_PAYMENT">Full Payment</option>
                 <option value="EXCHANGE_GOLD">Exchange Gold</option>
-              </select>
+              </CustomSelect>
               <div role="group" aria-label="Bill view" className="flex h-[52px] items-center rounded-xl bg-slate-100 p-1">
                 <button
                   type="button"
@@ -1453,13 +1454,13 @@ export default function BillingManagement() {
             {tackOrderSourceId && Number(tackOrderAdvanceAmount) > 0 && (
               <label className={labelClass}>
                 Tack Order Advance Payment Method
-                <select
+                <CustomSelect
                   className={inputClass}
                   value={advancePaymentMethod || "Other"}
                   onChange={(event) => setAdvancePaymentMethod(event.target.value)}
                 >
                   {PAYMENT_METHOD_OPTIONS.map((method) => <option key={method} value={method}>{method}</option>)}
-                </select>
+                </CustomSelect>
                 <span className="mt-1 block text-xs font-normal text-slate-500">The Tack Order doesn’t store a payment method, so this defaults to Other.</span>
               </label>
             )}
@@ -1686,9 +1687,9 @@ export default function BillingManagement() {
                 <input className={inputClass} type="number" required min="0.01" max={billPayment.payment_kind === "REFUND" ? Number(billPayment.bill.paid_amount) : Number(billPayment.bill.balance_due)} step="0.01" value={billPayment.amount} onChange={(event) => setBillPayment({ ...billPayment, amount: event.target.value })} />
               </label>
               <label className={labelClass}>Payment method
-                <select className={inputClass} value={billPayment.payment_method} onChange={(event) => setBillPayment({ ...billPayment, payment_method: event.target.value })}>
+                <CustomSelect className={inputClass} value={billPayment.payment_method} onChange={(event) => setBillPayment({ ...billPayment, payment_method: event.target.value })}>
                   {["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"].map((method) => <option key={method}>{method}</option>)}
-                </select>
+                </CustomSelect>
               </label>
               <label className={labelClass}>Date and time
                 <input className={inputClass} type="datetime-local" required value={billPayment.payment_date} onChange={(event) => setBillPayment({ ...billPayment, payment_date: event.target.value })} />

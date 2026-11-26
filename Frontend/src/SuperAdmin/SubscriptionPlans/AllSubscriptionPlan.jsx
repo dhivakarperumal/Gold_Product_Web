@@ -1,5 +1,6 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Eye, Layers3, LayoutGrid, List, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Copy, Eye, Filter, Layers3, LayoutGrid, List, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 import AddSubScription from "./AddSubScription";
@@ -180,9 +181,19 @@ export default function AllSubscriptionPlan() {
             <input value={search} onChange={(event) => { setPage(1); setSearch(event.target.value); }} placeholder="Search plan name or code..." className="min-h-9 w-full rounded-lg border border-slate-200 pl-9 pr-3 text-xs outline-none focus:border-[#008577]" />
           </label>
           <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-            <select value={status} onChange={(event) => { setPage(1); setStatus(event.target.value); }} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs text-slate-700">
-              <option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option>
-            </select>
+            <label className="group relative inline-flex min-w-[156px] items-center">
+              <Filter aria-hidden="true" size={15} className="pointer-events-none absolute left-3.5 z-10 text-[#08745D]" />
+              <CustomSelect
+                aria-label="Filter subscription plans by status"
+                value={status}
+                onChange={(event) => { setPage(1); setStatus(event.target.value); }}
+                className="min-h-10 w-full appearance-none rounded-xl border border-emerald-900/10 bg-gradient-to-br from-white to-emerald-50/70 pl-10 pr-10 text-sm font-semibold text-slate-700 shadow-sm outline-none transition hover:border-emerald-700/35 hover:shadow-md focus-visible:border-[#D4A017] focus-visible:ring-4 focus-visible:ring-amber-100"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </CustomSelect>
+            </label>
             <div className="flex overflow-hidden rounded-lg border border-slate-200">
               <button type="button" title="Table view" aria-label="Table view" onClick={() => setViewMode("table")} className={`inline-flex h-9 w-9 items-center justify-center ${viewMode === "table" ? "bg-slate-100 text-[#00796B]" : "text-slate-400"}`}>
                 <List size={16} />

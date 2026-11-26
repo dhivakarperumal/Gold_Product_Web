@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useState } from "react";
 import { FiArrowLeft, FiInfo, FiRotateCcw, FiSave, FiShield } from "react-icons/fi";
 import { Link } from "react-router-dom";
@@ -120,7 +121,7 @@ const TaxSettings = () => {
 
           <label className="block text-xs font-bold uppercase tracking-wide text-slate-500">
             Default GST rate
-            <select
+            <CustomSelect
               className="mt-2 block w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm font-medium normal-case text-slate-800 outline-none focus:border-[#008577] focus:ring-2 focus:ring-emerald-100"
               value={selectedRate}
               onChange={(event) => {
@@ -137,7 +138,7 @@ const TaxSettings = () => {
                 <option key={rate} value={rate}>{rate}%</option>
               ))}
               <option value="custom">Custom rate</option>
-            </select>
+            </CustomSelect>
             {selectedRate === "custom" && (
               <input
                 type="number"
@@ -155,7 +156,7 @@ const TaxSettings = () => {
 
           <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 md:col-span-2 md:max-w-[calc(50%-0.625rem)]">
             Tax calculation mode
-            <select
+            <CustomSelect
               className="mt-2 block w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm font-medium normal-case text-slate-800 outline-none focus:border-[#008577] focus:ring-2 focus:ring-emerald-100"
               value={settings.tax_mode}
               onChange={(event) => setSettings((current) => ({ ...current, tax_mode: event.target.value }))}
@@ -163,7 +164,7 @@ const TaxSettings = () => {
             >
               <option>Tax Exclusive</option>
               <option>Tax Inclusive</option>
-            </select>
+            </CustomSelect>
           </label>
         </div>
 

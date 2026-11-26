@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiCalendar, FiCamera, FiCheck, FiChevronDown, FiPrinter, FiSearch, FiUploadCloud, FiUserPlus } from "react-icons/fi";
@@ -204,9 +205,9 @@ function FormSelect({ label, name, form, onChange, options, required = false, di
   return (
     <label className={labelClass}>
       {label}{required && <span className="ml-1 text-rose-500">*</span>}
-      <select className={fieldClass} name={name} value={form[name] ?? ""} onChange={onChange} required={required} disabled={disabled}>
+      <CustomSelect className={fieldClass} name={name} value={form[name] ?? ""} onChange={onChange} required={required} disabled={disabled}>
         {selectOptions.map(([value, text, disabled]) => <option key={value} value={value} disabled={disabled}>{text}</option>)}
-      </select>
+      </CustomSelect>
       {help && <span className="mt-1 block text-[11px] font-normal text-slate-400">{help}</span>}
     </label>
   );

@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import api from "../../api";
@@ -429,14 +430,14 @@ const VideoManagement = () => {
 
                                 <label className="block space-y-2">
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2">Showcase Status</span>
-                                    <select
+                                    <CustomSelect
                                         value={currentVideo.active === false ? "inactive" : "active"}
                                         onChange={(event) => setCurrentVideo({ ...currentVideo, active: event.target.value === "active" })}
                                         className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#008577]"
                                     >
                                         <option value="active">Active — visible in showcase</option>
                                         <option value="inactive">Inactive — hidden from showcase</option>
-                                    </select>
+                                    </CustomSelect>
                                 </label>
 
                                 {/* Dynamic Input Based on Type */}

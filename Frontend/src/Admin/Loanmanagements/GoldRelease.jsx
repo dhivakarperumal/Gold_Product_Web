@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiCalendar, FiCheckCircle, FiDownload, FiEye, FiFileText, FiGrid, FiList, FiPrinter, FiSearch, FiShield, FiUpload, FiUsers, FiX } from "react-icons/fi";
@@ -400,13 +401,13 @@ export default function GoldRelease() {
               className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-3 pl-12 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:font-normal placeholder:text-slate-400 hover:border-slate-300 focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10" />
           </label>
           <div className="flex flex-wrap items-center justify-between gap-2 sm:ml-auto sm:justify-start sm:gap-3">
-            <select aria-label="Filter gold release records by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}
+            <CustomSelect aria-label="Filter gold release records by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}
               className="min-w-[180px] rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-600 outline-none transition hover:border-slate-300 focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10">
               <option value="All">All Status</option>
               {completionPage && <option value="Awaiting Gold Release">Awaiting Gold Release</option>}
               {completionPage && <option value="Completed">Completed</option>}
               {!completionPage && <option value="Awaiting Gold Release">Awaiting Gold Release</option>}
-            </select>
+            </CustomSelect>
             <div className="flex rounded-xl border border-slate-200 bg-slate-100/80 p-1">
               <button type="button" onClick={() => setViewMode("table")} aria-label="List view" aria-pressed={viewMode === "table"} className={`rounded-lg p-2.5 transition-all ${viewMode === "table" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiList size={17} /></button>
               <button type="button" onClick={() => setViewMode("card")} aria-label="Card view" aria-pressed={viewMode === "card"} className={`rounded-lg p-2.5 transition-all ${viewMode === "card" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiGrid size={17} /></button>

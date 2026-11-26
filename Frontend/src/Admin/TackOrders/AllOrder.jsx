@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiBox, FiCalendar, FiChevronRight, FiFileText, FiGrid, FiList, FiMapPin, FiPhone, FiPlus, FiSearch, FiUser, FiUsers } from "react-icons/fi";
@@ -292,7 +293,7 @@ export default function AllTackOrders() {
               showActiveRangeDetails={false}
               controlClassName="min-h-[52px] min-w-[170px] px-4"
             />
-            <select
+            <CustomSelect
               value={orderStatusFilter}
               onChange={(event) => setOrderStatusFilter(event.target.value)}
               aria-label="Filter tack orders by order status"
@@ -302,8 +303,8 @@ export default function AllTackOrders() {
               {ORDER_STATUS_FILTERS.map((status) => (
                 <option key={status} value={status}>{status}</option>
               ))}
-            </select>
-            <select
+            </CustomSelect>
+            <CustomSelect
               value={paymentFilter}
               onChange={(event) => setPaymentFilter(event.target.value)}
               aria-label="Filter tack orders by payment status"
@@ -313,7 +314,7 @@ export default function AllTackOrders() {
               <option value="PAID">Paid</option>
               <option value="PARTIAL">Partially Paid</option>
               <option value="UNPAID">Unpaid</option>
-            </select>
+            </CustomSelect>
             <div role="group" aria-label="Tack order view" className="flex h-[52px] items-center rounded-xl bg-slate-100 p-1">
               <button
                 type="button"
@@ -393,7 +394,7 @@ export default function AllTackOrders() {
                       <h2 className="mt-0.5 text-lg font-black text-slate-800">{order.order_no}</h2>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <select
+                      <CustomSelect
                         aria-label={`Order status for ${order.order_no}`}
                         value={orderStatus}
                         onChange={(event) => void updateOrderStatus(order.id, event.target.value)}
@@ -413,7 +414,7 @@ export default function AllTackOrders() {
                         <option value="Completed" disabled={orderStatus !== "Completed" && orderStatus !== "Bill Completed"}>
                           Completed (automatic)
                         </option>
-                      </select>
+                      </CustomSelect>
                       <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
                         paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                       }`}>

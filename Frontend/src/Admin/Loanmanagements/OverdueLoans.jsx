@@ -1,3 +1,4 @@
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiAlertCircle, FiCalendar, FiClock, FiCreditCard, FiEye, FiGrid, FiList, FiSearch, FiUsers } from "react-icons/fi";
@@ -128,7 +129,7 @@ export default function OverdueLoans() {
         </label>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <DateRangeFilter onApply={setDateRange} />
-          <select
+          <CustomSelect
             aria-label="Filter overdue loans by status"
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
@@ -137,7 +138,7 @@ export default function OverdueLoans() {
             <option value="All">Select Status</option>
             <option value="Active">Active</option>
             <option value="Suspended">Suspended</option>
-          </select>
+          </CustomSelect>
           <div className="flex self-start rounded-xl border border-slate-200 bg-slate-100/80 p-1 sm:self-auto">
             <button type="button" onClick={() => setViewMode("table")} aria-label="Table view" aria-pressed={viewMode === "table"} className={`rounded-lg p-2.5 transition-all ${viewMode === "table" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiList size={17} /></button>
             <button type="button" onClick={() => setViewMode("card")} aria-label="Card view" aria-pressed={viewMode === "card"} className={`rounded-lg p-2.5 transition-all ${viewMode === "card" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiGrid size={17} /></button>
