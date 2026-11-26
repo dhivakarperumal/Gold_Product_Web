@@ -624,7 +624,7 @@ export default function AddGoldShop({
             <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
           )}
 
-          <div className={registrationMode ? "overflow-hidden rounded-2xl border border-b-0 border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)] lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : "contents"}>
+          <div className={registrationMode ? "overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)] lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : "contents"}>
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
               {!registrationMode && <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>}
               <div className="grid gap-2 sm:grid-cols-2">
@@ -770,8 +770,8 @@ export default function AddGoldShop({
           </fieldset>
           </div>
 
-          <footer className={`flex shrink-0 justify-between gap-3 ${registrationMode ? "mt-6 border-t border-stone-200 px-1 pt-5 sm:px-2" : "border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6"}`}>
-            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-40 ${registrationMode ? "border border-emerald-600 text-emerald-950" : "border border-stone-300 text-stone-700"}`}>
+          <footer className={`flex shrink-0 justify-between gap-3 ${registrationMode ? "border-t border-stone-200 bg-white px-4 py-4 sm:px-6" : "border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6"}`}>
+            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-40 ${registrationMode ? "border border-emerald-600 bg-transparent text-emerald-950" : "border border-stone-300 text-stone-700"}`}>
               {registrationMode && <ArrowLeft size={16} />}
               Previous
             </button>
