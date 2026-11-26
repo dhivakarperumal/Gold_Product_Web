@@ -372,11 +372,15 @@ const CustomerViewProductDetail = () => {
                 </section>
             )}
 
-            <div className="grid items-start gap-5 xl:grid-cols-2">
-                <DetailSection title="Product information" fields={productFields} />
-                <DetailSection title="Price & availability" fields={pricingFields} />
-                <DetailSection title="Specifications" fields={specificationFields} />
-                <DetailSection title="Materials & care" fields={careFields} />
+            <div className="grid items-start gap-4 xl:grid-cols-2">
+                <div className="flex flex-col gap-4">
+                    <DetailSection title="Product information" fields={productFields} />
+                    <DetailSection title="Materials & care" fields={careFields} />
+                </div>
+                <div className="flex flex-col gap-4">
+                    <DetailSection title="Price & availability" fields={pricingFields} />
+                    <DetailSection title="Specifications" fields={specificationFields} />
+                </div>
             </div>
 
             {(documents.length > 0 || product.video) && (
