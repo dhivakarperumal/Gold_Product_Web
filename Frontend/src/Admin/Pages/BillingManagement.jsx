@@ -1,16 +1,14 @@
 import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FiArrowLeft, FiCalendar, FiChevronDown, FiChevronRight, FiCreditCard, FiDollarSign, FiEdit2, FiEye, FiGrid, FiImage, FiList, FiPlus, FiPrinter, FiRepeat, FiSave, FiSearch, FiTrash2, FiX } from "react-icons/fi";
+import { FiArrowLeft, FiBox, FiCalendar, FiCheckCircle, FiChevronDown, FiCreditCard, FiDollarSign, FiEdit2, FiEye, FiFileText, FiGrid, FiImage, FiList, FiPlus, FiPrinter, FiRepeat, FiSave, FiSearch, FiTrash2, FiUser, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
-import { Link } from "react-router-dom";
 import api from "../../api";
 import DateRangeFilter from "../Components/DateRangeFilter";
 import useGoldRates from "../../PrivateRouter/useGoldRates";
 import { getReceiptSettings } from "./receiptSettings";
-import { formatCurrency as currency } from "../../utils/currency";
+import { formatCompactCurrency as compactCurrency, formatCurrency as currency } from "../../utils/currency";
 import { resolveBackendImageUrl } from "../../Components/Home/productDisplay";
-import { DEFAULT_TAX_SETTINGS, getTaxSettings } from "./taxSettings";
 
 const EMPTY_CUSTOMER = { name: "", phone: "", email: "", address: "" };
 const PAYMENT_METHOD_OPTIONS = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"];
@@ -496,14 +494,10 @@ export default function BillingManagement() {
   const [customers, setCustomers] = useState(() => tackOrderPrefill?.customers || [{ ...EMPTY_CUSTOMER }]);
   const [products, setProducts] = useState(() => tackOrderPrefill?.products || []);
   const [productToAdd, setProductToAdd] = useState({ ...EMPTY_PRODUCT });
-  const [taxSettings, setTaxSettings] = useState({ ...DEFAULT_TAX_SETTINGS });
-  const [tackOrderTaxSettings] = useState(() => tackOrderPrefill ? {
-    gst_enabled: tackOrderPrefill.gstEnabled,
-    gst_rate: tackOrderPrefill.gstRate,
-    gst_amount: tackOrderPrefill.gstAmount,
-    tax_mode: "Tax Exclusive"
-  } : null);
-  const [taxSettingsLoading, setTaxSettingsLoading] = useState(true);
+  const [gstRateInput, setGstRateInput] = useState(() => (
+    tackOrderPrefill?.gstEnabled ? String(tackOrderPrefill.gstRate) : "0"
+  ));
+  const [taxMode, setTaxMode] = useState("Tax Exclusive");
   const [discountInput, setDiscountInput] = useState(tackOrderPrefill?.discount || "");
   const [exchanges, setExchanges] = useState([]);
   const [paymentType, setPaymentType] = useState("FULL_PAYMENT");
@@ -597,21 +591,6 @@ export default function BillingManagement() {
   }, [location.pathname, location.state, navigate]);
   useEffect(() => {
     let active = true;
-    getTaxSettings()
-      .then((savedSettings) => {
-        if (active) setTaxSettings(savedSettings);
-      })
-      .catch((error) => {
-        console.error("Failed to load billing tax settings:", error);
-        toast.error(error.response?.data?.message || "Could not load billing tax settings.");
-      })
-      .finally(() => {
-        if (active) setTaxSettingsLoading(false);
-      });
-    return () => { active = false; };
-  }, []);
-  useEffect(() => {
-    let active = true;
     api.get("/categories")
       .then((response) => {
         if (!Array.isArray(response.data)) throw new Error("The server returned an invalid category list.");
@@ -652,20 +631,17 @@ export default function BillingManagement() {
     && discountAmount >= 0
     && discountAmount <= subtotal
     && discountAmount + exchangeCredit <= subtotal;
-  const activeTaxSettings = tackOrderSourceId && tackOrderTaxSettings ? tackOrderTaxSettings : taxSettings;
-  const gstRate = activeTaxSettings.gst_enabled ? Number(activeTaxSettings.gst_rate) : 0;
-  const validGst = (!taxSettingsLoading || Boolean(tackOrderSourceId && tackOrderTaxSettings))
-    && Number.isFinite(gstRate) && gstRate >= 0 && gstRate <= 100;
+  const parsedGstRate = gstRateInput.trim() === "" ? NaN : Number(gstRateInput);
+  const gstRate = Number.isFinite(parsedGstRate) ? parsedGstRate : 0;
+  const validGst = Number.isFinite(parsedGstRate) && gstRate >= 0 && gstRate <= 100;
   const taxableSubtotal = Math.max(0, subtotal - discountAmount - exchangeCredit);
   const calculatedGst = validGst && validDiscount && gstRate > 0
-    ? activeTaxSettings.tax_mode === "Tax Inclusive"
+    ? taxMode === "Tax Inclusive"
       ? Math.round((taxableSubtotal * gstRate / (100 + gstRate)) * 100) / 100
       : Math.round(taxableSubtotal * gstRate) / 100
     : 0;
-  const gst = tackOrderSourceId && tackOrderTaxSettings
-    ? tackOrderTaxSettings.gst_amount
-    : calculatedGst;
-  const total = activeTaxSettings.tax_mode === "Tax Inclusive"
+  const gst = calculatedGst;
+  const total = taxMode === "Tax Inclusive"
     ? taxableSubtotal
     : Math.round((taxableSubtotal + gst) * 100) / 100;
   const totalBilled = bills.reduce((sum, bill) => sum + (Number(bill.total_amount) || 0), 0);
@@ -902,6 +878,8 @@ export default function BillingManagement() {
     setProducts([]);
     setProductToAdd({ ...EMPTY_PRODUCT });
     setDiscountInput("");
+    setGstRateInput("0");
+    setTaxMode("Tax Exclusive");
     setExchanges([]);
     setPaymentType("FULL_PAYMENT");
   };
@@ -932,6 +910,8 @@ export default function BillingManagement() {
     })));
     setPaymentType(bill.payment_type);
     setDiscountInput(Number(bill.discount_amount) ? String(bill.discount_amount) : "");
+    setGstRateInput(String(Number(bill.gst_rate) || 0));
+    setTaxMode(bill.tax_mode === "Tax Inclusive" ? "Tax Inclusive" : "Tax Exclusive");
     setShowForm(true);
   };
 
@@ -1100,7 +1080,9 @@ export default function BillingManagement() {
           }))
           : [],
         payment_type: paymentType,
-        discount_amount: discountAmount
+        discount_amount: discountAmount,
+        gst_rate: gstRate,
+        tax_mode: taxMode
       };
       if (editingBillId) {
         await api.put(`/billings/${editingBillId}`, billingPayload);
@@ -1108,10 +1090,10 @@ export default function BillingManagement() {
       } else {
         const { data } = await api.post("/billings", billingPayload);
         toast.success(data.already_exists
-          ? Number(data.balance_due) <= 0
-            ? "This tack order already has a fully paid bill; it is marked Bill Completed."
-            : `This tack order already has a bill with ${currency(data.balance_due)} due; it remains Pending.`
-          : "Bill saved.");
+          ? "This tack order already has a bill and is marked Completed."
+          : tackOrderSourceId
+            ? "Bill saved. Tack order marked Completed."
+            : "Bill saved.");
       }
       resetForm();
       setShowForm(false);
@@ -1125,58 +1107,81 @@ export default function BillingManagement() {
   };
 
   return (
-    <main className="min-h-screen space-y-5 bg-[#F4F7F6] py-1 text-slate-800">
+    <main className="min-h-screen space-y-5 bg-slate-50/70 py-1 text-slate-800">
       {!showForm ? (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Billing totals">
+          <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#063f36] via-[#075348] to-[#0b6b5b] px-5 py-5 text-white shadow-[0_14px_32px_rgba(6,63,54,0.18)] sm:px-7">
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-emerald-200">Payments &amp; invoices</p>
+              <h1 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">Billing overview</h1>
+              <p className="mt-1 text-xs text-white/70 sm:text-sm">Review invoices, track collections, and manage customer payments.</p>
+            </div>
+            <button type="button" onClick={() => setShowForm(true)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-[#075348] shadow-sm transition hover:bg-emerald-50">
+              <FiPlus size={18} /> New bill
+            </button>
+          </header>
+
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Billing totals">
             {[
-              { label: "Total Amount", value: totalBilled, trend: `${bills.length} bill${bills.length === 1 ? "" : "s"} recorded`, icon: <FiDollarSign />, color: "green" },
-              { label: "Today's Amount", value: todayBilled, trend: "Today's billing total", icon: <FiCalendar />, color: "blue" },
-              { label: "Exchange Amount", value: totalExchangeAmount, trend: "Exchange items total", icon: <FiRepeat />, color: "amber" },
-              { label: "Full Payment Amount", value: fullPaymentAmount, trend: "Full payment bills", icon: <FiCreditCard />, color: "red" }
+              {
+                label: "Total billed",
+                value: totalBilled,
+                detail: `${bills.length} invoice${bills.length === 1 ? "" : "s"} recorded`,
+                icon: <FiDollarSign aria-hidden="true" />,
+                accentStyle: "border-emerald-100 border-t-4 border-t-emerald-500 bg-gradient-to-br from-white to-emerald-50",
+                iconStyle: "bg-emerald-700 text-white shadow-lg shadow-emerald-900/15",
+                detailStyle: "text-emerald-700"
+              },
+              {
+                label: "Today's billing",
+                value: todayBilled,
+                detail: "Invoices created today",
+                icon: <FiCalendar aria-hidden="true" />,
+                accentStyle: "border-sky-100 border-t-4 border-t-sky-500 bg-gradient-to-br from-white to-sky-50",
+                iconStyle: "bg-sky-700 text-white shadow-lg shadow-sky-900/15",
+                detailStyle: "text-sky-700"
+              },
+              {
+                label: "Exchange credit",
+                value: totalExchangeAmount,
+                detail: "Gold exchange value",
+                icon: <FiRepeat aria-hidden="true" />,
+                accentStyle: "border-amber-100 border-t-4 border-t-amber-500 bg-gradient-to-br from-white to-amber-50",
+                iconStyle: "bg-amber-500 text-white shadow-lg shadow-amber-900/15",
+                detailStyle: "text-amber-700"
+              },
+              {
+                label: "Full payment collected",
+                value: fullPaymentAmount,
+                detail: "From full-payment invoices",
+                icon: <FiCreditCard aria-hidden="true" />,
+                accentStyle: "border-rose-100 border-t-4 border-t-rose-500 bg-gradient-to-br from-white to-rose-50",
+                iconStyle: "bg-rose-600 text-white shadow-lg shadow-rose-900/15",
+                detailStyle: "text-rose-700"
+              }
             ].map((card) => (
               <article
                 key={card.label}
-                className={`relative flex h-[160px] min-w-0 items-center gap-3 overflow-hidden rounded-xl border-y border-r border-l-4 p-3 shadow-[0_3px_12px_rgba(30,41,59,0.1)] transition-all hover:-translate-y-0.5 hover:shadow-md ${
-                  card.color === "green" ? "border-l-emerald-500 border-y-emerald-900/20 border-r-emerald-900/20 bg-[#123f35]" :
-                  card.color === "blue" ? "border-l-sky-500 border-y-sky-900/20 border-r-sky-900/20 bg-[#173750]" :
-                  card.color === "amber" ? "border-l-amber-500 border-y-amber-900/20 border-r-amber-900/20 bg-[#40351c]" :
-                  "border-l-rose-500 border-y-rose-900/20 border-r-rose-900/20 bg-[#4a2a22]"
-                }`}
+                className={`flex min-h-[148px] min-w-0 items-center justify-between gap-4 rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.accentStyle}`}
               >
-                <div className={`z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl text-white shadow-md ${
-                  card.color === "green" ? "bg-emerald-700" :
-                  card.color === "blue" ? "bg-cyan-700" :
-                  card.color === "amber" ? "bg-amber-500" : "bg-rose-700"
-                }`}>
-                  {card.icon}
-                </div>
-                <div className="relative z-10 min-w-0 self-center">
-                  <h2 className="truncate text-[11px] font-semibold text-slate-200">{card.label}</h2>
-                  <p className="mt-1 truncate text-[19px] font-black leading-tight tracking-tight text-white">{currency(card.value)}</p>
-                  <div className="mt-2 flex items-center gap-1 text-[11px] font-extrabold text-emerald-300">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-                    <span className="truncate">{card.trend}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">{card.label}</p>
+                  <p className="mt-2 truncate text-2xl font-black leading-tight text-slate-950" title={loading ? undefined : currency(card.value)}>
+                    {loading ? "—" : compactCurrency(card.value)}
+                  </p>
+                  <div className={`mt-3 flex min-w-0 items-center gap-2 text-xs font-bold ${card.detailStyle}`}>
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-current" />
+                    <span className="truncate">{loading ? "Loading billing totals" : card.detail}</span>
                   </div>
-                  <p className="mt-0.5 text-[9px] font-medium text-slate-300">Based on saved bills</p>
                 </div>
-                <span aria-hidden="true" className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full border border-black/5 bg-white/65 text-[10px] text-slate-700">
-                  <FiChevronRight />
+                <span className={`flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl text-2xl ${card.iconStyle}`}>
+                  {card.icon}
                 </span>
-                <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-7 items-end gap-[3px] ${
-                  card.color === "green" ? "text-emerald-300" :
-                  card.color === "blue" ? "text-sky-300" :
-                  card.color === "amber" ? "text-amber-300" : "text-rose-300"
-                }`}>
-                  {[11, 17, 13, 23].map((height, index) => (
-                    <span key={index} className="w-[4px] rounded-t-sm bg-current" style={{ height: `${height}px` }} />
-                  ))}
-                </div>
               </article>
             ))}
           </section>
           <section aria-label="Search and filter bills" className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-            <label className="relative min-w-[220px] flex-1 sm:max-w-[480px]">
+            <div className="relative min-w-[220px] flex-1 sm:max-w-[480px]">
               <FiSearch aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="search"
@@ -1184,9 +1189,14 @@ export default function BillingManagement() {
                 onChange={(event) => setBillSearch(event.target.value)}
                 placeholder="Search bills by invoice, customer, phone..."
                 aria-label="Search bills"
-                className="h-[52px] w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-11 pr-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-[#00695C] focus:ring-2 focus:ring-emerald-100"
+                className="h-[52px] w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-11 pr-11 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-[#00695C] focus:ring-2 focus:ring-emerald-100"
               />
-            </label>
+              {billSearch && (
+                <button type="button" onClick={() => setBillSearch("")} aria-label="Clear bill search" className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700">
+                  <FiX size={16} />
+                </button>
+              )}
+            </div>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
               <DateRangeFilter onApply={setDateRange} controlClassName="h-[52px] min-w-[190px] px-4" />
               <CustomSelect
@@ -1219,48 +1229,79 @@ export default function BillingManagement() {
                   <FiGrid size={18} />
                 </button>
               </div>
-              <button type="button" onClick={() => setShowForm(true)} className="inline-flex h-[52px] items-center gap-2 rounded-xl bg-[#004D40] px-5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(0,77,64,0.2)] transition hover:bg-[#00695C]">
-                <FiPlus size={18} /> New Bill
-              </button>
             </div>
           </section>
-          <section className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div>
+                <h2 className="text-sm font-extrabold text-slate-800">Recent invoices</h2>
+                <p className="mt-0.5 text-xs text-slate-500">{loading ? "Loading bills..." : `${visibleBills.length} invoice${visibleBills.length === 1 ? "" : "s"} found`}</p>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
+                {visibleBills.length} {visibleBills.length === 1 ? "record" : "records"}
+              </span>
+            </header>
             {billView === "list" ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1100px] text-left">
-                <thead className="bg-[#00695C] text-xs uppercase tracking-wide text-white">
+                <thead className="bg-gradient-to-r from-[#07564B] via-[#064A41] to-[#043D37] text-[10px] uppercase tracking-[0.12em] text-white">
                   <tr>
-                    <th className="px-4 py-4">S.No.</th>
-                    <th className="px-4 py-4">Invoice</th>
-                    <th className="px-4 py-4">Customer(s)</th>
-                    <th className="px-4 py-4">Items</th>
-                    <th className="px-4 py-4">Payment</th>
-                    <th className="px-4 py-4">Date</th>
-                    <th className="px-4 py-4 text-right">Total</th>
-                    <th className="px-4 py-4 text-right">Paid / Due</th>
-                    <th className="px-4 py-4 text-right">Actions</th>
+                    <th className="px-4 py-4 font-extrabold">S.No.</th>
+                    <th className="px-4 py-4 font-extrabold">Invoice</th>
+                    <th className="px-4 py-4 font-extrabold">Customer(s)</th>
+                    <th className="px-4 py-4 font-extrabold">Items</th>
+                    <th className="px-4 py-4 font-extrabold">Type</th>
+                    <th className="px-4 py-4 font-extrabold">Date</th>
+                    <th className="px-4 py-4 text-right font-extrabold">Total</th>
+                    <th className="px-4 py-4 text-right font-extrabold">Paid / Due</th>
+                    <th className="px-4 py-4 text-right font-extrabold">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
-                    <tr><td colSpan="9" className="px-4 py-12 text-center text-sm text-slate-500">Loading bills...</td></tr>
+                    Array.from({ length: 5 }, (_, index) => (
+                      <tr key={`bill-loading-${index}`} aria-hidden="true">
+                        {Array.from({ length: 9 }, (_, cellIndex) => (
+                          <td key={cellIndex} className="px-4 py-5"><div className="h-4 animate-pulse rounded bg-slate-100" /></td>
+                        ))}
+                      </tr>
+                    ))
                   ) : visibleBills.length === 0 ? (
-                    <tr><td colSpan="9" className="px-4 py-12 text-center text-sm text-slate-500">{bills.length === 0 ? "No bills yet. Create your first bill." : "No bills match your search or payment filter."}</td></tr>
+                    <tr><td colSpan="9" className="px-4 py-16 text-center">
+                      <div className="mx-auto flex max-w-sm flex-col items-center">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><FiFileText size={22} aria-hidden="true" /></span>
+                        <p className="mt-3 text-sm font-bold text-slate-800">{bills.length === 0 ? "No bills yet" : "No matching bills"}</p>
+                        <p className="mt-1 text-xs text-slate-500">{bills.length === 0 ? "Create your first invoice to see it here." : "Try another search or payment type."}</p>
+                      </div>
+                    </td></tr>
                   ) : visibleBills.map((bill, index) => {
                     const billCustomers = decodeArray(bill.customers);
                     const billProducts = decodeArray(bill.products);
                     return (
-                      <tr key={bill.id} className="text-sm">
-                        <td className="px-4 py-4 text-slate-500">{index + 1}</td>
-                        <td className="px-4 py-4 font-bold text-[#00695C]">{bill.invoice_no}</td>
-                        <td className="px-4 py-4 text-slate-700">{billCustomers.map((customer) => customer.name).join(", ")}</td>
-                        <td className="px-4 py-4 text-slate-600">{billProducts.length} item{billProducts.length === 1 ? "" : "s"}</td>
-                        <td className="px-4 py-4 text-slate-600">{bill.payment_type === "EXCHANGE_GOLD" ? "Exchange Gold" : "Full Payment"}</td>
-                        <td className="px-4 py-4 text-slate-500">{bill.created_at ? new Date(bill.created_at).toLocaleDateString("en-IN") : "—"}</td>
-                        <td className="px-4 py-4 text-right font-bold text-slate-900">{currency(bill.total_amount)}</td>
-                        <td className="px-4 py-4 text-right"><span className="block font-semibold text-emerald-700">{currency(bill.paid_amount)}</span><span className="mt-1 block text-xs text-slate-500">Due {currency(bill.balance_due)}</span></td>
+                      <tr key={bill.id} className="group text-sm transition-colors hover:bg-emerald-50/40">
+                        <td className="px-4 py-4 text-xs font-semibold text-slate-400">{index + 1}</td>
                         <td className="px-4 py-4">
-                          <div className="flex justify-end gap-1">
+                          <p className="font-bold text-[#00695C]">{bill.invoice_no}</p>
+                          {bill.source_tack_order_id && <span className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Tack order</span>}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">
+                          <p className="font-semibold">{billCustomers.map((customer) => customer.name).join(", ") || "—"}</p>
+                          {billCustomers[0]?.phone && <p className="mt-0.5 text-xs text-slate-400">{billCustomers[0].phone}</p>}
+                        </td>
+                        <td className="px-4 py-4 text-slate-600">{billProducts.length} item{billProducts.length === 1 ? "" : "s"}</td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${bill.payment_type === "EXCHANGE_GOLD" ? "bg-amber-50 text-amber-700" : "bg-sky-50 text-sky-700"}`}>
+                            {bill.payment_type === "EXCHANGE_GOLD" ? "Exchange Gold" : "Full Payment"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-xs text-slate-500">{bill.created_at ? new Date(bill.created_at).toLocaleDateString("en-IN") : "—"}</td>
+                        <td className="px-4 py-4 text-right font-extrabold text-slate-900">{currency(bill.total_amount)}</td>
+                        <td className="px-4 py-4 text-right">
+                          <span className="block font-bold text-emerald-700">{currency(bill.paid_amount)}</span>
+                          <span className={`mt-1 block text-xs font-medium ${Number(bill.balance_due) > 0 ? "text-rose-600" : "text-slate-400"}`}>Due {currency(bill.balance_due)}</span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex justify-end gap-0.5">
                             {Number(bill.balance_due) > 0 && <button type="button" onClick={() => openBillPayment(bill)} className="rounded-md px-2 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50" aria-label={`Collect payment for ${bill.invoice_no}`} title="Collect payment">Collect</button>}
                             {Number(bill.paid_amount) > 0 && <button type="button" onClick={() => openBillPayment(bill, "REFUND")} className="rounded-md px-2 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50" aria-label={`Refund bill ${bill.invoice_no}`} title="Refund">Refund</button>}
                             <button type="button" onClick={() => setViewingBill(bill)} className="rounded-md p-2 text-sky-700 hover:bg-sky-50" aria-label={`View bill ${bill.invoice_no}`} title="View"><FiEye /></button>
@@ -1278,36 +1319,62 @@ export default function BillingManagement() {
             ) : (
               <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
                 {loading ? (
-                  <p className="col-span-full py-10 text-center text-sm text-slate-500">Loading bills...</p>
+                  [1, 2, 3].map((item) => <div key={item} aria-hidden="true" className="h-56 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />)
                 ) : visibleBills.length === 0 ? (
-                  <p className="col-span-full py-10 text-center text-sm text-slate-500">{bills.length === 0 ? "No bills yet. Create your first bill." : "No bills match your search or payment filter."}</p>
+                  <div className="col-span-full rounded-2xl border border-dashed border-slate-200 px-6 py-14 text-center">
+                    <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><FiFileText size={22} aria-hidden="true" /></span>
+                    <p className="mt-3 text-sm font-bold text-slate-800">{bills.length === 0 ? "No bills yet" : "No matching bills"}</p>
+                    <p className="mt-1 text-xs text-slate-500">{bills.length === 0 ? "Create your first invoice to see it here." : "Try another search or payment type."}</p>
+                  </div>
                 ) : visibleBills.map((bill, index) => {
                   const billCustomers = decodeArray(bill.customers);
                   const billProducts = decodeArray(bill.products);
                   return (
-                    <article key={bill.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                      <div className="flex items-start justify-between gap-3">
+                    <article key={bill.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                      <header className="flex items-start justify-between gap-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-amber-50 p-4">
                         <div className="min-w-0">
-                          <p className="text-xs font-medium text-slate-400">Bill #{index + 1}</p>
-                          <h2 className="mt-1 truncate font-bold text-[#00695C]">{bill.invoice_no}</h2>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Invoice #{index + 1}</p>
+                          <h2 className="mt-1 truncate text-sm font-black text-slate-800" title={bill.invoice_no}>{bill.invoice_no}</h2>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${bill.payment_type === "EXCHANGE_GOLD" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${bill.payment_type === "EXCHANGE_GOLD" ? "bg-amber-100 text-amber-800" : "bg-sky-100 text-sky-800"}`}>
                           {bill.payment_type === "EXCHANGE_GOLD" ? "Exchange Gold" : "Full Payment"}
                         </span>
-                      </div>
-                      <div className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-sm">
-                        <p className="truncate text-slate-700">{billCustomers.map((customer) => customer.name).join(", ") || "No customer name"}</p>
-                        <p className="text-slate-500">{billProducts.length} item{billProducts.length === 1 ? "" : "s"} · {bill.created_at ? new Date(bill.created_at).toLocaleDateString("en-IN") : "—"}</p>
-                        <p className="text-lg font-extrabold text-slate-900">{currency(bill.total_amount)}</p>
-                        <p className="text-xs text-slate-600">Paid {currency(bill.paid_amount)} · Due {currency(bill.balance_due)}</p>
-                      </div>
-                      <div className="mt-3 flex justify-end gap-1 border-t border-slate-100 pt-2">
-                        {Number(bill.balance_due) > 0 && <button type="button" onClick={() => openBillPayment(bill)} className="rounded-md px-2 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50">Collect</button>}
-                        {Number(bill.paid_amount) > 0 && <button type="button" onClick={() => openBillPayment(bill, "REFUND")} className="rounded-md px-2 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50">Refund</button>}
-                        <button type="button" onClick={() => setViewingBill(bill)} className="rounded-md p-2 text-sky-700 hover:bg-sky-50" aria-label={`View bill ${bill.invoice_no}`} title="View"><FiEye /></button>
-                        <button type="button" onClick={() => printBill(bill)} className="rounded-md p-2 text-[#00695C] hover:bg-emerald-50" aria-label={`Print bill ${bill.invoice_no}`} title="Print"><FiPrinter /></button>
-                        {Number(bill.paid_amount) === 0 && <button type="button" onClick={() => editBill(bill)} className="rounded-md p-2 text-amber-700 hover:bg-amber-50" aria-label={`Edit bill ${bill.invoice_no}`} title="Edit"><FiEdit2 /></button>}
-                        <button type="button" onClick={() => deleteBill(bill)} disabled={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0} className="rounded-md p-2 text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40" aria-label={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0 ? `Cannot delete ${bill.invoice_no}; payment history exists` : `Delete bill ${bill.invoice_no}`} title={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0 ? "Payment history is preserved; this bill cannot be deleted" : "Delete"}><FiTrash2 /></button>
+                      </header>
+                      <div className="space-y-4 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Customer</p>
+                            <p className="mt-1 truncate text-sm font-bold text-slate-800">{billCustomers.map((customer) => customer.name).join(", ") || "No customer name"}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total</p>
+                            <p className="mt-1 text-lg font-black text-slate-900">{currency(bill.total_amount)}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3">
+                          <div>
+                            <p className="text-[10px] font-semibold text-slate-400">Items</p>
+                            <p className="mt-1 text-xs font-bold text-slate-700">{billProducts.length} item{billProducts.length === 1 ? "" : "s"}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold text-slate-400">Date</p>
+                            <p className="mt-1 text-xs font-bold text-slate-700">{bill.created_at ? new Date(bill.created_at).toLocaleDateString("en-IN") : "—"}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0 text-xs">
+                            <p className="font-bold text-emerald-700">Paid {currency(bill.paid_amount)}</p>
+                            <p className={`mt-1 font-semibold ${Number(bill.balance_due) > 0 ? "text-rose-600" : "text-slate-400"}`}>Due {currency(bill.balance_due)}</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1 border-l border-slate-100 pl-2">
+                            {Number(bill.balance_due) > 0 && <button type="button" onClick={() => openBillPayment(bill)} className="rounded-lg px-2 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50" aria-label={`Collect payment for ${bill.invoice_no}`} title="Collect payment">Collect</button>}
+                            {Number(bill.paid_amount) > 0 && <button type="button" onClick={() => openBillPayment(bill, "REFUND")} className="rounded-lg px-2 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-50" aria-label={`Refund bill ${bill.invoice_no}`} title="Refund">Refund</button>}
+                            <button type="button" onClick={() => setViewingBill(bill)} className="rounded-lg p-2 text-sky-700 transition hover:bg-sky-50" aria-label={`View bill ${bill.invoice_no}`} title="View"><FiEye /></button>
+                            <button type="button" onClick={() => printBill(bill)} className="rounded-lg p-2 text-[#00695C] transition hover:bg-emerald-50" aria-label={`Print bill ${bill.invoice_no}`} title="Print"><FiPrinter /></button>
+                            {Number(bill.paid_amount) === 0 && <button type="button" onClick={() => editBill(bill)} className="rounded-lg p-2 text-amber-700 transition hover:bg-amber-50" aria-label={`Edit bill ${bill.invoice_no}`} title="Edit"><FiEdit2 /></button>}
+                            <button type="button" onClick={() => deleteBill(bill)} disabled={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0} className="rounded-lg p-2 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40" aria-label={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0 ? `Cannot delete ${bill.invoice_no}; payment history exists` : `Delete bill ${bill.invoice_no}`} title={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0 ? "Payment history is preserved; this bill cannot be deleted" : "Delete"}><FiTrash2 /></button>
+                          </div>
+                        </div>
                       </div>
                     </article>
                   );
@@ -1318,27 +1385,45 @@ export default function BillingManagement() {
         </>
       ) : (
         <form onSubmit={saveBill} className="space-y-5">
-          <header className="flex items-center gap-3">
-            <button type="button" onClick={() => { setShowForm(false); resetForm(); }} className="rounded-lg border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50" aria-label="Back to bills"><FiArrowLeft /></button>
-            <div>
-              <p className="text-xs font-medium text-slate-500">Admin / Billing / New Bill</p>
-              <h1 className="mt-1 text-2xl font-extrabold text-slate-900">{editingBillId ? "Edit Bill" : "New Bill"}</h1>
+          <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#063f36] via-[#075348] to-[#0b6b5b] px-5 py-5 text-white shadow-[0_14px_32px_rgba(6,63,54,0.18)] sm:px-7">
+            <div className="flex min-w-0 items-center gap-4">
+              <button type="button" onClick={() => { setShowForm(false); resetForm(); }} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition hover:bg-white/20" aria-label="Back to bills"><FiArrowLeft size={19} /></button>
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-emerald-200">Billing workspace</p>
+                <h1 className="mt-1 truncate text-xl font-black tracking-tight sm:text-2xl">{editingBillId ? "Edit bill" : "Create a new bill"}</h1>
+                <p className="mt-1 text-xs text-white/70 sm:text-sm">Add customer and product details, then review the invoice total.</p>
+              </div>
             </div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white">
+              <FiFileText aria-hidden="true" />
+              {tackOrderSourceId ? `Tack order ${tackOrderSourceNo}` : editingBillId ? "Editing invoice" : "New invoice"}
+            </span>
           </header>
           {tackOrderSourceId && (
-            <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-              Prefilled from Tack Order {tackOrderSourceNo}. Review the details before saving.
-              {Number(tackOrderAdvanceAmount) > 0 && ` Its ${currency(tackOrderAdvanceAmount)} advance will be recorded as a payment, using Other unless you choose another method.`}
-            </p>
+            <div role="status" className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white px-4 py-4 text-sm text-emerald-900 shadow-sm">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white"><FiCheckCircle aria-hidden="true" /></span>
+              <div>
+                <p className="font-bold">Prefilled from Tack Order {tackOrderSourceNo}</p>
+                <p className="mt-1 text-xs leading-relaxed text-emerald-800">
+                  Review the details before saving.
+                  {Number(tackOrderAdvanceAmount) > 0 && ` Its ${currency(tackOrderAdvanceAmount)} advance will be recorded as a payment.`}
+                </p>
+              </div>
+            </div>
           )}
 
           <div className="grid items-start gap-5 lg:grid-cols-2">
-            <section className="space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div><h2 className="font-bold text-slate-900">Customer Details</h2><p className="text-xs text-slate-500">Add everyone associated with this invoice.</p></div>
+            <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800"><FiUser size={20} aria-hidden="true" /></span>
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-emerald-700">Step 1 · Customer</p>
+                  <h2 className="mt-0.5 text-base font-extrabold text-slate-900">Customer details</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">Add everyone associated with this invoice.</p>
+                </div>
               </div>
               {customers.map((customer, index) => (
-                <div key={`customer-${index}`} className="space-y-3 rounded-lg border border-slate-100 p-4">
+                <div key={`customer-${index}`} className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
                   {customers.length > 1 && <div className="flex justify-end"><button type="button" onClick={() => setCustomers((rows) => rows.filter((_, rowIndex) => rowIndex !== index))} className="text-rose-500" aria-label={`Remove customer ${index + 1}`}><FiTrash2 /></button></div>}
                   <div className="grid gap-3 md:grid-cols-2">
                     <TextField label="Customer Name" value={customer.name} onChange={(value) => updateRow(setCustomers, customers, index, "name", value)} required placeholder="Enter customer name" />
@@ -1361,10 +1446,14 @@ export default function BillingManagement() {
             </section>
 
             <div className="space-y-4">
-              {!tackOrderSourceId && <section className="flex min-h-[300px] flex-col space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div>
-                  <h2 className="font-bold text-slate-900">Add Product</h2>
-                  <p className="text-xs text-slate-500">Choose a catalog product, then add it to this bill.</p>
+              {!tackOrderSourceId && <section className="flex min-h-[300px] flex-col space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-800"><FiPlus size={20} aria-hidden="true" /></span>
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-sky-700">Step 2 · Products</p>
+                    <h2 className="mt-0.5 text-base font-extrabold text-slate-900">Add a product</h2>
+                    <p className="mt-0.5 text-xs text-slate-500">Choose a catalog product, then add it to this bill.</p>
+                  </div>
                 </div>
                 <CatalogProductFields
                   product={productToAdd}
@@ -1383,13 +1472,24 @@ export default function BillingManagement() {
             </div>
           </div>
 
-          <section className="w-full space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div>
-              <h2 className="font-bold text-slate-900">Products in Bill</h2>
-              <p className="text-xs text-slate-500">{tackOrderSourceId ? "Product quantities and weights are taken from the saved tack order." : "Products you add will appear in this table."}</p>
+          <section className="w-full space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-800"><FiBox size={20} aria-hidden="true" /></span>
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-violet-700">Invoice items</p>
+                  <h2 className="mt-0.5 text-base font-extrabold text-slate-900">Products in bill</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">{tackOrderSourceId ? "Product quantities and weights are taken from the saved tack order." : "Products you add will appear in this table."}</p>
+                </div>
+              </div>
+              <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{products.length} {products.length === 1 ? "item" : "items"}</span>
             </div>
             {products.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No products have been added to this bill.</p>
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-8 text-center">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm"><FiBox size={21} aria-hidden="true" /></span>
+                <p className="mt-3 text-sm font-bold text-slate-700">Your bill is waiting for products</p>
+                <p className="mt-1 text-xs text-slate-500">{tackOrderSourceId ? "No products were found in the linked Tack Order." : "Select a catalog product above to get started."}</p>
+              </div>
             ) : (
               <div className="w-full overflow-x-auto rounded-lg border border-slate-200">
                 <table className="w-full min-w-[980px] border-collapse text-left">
@@ -1412,7 +1512,7 @@ export default function BillingManagement() {
                       const product = getProductWithCatalogDetails(savedProduct);
                       const productImage = getProductImage(product);
                       return (
-                      <tr key={`${product.product_id}-${index}`}>
+                      <tr key={`${product.product_id}-${index}`} className="transition-colors hover:bg-emerald-50/40">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-slate-300">
@@ -1449,8 +1549,16 @@ export default function BillingManagement() {
             )}
           </section>
 
-          <section className="space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div><h2 className="font-bold text-slate-900">Payment Method</h2><p className="text-xs text-slate-500">GST is calculated using the rate entered below.</p></div>
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
+          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800"><FiCreditCard size={20} aria-hidden="true" /></span>
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-amber-700">Step 3 · Payment</p>
+                <h2 className="mt-0.5 text-base font-extrabold text-slate-900">Payment method</h2>
+                <p className="mt-0.5 text-xs text-slate-500">Choose how this invoice is settled. GST is set in the bill summary.</p>
+              </div>
+            </div>
             {tackOrderSourceId && Number(tackOrderAdvanceAmount) > 0 && (
               <label className={labelClass}>
                 Tack Order Advance Payment Method
@@ -1464,21 +1572,28 @@ export default function BillingManagement() {
                 <span className="mt-1 block text-xs font-normal text-slate-500">The Tack Order doesn’t store a payment method, so this defaults to Other.</span>
               </label>
             )}
-            <div className="flex flex-wrap gap-3">
-              {[["FULL_PAYMENT", "Full Payment"], ["EXCHANGE_GOLD", "Exchange Gold"]].map(([value, label]) => (
-                <label key={value} className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold ${paymentType === value ? "border-[#008577] bg-emerald-50 text-[#00695C]" : "border-slate-200 text-slate-600"}`}>
-                  <input type="radio" name="payment_type" value={value} checked={paymentType === value} onChange={() => setPaymentType(value)} className="accent-[#008577]" />{label}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[["FULL_PAYMENT", "Full payment", "Record payment without gold exchange."], ["EXCHANGE_GOLD", "Exchange gold", "Apply gold exchange credit to the bill."]].map(([value, label, description]) => (
+                <label key={value} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${paymentType === value ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-600/10" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"}`}>
+                  <input type="radio" name="payment_type" value={value} checked={paymentType === value} onChange={() => setPaymentType(value)} className="mt-1 accent-[#008577]" />
+                  <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${paymentType === value ? "bg-emerald-700 text-white" : "bg-slate-100 text-slate-500"}`}>
+                    {value === "EXCHANGE_GOLD" ? <FiRepeat aria-hidden="true" /> : <FiCreditCard aria-hidden="true" />}
+                  </span>
+                  <span>
+                    <span className={`block text-sm font-bold ${paymentType === value ? "text-emerald-900" : "text-slate-800"}`}>{label}</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-slate-500">{description}</span>
+                  </span>
                 </label>
               ))}
             </div>
             {paymentType === "EXCHANGE_GOLD" && (
-              <div className="space-y-4 rounded-lg border border-amber-200 bg-amber-50/40 p-4">
+              <div className="space-y-4 rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div><h3 className="font-bold text-slate-800">Exchange Gold Items</h3><p className="text-xs text-slate-500">Exchange amount is calculated from net weight and today's rate.</p></div>
                   <button type="button" onClick={() => setExchanges((rows) => [...rows, { ...EMPTY_EXCHANGE }])} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100"><FiPlus /> Add Multiple Exchange Items</button>
                 </div>
                 {exchanges.map((exchange, index) => (
-                  <div key={`exchange-${index}`} className="space-y-3 rounded-lg border border-amber-100 bg-white p-4">
+                  <div key={`exchange-${index}`} className="space-y-3 rounded-xl border border-amber-100 bg-white p-4 shadow-sm">
                     <div className="flex justify-end"><button type="button" onClick={() => setExchanges((rows) => rows.filter((_, rowIndex) => rowIndex !== index))} className="text-rose-500" aria-label={`Remove exchange item ${index + 1}`}><FiTrash2 /></button></div>
                     <ItemFields
                       item={exchange}
@@ -1504,8 +1619,15 @@ export default function BillingManagement() {
             )}
           </section>
 
-          <section className="ml-auto max-w-lg space-y-3 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
-            <h2 className="font-bold text-slate-900">Bill Summary</h2>
+          <section className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md xl:sticky xl:top-5">
+            <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-[#063f36] to-[#0b6b5b] px-5 py-4 text-white">
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-200">Final review</p>
+                <h2 className="mt-0.5 text-base font-extrabold">Bill summary</h2>
+              </div>
+              <FiFileText size={21} aria-hidden="true" className="text-emerald-100" />
+            </div>
+            <div className="space-y-3 p-5">
             <div className="flex justify-between text-sm text-slate-600"><span>Sub-Total</span><span>{currency(subtotal)}</span></div>
             <label className="flex items-center justify-between gap-4 text-sm font-medium text-slate-600">
               Discount (₹)
@@ -1527,21 +1649,46 @@ export default function BillingManagement() {
             </div>
             {!validDiscount && <p className="text-xs font-semibold text-rose-600">Discount and exchange credit cannot exceed the products subtotal.</p>}
             {paymentType === "EXCHANGE_GOLD" && <div className="flex justify-between text-sm text-amber-700"><span>Exchange Amount</span><span>−{currency(exchangeCredit)}</span></div>}
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
-              <span>
-                {activeTaxSettings.gst_enabled
-                  ? `GST (${gstRate}%, ${activeTaxSettings.tax_mode})`
-                  : "GST disabled"}
-              </span>
-              <Link to="/admin/settings/tax" className="font-semibold text-[#00695C] hover:underline">
-                Tax settings
-              </Link>
+            <div className="grid gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 sm:grid-cols-2">
+              <label htmlFor="bill-gst-rate" className={labelClass}>
+                GST percentage
+                <span className="relative mt-1 block">
+                  <input
+                    id="bill-gst-rate"
+                    className={`${inputClass} pr-9`}
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={gstRateInput}
+                    onChange={(event) => setGstRateInput(event.target.value)}
+                    placeholder="0"
+                    aria-invalid={!validGst}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">%</span>
+                </span>
+              </label>
+              <label className={labelClass}>
+                Tax mode
+                <CustomSelect
+                  className={inputClass}
+                  value={taxMode}
+                  onChange={(event) => setTaxMode(event.target.value)}
+                >
+                  <option>Tax Exclusive</option>
+                  <option>Tax Inclusive</option>
+                </CustomSelect>
+              </label>
+              {!validGst && <p className="text-xs font-semibold text-rose-600 sm:col-span-2">Enter a GST percentage between 0 and 100.</p>}
             </div>
             <div className="flex justify-between text-sm text-slate-600">
-              <span>GST Amount</span>
-              <span>{validDiscount && validGst ? currency(gst) : "—"}</span>
+              <span>GST ({gstRate}%, {taxMode})</span>
+              <span>{validGst && validDiscount ? currency(gst) : "—"}</span>
             </div>
-            <div className="flex justify-between border-t border-slate-100 pt-3 text-lg font-extrabold text-slate-900"><span>Total Bill</span><span>{validDiscount && validGst ? currency(total) : "—"}</span></div>
+            <div className="flex items-center justify-between gap-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-4 ring-1 ring-emerald-100">
+              <div><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Total bill</p><p className="mt-1 text-[11px] text-slate-500">Including applicable taxes</p></div>
+              <span className="text-xl font-black tracking-tight text-emerald-900">{validDiscount && validGst ? currency(total) : "—"}</span>
+            </div>
             {tackOrderSourceId && Number(tackOrderAdvanceAmount) > 0 && (
               <>
                 <div className="flex justify-between text-sm text-emerald-700"><span>Advance Paid</span><span>−{currency(tackOrderAdvanceAmount)}</span></div>
@@ -1549,9 +1696,12 @@ export default function BillingManagement() {
               </>
             )}
             {paymentType === "EXCHANGE_GOLD" && exchangeCredit > subtotal && <p className="text-xs font-semibold text-rose-600">Exchange amount cannot exceed subtotal.</p>}
+            </div>
           </section>
-          <footer className="flex justify-end">
-            <button type="submit" disabled={saving || !validGst || !validDiscount || Number(tackOrderAdvanceAmount) > total || (paymentType === "EXCHANGE_GOLD" && exchangeCredit > subtotal)} className="inline-flex items-center gap-2 rounded-lg bg-[#00695C] px-5 py-3 text-sm font-bold text-white hover:bg-[#008577] disabled:cursor-not-allowed disabled:opacity-60"><FiSave />{saving ? (editingBillId ? "Updating Bill..." : "Saving Bill...") : (editingBillId ? "Update Bill" : "Save Bill")}</button>
+          </div>
+          <footer className="flex flex-col-reverse items-stretch justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:px-5">
+            <p className="text-center text-xs text-slate-500 sm:text-left">Please review customer, item, tax, and payment details before saving.</p>
+            <button type="submit" disabled={saving || !validGst || !validDiscount || Number(tackOrderAdvanceAmount) > total || (paymentType === "EXCHANGE_GOLD" && exchangeCredit > subtotal)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00695C] to-[#008577] px-6 py-3 text-sm font-extrabold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"><FiSave />{saving ? (editingBillId ? "Updating Bill..." : "Saving Bill...") : (editingBillId ? "Update Bill" : "Save Bill")}</button>
           </footer>
         </form>
       )}

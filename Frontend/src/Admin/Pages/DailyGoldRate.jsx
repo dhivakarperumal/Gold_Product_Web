@@ -1,6 +1,6 @@
 import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useState } from "react";
-import { FiChevronLeft, FiChevronRight, FiEdit2, FiEye, FiPlus, FiSave, FiTrash2, FiX } from "react-icons/fi";
+import { FiActivity, FiCalendar, FiCheckCircle, FiChevronLeft, FiChevronRight, FiClock, FiEdit2, FiEye, FiLayers, FiPlus, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 import { formatRateDate } from "../../PrivateRouter/goldRateUtils";
@@ -21,6 +21,44 @@ const RATE_FIELDS = [
   { key: "diamond_ij_si", label: "Diamond I–J / SI", metal: "Diamond", purity: "I-J / SI", unit: "carat" }
 ];
 const RATE_METALS = ["Gold", "Silver", "Platinum", "Diamond"];
+const METAL_THEMES = {
+  Gold: {
+    symbol: "Au",
+    panel: "border-amber-200/80 bg-gradient-to-br from-amber-50/90 via-white to-yellow-50/70",
+    badge: "bg-gradient-to-br from-amber-400 to-orange-500 text-white",
+    count: "bg-amber-100 text-amber-800",
+    tile: "border-amber-200/70 bg-white/90 hover:border-amber-300",
+    value: "text-amber-950",
+    marker: "bg-amber-500"
+  },
+  Silver: {
+    symbol: "Ag",
+    panel: "border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/70",
+    badge: "bg-gradient-to-br from-sky-400 to-cyan-600 text-white",
+    count: "bg-sky-100 text-sky-800",
+    tile: "border-sky-200/70 bg-white/90 hover:border-sky-300",
+    value: "text-sky-950",
+    marker: "bg-sky-500"
+  },
+  Platinum: {
+    symbol: "Pt",
+    panel: "border-violet-200/80 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/70",
+    badge: "bg-gradient-to-br from-violet-500 to-indigo-600 text-white",
+    count: "bg-violet-100 text-violet-800",
+    tile: "border-violet-200/70 bg-white/90 hover:border-violet-300",
+    value: "text-violet-950",
+    marker: "bg-violet-500"
+  },
+  Diamond: {
+    symbol: "D",
+    panel: "border-fuchsia-200/80 bg-gradient-to-br from-fuchsia-50/90 via-white to-pink-50/70",
+    badge: "bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white",
+    count: "bg-fuchsia-100 text-fuchsia-800",
+    tile: "border-fuchsia-200/70 bg-white/90 hover:border-fuchsia-300",
+    value: "text-fuchsia-950",
+    marker: "bg-fuchsia-500"
+  }
+};
 
 const inputClassName = "mt-2 block w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-[#008577] focus:ring-4 focus:ring-emerald-100";
 const HISTORY_PAGE_SIZE = 10;
@@ -266,87 +304,238 @@ export default function DailyGoldRate() {
   };
 
   const rateSetStatus = currentLoading ? "Loading" : current?.status || "Not configured";
+  const draftCount = batches.filter((batch) => batch.status === "Draft").length;
+  const overviewCards = [
+    {
+      label: "Rate set status",
+      value: rateSetStatus,
+      detail: current ? "Currently applied to new calculations" : "Create a rate set to get started",
+      icon: current ? FiCheckCircle : FiActivity,
+      accentClass: "from-emerald-400 to-teal-600",
+      iconClass: current ? "bg-gradient-to-br from-emerald-400 to-teal-600 text-white" : "bg-gradient-to-br from-amber-400 to-orange-500 text-white"
+    },
+    {
+      label: "Rate date",
+      value: current ? formatRateDate(current.rate_date) : "—",
+      detail: current ? `Effective ${new Date(current.effective_from).toLocaleString()}` : "No active rate date",
+      icon: FiCalendar,
+      accentClass: "from-sky-400 to-cyan-600",
+      iconClass: "bg-gradient-to-br from-sky-400 to-cyan-600 text-white"
+    },
+    {
+      label: "Metal categories",
+      value: RATE_METALS.length,
+      detail: "Gold · Silver · Platinum · Diamond",
+      icon: FiLayers,
+      accentClass: "from-violet-500 to-indigo-600",
+      iconClass: "bg-gradient-to-br from-violet-500 to-indigo-600 text-white"
+    },
+    {
+      label: "Draft rate sets",
+      value: historyLoading ? "…" : draftCount,
+      detail: historyLoading ? "Checking rate history" : `${draftCount} draft${draftCount === 1 ? "" : "s"} awaiting activation`,
+      icon: FiClock,
+      accentClass: "from-orange-400 to-rose-500",
+      iconClass: "bg-gradient-to-br from-orange-400 to-rose-500 text-white"
+    }
+  ];
 
   return (
-    <main className="space-y-6 p-4 sm:p-6 lg:p-7">
-      <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#003B3B] via-[#00594f] to-[#087568] px-5 py-6 text-white shadow-lg sm:px-7">
-        <div className="pointer-events-none absolute -right-10 -top-20 h-60 w-60 rounded-full border-[28px] border-white/5" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">Settings · Pricing</p>
-            <h1 className="mt-1 text-2xl font-black sm:text-3xl">Daily Precious Rates</h1>
-            <p className="mt-2 max-w-2xl text-sm text-white/75">Manage your own audited Gold, Silver, Platinum and Diamond rates. Activation applies to your new calculations only.</p>
+    <main className="min-h-full space-y-5 bg-gradient-to-br from-[#edf7f2] via-[#f5f7f2] to-[#fbf2e5] p-4 sm:p-6 lg:p-8">
+      <header className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-[#063b36] via-[#087768] to-[#b58128] p-5 text-white shadow-[0_20px_50px_rgba(4,64,54,0.2)] sm:p-7">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-24 h-72 w-72 rounded-full border-[34px] border-white/10" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 right-40 h-56 w-56 rounded-full bg-amber-300/10 blur-2xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-5">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-amber-200 shadow-inner backdrop-blur sm:flex">
+              <FiActivity size={25} aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-emerald-100">Pricing workspace · Market control</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">Daily Precious Rates</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/75">
+                Review active market rates and manage audited Gold, Silver, Platinum and Diamond pricing.
+              </p>
+            </div>
           </div>
-          <button type="button" onClick={() => { setForm(blankForm()); setReasonOption(""); setFormOpen(true); }} className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-white/20">
-            <FiPlus /> New Rate Set
-          </button>
+          <div className="relative flex w-full flex-wrap gap-2 sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((open) => !open)}
+              aria-expanded={historyOpen}
+              className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition sm:flex-none ${
+                historyOpen
+                  ? "border-white/30 bg-white/20 text-white"
+                  : "border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
+              }`}
+            >
+              <FiEye aria-hidden="true" />{historyOpen ? "Hide history" : "Rate history"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setForm(blankForm()); setReasonOption(""); setFormOpen(true); }}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-300 to-yellow-400 px-4 py-3 text-sm font-extrabold text-[#3d2c0d] shadow-[0_8px_22px_rgba(245,190,75,0.25)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200 sm:flex-none"
+            >
+              <FiPlus aria-hidden="true" /> New Rate Set
+            </button>
+          </div>
         </div>
       </header>
 
-      <section className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-gradient-to-br from-[#003B3B] to-[#00675d] p-5 text-white shadow-md sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-200">Currently applied rate set</p>
-            <p className="mt-2 text-lg font-bold">
-              {currentLoading ? "Loading current rate..." : current ? `${formatRateDate(current.rate_date)} · effective ${new Date(current.effective_from).toLocaleString()}` : "No active rate has been configured."}
-            </p>
-            {current && <p className="mt-1 text-xs text-white/70">
-              Created by {current.created_by_name || current.created_by || "Unknown"}
-              {current.created_by_name && current.created_by ? ` (${current.created_by})` : ""}
-              {" · "}{current.created_at ? new Date(current.created_at).toLocaleString() : "creation time unavailable"}
-              {" · "}Updated by {current.updated_by_name || current.updated_by || "Unknown"}
-              {current.updated_by_name && current.updated_by ? ` (${current.updated_by})` : ""}
-              {" · "}{current.updated_at ? new Date(current.updated_at).toLocaleString() : "update time unavailable"}
-            </p>}
-          </div>
-          <span className="rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-emerald-100">{rateSetStatus}</span>
-        </div>
-        {currentError && <p role="alert" className="mt-3 rounded-lg bg-rose-500/15 px-3 py-2 text-xs font-semibold text-rose-100">Rate refresh failed: {currentError}</p>}
-        {current && <div className="mt-5 space-y-3">
-          {RATE_METALS.map((metal) => {
-            const metalRates = RATE_FIELDS.filter((field) => field.metal === metal);
-            return (
-              <div key={metal} className="grid gap-2 border-t border-white/15 pt-3 first:border-t-0 first:pt-0 sm:grid-cols-[100px_minmax(0,1fr)] sm:items-center">
-                <h3 className="text-sm font-bold text-emerald-100">{metal}</h3>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-                  {metalRates.map(({ key, label, purity, unit }) => {
-                    const rate = current.rates.find((item) => item.metal_type.toLowerCase() === metal.toLowerCase() && item.purity === purity);
-                    return (
-                      <div key={key} className="rounded-xl border border-white/10 bg-white/10 p-3 backdrop-blur-sm">
-                        <p className="text-[11px] font-semibold text-white/70">{label}</p>
-                        <p className="mt-1 text-base font-extrabold text-white">
-                          {rate ? <>{currency(rate.rate_per_unit ?? rate.rate_per_gram)}<span className="ml-1 text-[11px] font-medium text-white/70">/ {unit === "carat" ? "ct" : "g"}</span></> : <span className="text-sm font-semibold text-white/60">Not set</span>}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
+      <section aria-label="Rate overview" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {overviewCards.map(({ label, value, detail, icon: Icon, iconClass, accentClass }) => (
+          <article key={label} className="overflow-hidden rounded-2xl border border-white/80 bg-white/95 shadow-[0_8px_24px_rgba(26,67,55,0.07)] transition hover:-translate-y-0.5 hover:shadow-lg">
+            <div className={`h-1 bg-gradient-to-r ${accentClass}`} />
+            <div className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-500">{label}</p>
+                <p className="mt-2 truncate text-xl font-black tracking-tight text-slate-900">{value}</p>
               </div>
-            );
-          })}
-        </div>}
-        {current && <div className="mt-5 border-t border-white/15 pt-5">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-emerald-200">Making & wastage charges</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-              <p className="text-[11px] font-semibold text-white/70">Default Making Charge</p>
-              <p className="mt-1 text-base font-extrabold text-white">
-                {current.making_charge_type === "Percentage"
-                  ? `${Number(current.making_charge_value).toLocaleString("en-IN")}%`
-                  : currency(current.making_charge_value)}
-              </p>
+              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>
+                <Icon size={18} aria-hidden="true" />
+              </span>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-              <p className="text-[11px] font-semibold text-white/70">Wastage</p>
-              <p className="mt-1 text-base font-extrabold text-white">{Number(current.wastage_percentage).toLocaleString("en-IN")}%</p>
+            <p className="mt-3 truncate border-t border-slate-100 pt-3 text-[11px] font-medium text-slate-500" title={detail}>{detail}</p>
             </div>
-          </div>
-        </div>}
+          </article>
+        ))}
       </section>
 
-      <div className="flex justify-end">
-        <button type="button" onClick={() => setHistoryOpen((open) => !open)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"><FiEye />{historyOpen ? "Hide Rate History" : "View Rate History"}</button>
-      </div>
+      <section className="overflow-hidden rounded-3xl border border-white/90 bg-white/95 shadow-[0_16px_42px_rgba(26,67,55,0.08)]">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-amber-50/70 px-5 py-5 sm:px-7">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-md shadow-emerald-900/15">
+              <FiLayers size={20} aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#008577]">Live pricing</p>
+              <h2 className="mt-0.5 text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">Currently applied rate set</h2>
+            </div>
+          </div>
+          <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${
+            current?.status === "Active"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : currentLoading
+                ? "border-sky-200 bg-sky-50 text-sky-800"
+                : "border-amber-200 bg-amber-50 text-amber-800"
+          }`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${current?.status === "Active" ? "bg-emerald-500" : currentLoading ? "bg-sky-500" : "bg-amber-500"}`} />
+            {rateSetStatus}
+          </span>
+        </div>
+
+        <div className="p-5 sm:p-7">
+          {currentError && (
+            <p role="alert" className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+              Rate refresh failed: {currentError}
+            </p>
+          )}
+
+          {currentLoading && !current ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading active rates">
+              {Array.from({ length: 8 }, (_, index) => (
+                <div key={index} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+              ))}
+            </div>
+          ) : current ? (
+            <>
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-[#eff8f4] to-[#f7f6ef] p-4 sm:px-5">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Rate date</p>
+                  <p className="mt-1 text-lg font-extrabold text-slate-900">{formatRateDate(current.rate_date)}</p>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-white bg-white/80 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
+                  <FiClock className="shrink-0 text-[#008577]" aria-hidden="true" />
+                  <span>Effective {new Date(current.effective_from).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                {RATE_METALS.map((metal) => {
+                  const metalRates = RATE_FIELDS.filter((field) => field.metal === metal);
+                  return (
+                    <section key={metal} aria-label={`${metal} rates`} className={`rounded-2xl border p-4 sm:p-5 ${METAL_THEMES[metal].panel}`}>
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-black shadow-sm ${METAL_THEMES[metal].badge}`}>{METAL_THEMES[metal].symbol}</span>
+                        <h3 className="text-sm font-extrabold text-slate-800">{metal}</h3>
+                        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${METAL_THEMES[metal].count}`}>
+                          {metalRates.length} {metalRates.length === 1 ? "rate" : "rates"}
+                        </span>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+                        {metalRates.map(({ key, label, purity, unit }) => {
+                          const rate = current.rates.find((item) => item.metal_type.toLowerCase() === metal.toLowerCase() && item.purity === purity);
+                          return (
+                            <article key={key} className={`rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${METAL_THEMES[metal].tile}`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs font-semibold text-slate-500">{label}</p>
+                                <span className={`h-2 w-2 shrink-0 rounded-full ${METAL_THEMES[metal].marker}`} />
+                              </div>
+                              <p className={`mt-2 text-lg font-black tracking-tight ${METAL_THEMES[metal].value}`}>
+                                {rate ? <>{currency(rate.rate_per_unit ?? rate.rate_per_gram)}<span className="ml-1 text-xs font-semibold text-slate-500">/ {unit === "carat" ? "ct" : "g"}</span></> : <span className="text-sm font-semibold text-slate-400">Not set</span>}
+                              </p>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+
+              <section className="mt-6 border-t border-slate-100 pt-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <FiActivity className="text-[#008577]" aria-hidden="true" />
+                  <h3 className="text-sm font-extrabold text-slate-800">Making &amp; wastage charges</h3>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4">
+                    <p className="text-xs font-semibold text-slate-500">Default making charge</p>
+                    <p className="mt-1 text-lg font-extrabold text-slate-900">
+                      {current.making_charge_type === "Percentage"
+                        ? `${Number(current.making_charge_value).toLocaleString("en-IN")}%`
+                        : currency(current.making_charge_value)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4">
+                    <p className="text-xs font-semibold text-slate-500">Wastage</p>
+                    <p className="mt-1 text-lg font-extrabold text-slate-900">{Number(current.wastage_percentage).toLocaleString("en-IN")}%</p>
+                  </div>
+                </div>
+              </section>
+
+              <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70">
+                <summary className="px-4 py-3 text-xs font-bold text-slate-600">View rate set audit details</summary>
+                <div className="grid gap-3 border-t border-slate-200 p-4 text-xs sm:grid-cols-2">
+                  <p className="text-slate-500">Created by <span className="font-semibold text-slate-800">{current.created_by_name || current.created_by || "Unknown"}{current.created_by_name && current.created_by ? ` (${current.created_by})` : ""}</span><span className="mt-1 block">{current.created_at ? new Date(current.created_at).toLocaleString() : "Creation time unavailable"}</span></p>
+                  <p className="text-slate-500">Last updated by <span className="font-semibold text-slate-800">{current.updated_by_name || current.updated_by || "Unknown"}{current.updated_by_name && current.updated_by ? ` (${current.updated_by})` : ""}</span><span className="mt-1 block">{current.updated_at ? new Date(current.updated_at).toLocaleString() : "Update time unavailable"}</span></p>
+                </div>
+              </details>
+
+              <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-slate-500">
+                <FiCheckCircle className="mt-0.5 shrink-0 text-emerald-600" aria-hidden="true" />
+                Activation applies to new calculations. Previously saved invoices retain their recorded prices.
+              </p>
+            </>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+                <FiActivity size={22} aria-hidden="true" />
+              </span>
+              <h3 className="mt-4 text-base font-extrabold text-slate-900">No active rate set</h3>
+              <p className="mt-1 text-sm text-slate-500">Create a rate set to start applying precious metal prices to new calculations.</p>
+              <button
+                type="button"
+                onClick={() => { setForm(blankForm()); setReasonOption(""); setFormOpen(true); }}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#14534a] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f4039]"
+              >
+                <FiPlus aria-hidden="true" /> Create Rate Set
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
 
       {formOpen && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setFormOpen(false); }}>
       <form onSubmit={handleSave} className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-2xl">

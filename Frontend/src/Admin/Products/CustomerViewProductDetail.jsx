@@ -11,6 +11,7 @@ import {
 import api from "../../api";
 import { resolveBackendImageUrl } from "../../Components/Home/productDisplay";
 import { formatCurrency } from "../../utils/currency";
+import { getDiscountPercentage } from "../../utils/productPricing";
 
 const parseArray = (value) => {
     if (Array.isArray(value)) return value;
@@ -165,9 +166,7 @@ const CustomerViewProductDetail = () => {
 
     const price = Number(product.offer_price ?? product.final_selling_price ?? product.mrp ?? 0);
     const mrp = Number(product.mrp || 0);
-    const discount = Number(product.discount) > 0
-        ? Number(product.discount)
-        : mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+    const discount = getDiscountPercentage(product);
     const stock = Number(product.total_stock ?? product.stock ?? 0);
     const stockStatus = product.stock_status || (stock > 0 ? "In Stock" : "Out of Stock");
     const selectedImage = images[activeImage];

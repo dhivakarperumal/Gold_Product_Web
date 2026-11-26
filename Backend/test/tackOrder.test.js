@@ -16,6 +16,7 @@ const product = {
   id: 12,
   name: 'Gold chain',
   category: 'Chain',
+  metal_type: 'Gold',
   purity: '22K',
   final_selling_price: 100,
   offer_price: 90,
@@ -65,6 +66,7 @@ test('normalizes tack-order items and calculates total, advance, and balance fro
     product_id: 12,
     product_name: 'Gold chain',
     category: 'Chain',
+    metal_type: 'Gold',
     purity: '22K',
     variant_color: 'Yellow',
     variant_size: 'Free Size',
@@ -87,27 +89,36 @@ test('marks a tack order Paid when its full total is paid in advance', () => {
   assert.equal(result.tackOrder.payment_status, 'Paid');
 });
 
-test('uses saved tax settings instead of client GST values for tack-order totals', () => {
-  const enabledResult = normalizeTackOrder(
-    orderInput({ gst_included: false, gst_rate: 1 }),
-    [product],
-    { gst_enabled: true, gst_rate: 18 }
-  );
+test('uses the GST selection and rate entered for the tack order', () => {
+  const enabledResult = normalizeTackOrder(orderInput({
+    gst_included: true,
+    gst_rate: 18
+  }), [product]);
   assert.equal(enabledResult.error, undefined);
   assert.equal(enabledResult.tackOrder.gst_included, true);
   assert.equal(enabledResult.tackOrder.gst_rate, 18);
   assert.equal(enabledResult.tackOrder.gst_amount, 36);
   assert.equal(enabledResult.tackOrder.total_amount, 226);
 
-  const disabledResult = normalizeTackOrder(
-    orderInput({ gst_included: true, gst_rate: 18 }),
-    [product],
-    { gst_enabled: false, gst_rate: 18 }
-  );
+  const disabledResult = normalizeTackOrder(orderInput({
+    gst_included: false,
+    gst_rate: 18
+  }), [product]);
   assert.equal(disabledResult.error, undefined);
   assert.equal(disabledResult.tackOrder.gst_included, false);
   assert.equal(disabledResult.tackOrder.gst_amount, 0);
   assert.equal(disabledResult.tackOrder.total_amount, 190);
+});
+
+test('rejects invalid GST rates for tack orders', () => {
+  assert.match(
+    normalizeTackOrder(orderInput({ gst_rate: 101 }), [product]).error,
+    /GST selection and rate between 0 and 100/i
+  );
+  assert.match(
+    normalizeTackOrder(orderInput({ gst_rate: '' }), [product]).error,
+    /GST selection and rate between 0 and 100/i
+  );
 });
 
 test('recalculates the unit price and stores the entered net weight', () => {
@@ -273,7 +284,7 @@ test('lists only tack orders owned by the authenticated shop', async () => {
   assert.match(capturedQuery.query, /WHERE t\.user_id = \?/);
   assert.match(capturedQuery.query, /order_status/);
   assert.match(capturedQuery.query, /payment_status/);
-  assert.match(capturedQuery.query, /GREATEST\(b\.total_amount - b\.paid_amount, 0\) <= 0 THEN 'Completed'/);
+  assert.match(capturedQuery.query, /CASE WHEN b\.id IS NULL THEN t\.order_status\s+ELSE 'Completed' END AS order_status/);
   assert.match(capturedQuery.query, /COALESCE\(GREATEST\(b\.total_amount - b\.paid_amount, 0\), t\.balance_due\) AS balance_due/);
   assert.match(capturedQuery.query, /COALESCE\(b\.paid_amount, GREATEST\(t\.total_amount - t\.balance_due, 0\)\) AS paid_amount/);
   assert.match(capturedQuery.query, /ORDER BY t\.created_at DESC, t\.id DESC/);
@@ -322,6 +333,13 @@ test('does not allow manually setting Bill Completed or changing a completed ord
   }, response, (error) => { throw error; });
   assert.equal(response.statusCode, 400);
   assert.match(response.body.message, /valid tack order status/i);
+
+  await patchTackOrderStatus({
+    params: { id: '42' },
+    body: { order_status: 'Billing Pending' },
+    adminUser: { user_id: 'shop-user-1' }
+  }, response, (error) => { throw error; });
+  assert.equal(response.statusCode, 400);
 
   pool.execute = async (query) => {
     if (query.startsWith('UPDATE tack_orders')) return [{ affectedRows: 0 }, []];

@@ -7,7 +7,6 @@ const {
   updateTackOrderStatus
 } = require('../modules/tackOrderModule');
 const { calculateProductPricing } = require('../services/productPricing');
-const { getTaxSettings } = require('../modules/taxSettingsModule');
 
 const MAX_ITEMS = 100;
 const MAX_AMOUNT = 9999999999.99;
@@ -25,7 +24,15 @@ function normalizeText(value, field, maxLength, required = false) {
   return { value: normalized };
 }
 
-function normalizeTackOrder(body, catalogProducts, taxSettings = null) {
+function parseTackOrderItems(value) {
+  const items = typeof value === 'string' ? JSON.parse(value) : value;
+  if (!Array.isArray(items)) {
+    throw new TypeError('A tack order contains an invalid products list');
+  }
+  return items;
+}
+
+function normalizeTackOrder(body, catalogProducts) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'Tack order details are required' };
   }
@@ -121,6 +128,7 @@ function normalizeTackOrder(body, catalogProducts, taxSettings = null) {
       product_id: productId,
       product_name: product.name,
       category: product.category || '',
+      metal_type: product.metal_type || '',
       purity: product.purity || '',
       variant_color: variantColor.value,
       variant_size: variantSize.value,
@@ -132,8 +140,13 @@ function normalizeTackOrder(body, catalogProducts, taxSettings = null) {
     items.push(item);
   }
 
-  const gstIncluded = taxSettings ? Boolean(taxSettings.gst_enabled) : body.gst_included;
-  const gstRate = taxSettings ? Number(taxSettings.gst_rate) : Number(body.gst_rate);
+  const gstIncluded = body.gst_included;
+  const rawGstRate = body.gst_rate;
+  if ((typeof rawGstRate !== 'number' && typeof rawGstRate !== 'string')
+    || (typeof rawGstRate === 'string' && !rawGstRate.trim())) {
+    return { error: 'Enter a valid GST selection and rate between 0 and 100' };
+  }
+  const gstRate = Number(rawGstRate);
   if (typeof gstIncluded !== 'boolean'
     || !Number.isFinite(gstRate) || gstRate < 0 || gstRate > 100) {
     return { error: 'Enter a valid GST selection and rate between 0 and 100' };
@@ -197,12 +210,11 @@ async function postTackOrder(req, res, next) {
   }
 
   try {
-    const taxSettings = await getTaxSettings(req.adminUser.user_id);
     const catalogProducts = await getTackOrderProductsByIds(
       [...new Set(productIds)],
       req.adminUser.user_id
     );
-    const { tackOrder, error } = normalizeTackOrder(req.body, catalogProducts, taxSettings);
+    const { tackOrder, error } = normalizeTackOrder(req.body, catalogProducts);
     if (error) return res.status(400).json({ message: error });
     return res.status(201).json(await createTackOrder(tackOrder, req.adminUser.user_id));
   } catch (error) {
@@ -212,7 +224,22 @@ async function postTackOrder(req, res, next) {
 
 async function getTackOrders(req, res, next) {
   try {
-    return res.json(await listTackOrders(req.adminUser.user_id));
+    const orders = await listTackOrders(req.adminUser.user_id);
+    const itemsByOrder = orders.map((order) => parseTackOrderItems(order.items));
+    const productIds = [...new Set(itemsByOrder
+      .flat()
+      .map((item) => Number(item.product_id))
+      .filter((id) => Number.isSafeInteger(id) && id > 0))];
+    const catalogProducts = await getTackOrderProductsByIds(productIds, req.adminUser.user_id);
+    const productsById = new Map(catalogProducts.map((product) => [Number(product.id), product]));
+    const ordersWithMetal = orders.map((order, orderIndex) => ({
+      ...order,
+      items: itemsByOrder[orderIndex].map((item) => ({
+        ...item,
+        metal_type: item.metal_type || productsById.get(Number(item.product_id))?.metal_type || ''
+      }))
+    }));
+    return res.json(ordersWithMetal);
   } catch (error) {
     return next(error);
   }

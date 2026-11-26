@@ -1,14 +1,12 @@
 import CustomSelect from "../../Components/CustomSelect.jsx";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
 import { calculatePriceForNetWeight } from "../../utils/productPricing";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
-import { StoreContext } from "../../PrivateRouter/StoreContext";
-import { getTaxSettings } from "../Pages/taxSettings";
-import { FiArrowLeft, FiBox, FiMinus, FiPlus, FiTag, FiTrash2, FiUser } from "react-icons/fi";
+import { FiArrowLeft, FiBox, FiMinus, FiPlus, FiSearch, FiTrash2, FiUser } from "react-icons/fi";
 
 function calculateOrderTotals(cart, gstIncluded, gstRate, discountType, discountValue) {
   const subtotal = cart.reduce(
@@ -30,11 +28,10 @@ function calculateOrderTotals(cart, gstIncluded, gstRate, discountType, discount
   };
 }
 
-function formatWeight(value) {
-  const weight = Number(value);
-  return value == null || value === "" || !Number.isFinite(weight)
-    ? ""
-    : `${weight.toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`;
+function isValidGstRate(value) {
+  const rawRate = String(value).trim();
+  const rate = rawRate === "" ? NaN : Number(rawRate);
+  return Number.isFinite(rate) && rate >= 0 && rate <= 100;
 }
 
 const INDIAN_STATES_AND_UTS = [
@@ -78,14 +75,13 @@ const INDIAN_STATES_AND_UTS = [
 
 function OrderSummary({
   cart,
-  loadingCart,
   removeFromCart,
   updateCartQuantity,
   onNetWeightChange,
   gstIncluded,
   gstRate,
-  gstSettingsLoading,
-  gstSettingsError,
+  setGstIncluded,
+  setGstRate,
   discountType,
   setDiscountType,
   discountValue,
@@ -93,12 +89,12 @@ function OrderSummary({
   advanceAmount,
   setAdvanceAmount,
   submitting = false,
-  savedOrder = null,
   onNext,
   orderStep
 }) {
   const itemCount = cart.reduce((total, item) => total + Number(item.quantity || 0), 0);
   const hasInvalidNetWeight = cart.some((item) => item.netWeightError);
+  const validGstRate = isValidGstRate(gstRate);
   const { subtotal, gstAmount, discount, total } = calculateOrderTotals(
     cart,
     gstIncluded,
@@ -110,20 +106,31 @@ function OrderSummary({
   const balanceDue = total - advance;
 
   return (
-    <aside className="mb-4 flex min-h-0 flex-col rounded-xl bg-gradient-to-b from-[#003B32] to-[#14534a] p-2 text-white shadow-lg sm:p-5 xl:min-h-[89vh]">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-extrabold">Order Summary</h2>
-          <p className="mt-1 text-xs text-white/60">{itemCount} items</p>
+    <aside className="mb-4 flex min-h-0 flex-col rounded-2xl border border-emerald-900/10 bg-gradient-to-br from-[#073f38] via-[#064a40] to-[#14534a] p-3 text-white shadow-[0_18px_50px_rgba(5,59,48,0.2)] sm:p-5 xl:min-h-[89vh]">
+      <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-amber-200">
+            <FiBox aria-hidden="true" size={18} />
+          </span>
+          <div>
+            <h2 className="text-lg font-extrabold tracking-tight">Order Summary</h2>
+            <p className="mt-0.5 text-xs text-white/60">{itemCount} items in this order</p>
+          </div>
         </div>
-        <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold">{cart.length} products</span>
+        <span className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-xs font-bold">{cart.length} products</span>
       </div>
 
       <div className="space-y-3 pr-1">
-        {loadingCart ? (
-          <p className="py-6 text-center text-sm text-white/60">Loading cart...</p>
-        ) : cart.length === 0 ? (
-          <p className="py-5 text-sm text-white/55">No products added yet.</p>
+        {cart.length === 0 ? (
+          <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/[0.04] px-5 py-8 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300/20 to-white/10 text-amber-200">
+              <FiBox size={25} aria-hidden="true" />
+            </span>
+            <p className="mt-4 text-sm font-extrabold text-white">Your order starts here</p>
+            <p className="mt-1 max-w-[220px] text-xs leading-5 text-white/55">
+              Choose a product from the catalog and it will appear in this summary.
+            </p>
+          </div>
         ) : (
           cart.map((item) => (
             <article key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
@@ -164,7 +171,7 @@ function OrderSummary({
                 </div>
                 <button
                   type="button"
-                  aria-label={`Remove ${item.name} from cart`}
+                  aria-label={`Remove ${item.name} from pre-order`}
                   onClick={() => void removeFromCart(item.id)}
                   className="rounded p-1.5 text-white/55 transition hover:bg-white/10 hover:text-white"
                 >
@@ -225,34 +232,40 @@ function OrderSummary({
                   max="100"
                   step="0.01"
                   value={gstRate}
-                  readOnly
-                  title="Automatically configured from Tax Settings"
+                  onChange={(event) => setGstRate(event.target.value)}
                   className="w-20 rounded-lg border border-white/15 bg-white/10 px-2 py-1.5 text-right font-bold text-white outline-none focus:border-orange-400"
                   aria-label="GST rate percentage"
+                  aria-invalid={!validGstRate}
                 />
                 <span>%</span>
               </span>
             </label>
+            <label className="flex items-center gap-2 text-xs text-white/70">
+              <input
+                type="checkbox"
+                checked={gstIncluded}
+                onChange={(event) => setGstIncluded(event.target.checked)}
+                className="accent-orange-500"
+              />
+              Apply GST to this order
+            </label>
+            {!validGstRate && (
+              <p className="text-xs font-semibold text-rose-200">Enter a GST percentage between 0 and 100.</p>
+            )}
             <div className="flex justify-between gap-2 text-xs text-white/55">
               <span>GST on subtotal (before discount)</span>
               <span>{formatCurrency(gstAmount)}</span>
             </div>
-            <p className="text-[11px] text-white/50">
-              {gstSettingsLoading
-                ? "Loading store Tax Settings..."
-                : gstSettingsError
-                  ? "GST settings could not be loaded. Reload the page to retry."
-                  : "GST is automatically set from store Tax Settings."}
-            </p>
 
-            <div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
               <p className="mb-2 text-sm font-bold">Discount</p>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <CustomSelect
                   value={discountType}
                   onChange={(event) => setDiscountType(event.target.value)}
                   aria-label="Discount type"
-                  className="min-w-0 flex-1 rounded-lg border border-white/15 bg-[#4b3021] px-2 py-2 text-sm text-white outline-none focus:border-orange-400"
+                  variant="dark"
+                  className="min-w-0 flex-1 rounded-lg px-2 py-2 text-sm"
                 >
                   <option value="Percent">Percent</option>
                   <option value="Fixed">Fixed amount</option>
@@ -311,7 +324,7 @@ function OrderSummary({
             type="button"
             onClick={onNext}
             disabled={cart.length === 0 || hasInvalidNetWeight}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#14534a] px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-[#0f4039] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Next Details
             <FiArrowLeft className="rotate-180" aria-hidden="true" />
@@ -320,8 +333,8 @@ function OrderSummary({
           <button
             type="submit"
             form="tack-order-form"
-            disabled={submitting || Boolean(savedOrder) || gstSettingsLoading || gstSettingsError || cart.length === 0 || hasInvalidNetWeight}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={submitting || cart.length === 0 || hasInvalidNetWeight || !validGstRate}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#087768] to-[#064a40] px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-emerald-950/20 transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Adding Tack Order..." : "Add Tack Order"}
             {!submitting && <FiPlus aria-hidden="true" />}
@@ -333,9 +346,11 @@ function OrderSummary({
 }
 
 const TackOrders = () => {
-  const { tackOrdersSearch: search } = useOutletContext();
-  const { cart, loadingCart, addToCart, removeFromCart, updateCartQuantity, clearCart } = useContext(StoreContext);
+  const { tackOrdersSearch: search, setTackOrdersSearch } = useOutletContext();
+  const [cart, setCart] = useState([]);
   const [products, setProducts] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [metalFilter, setMetalFilter] = useState("ALL");
   const [retryCount, setRetryCount] = useState(0);
   const [orderStep, setOrderStep] = useState("products");
   const [customer, setCustomer] = useState({
@@ -350,8 +365,6 @@ const TackOrders = () => {
   });
   const [gstIncluded, setGstIncluded] = useState(false);
   const [gstRate, setGstRate] = useState("0");
-  const [gstSettingsLoading, setGstSettingsLoading] = useState(true);
-  const [gstSettingsError, setGstSettingsError] = useState(false);
   const [discountType, setDiscountType] = useState("Percent");
   const [discountValue, setDiscountValue] = useState("0");
   const [netWeightEdits, setNetWeightEdits] = useState({});
@@ -359,30 +372,6 @@ const TackOrders = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [savedOrder, setSavedOrder] = useState(null);
-
-  useEffect(() => {
-    let active = true;
-    getTaxSettings()
-      .then((settings) => {
-        if (!active) return;
-        setGstIncluded(Boolean(settings.gst_enabled));
-        setGstRate(String(Number(settings.gst_rate) || 0));
-      })
-      .catch((settingsError) => {
-        console.error("Failed to load tack-order tax settings:", settingsError);
-        if (active) {
-          setGstSettingsError(true);
-          toast.error(settingsError.response?.data?.message || "Could not load GST settings.");
-        }
-      })
-      .finally(() => {
-        if (active) setGstSettingsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -393,7 +382,7 @@ const TackOrders = () => {
 
       try {
         const firstResponse = await api.get("/products/mine", {
-          params: { page: 1, limit: 100, search: search.trim() }
+          params: { page: 1, limit: 100 }
         });
         const firstPage = firstResponse.data;
 
@@ -407,7 +396,7 @@ const TackOrders = () => {
         for (let requestedPage = 2; requestedPage <= totalPages; requestedPage += 1) {
           if (!active) return;
           const response = await api.get("/products/mine", {
-            params: { page: requestedPage, limit: 100, search: search.trim() }
+            params: { page: requestedPage, limit: 100 }
           });
           if (!Array.isArray(response.data?.products)) {
             throw new TypeError("A products page did not contain a products array");
@@ -433,7 +422,91 @@ const TackOrders = () => {
     return () => {
       active = false;
     };
-  }, [retryCount, search]);
+  }, [retryCount]);
+
+  const availableCategories = useMemo(
+    () => [...new Set(products.map((product) => product.category).filter(Boolean))]
+      .sort((left, right) => left.localeCompare(right)),
+    [products]
+  );
+  const availableMetals = useMemo(
+    () => [...new Set(products.map((product) => product.metal_type).filter(Boolean))]
+      .sort((left, right) => left.localeCompare(right)),
+    [products]
+  );
+  const filteredProducts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return products.filter((product) => {
+      const matchesSearch = !query || [
+        product.id,
+        product.product_code,
+        product.name,
+        product.category,
+        product.metal_type,
+        product.purity
+      ].some((value) => String(value || "").toLowerCase().includes(query));
+      return matchesSearch
+        && (categoryFilter === "ALL" || product.category === categoryFilter)
+        && (metalFilter === "ALL" || product.metal_type === metalFilter);
+    });
+  }, [products, search, categoryFilter, metalFilter]);
+
+  const addToCart = (product) => {
+    const productId = Number(product.id);
+    if (!Number.isSafeInteger(productId) || productId < 1 || product.status !== "Active") {
+      toast.error("This product is not available for a pre-order.");
+      return;
+    }
+
+    const selectedVariant = Array.isArray(product.variants) ? product.variants[0] : null;
+    const colorName = selectedVariant?.colorName || selectedVariant?.color || "Default";
+    const size = selectedVariant?.selectedSizes?.[0] || "Free Size";
+    const id = `${productId}:${encodeURIComponent(colorName)}:${encodeURIComponent(size)}`;
+    const price = Number(product.final_selling_price) > 0
+      ? Number(product.final_selling_price)
+      : Number(product.offer_price) > 0
+        ? Number(product.offer_price)
+        : Number(product.mrp || 0);
+    const existingItem = cart.find((item) => item.id === id);
+    if (existingItem?.quantity >= 10000) {
+      toast.error("A pre-order item cannot exceed 10,000 units.");
+      return;
+    }
+
+    setCart((currentCart) => {
+      const currentItem = currentCart.find((item) => item.id === id);
+      if (currentItem) {
+        return currentCart.map((item) => item.id === id
+          ? { ...item, quantity: item.quantity + 1, total_price: price * (item.quantity + 1) }
+          : item);
+      }
+      return [...currentCart, {
+        id,
+        product_id: productId,
+        name: product.name,
+        image: getProductImageUrl(product),
+        price,
+        total_price: price,
+        quantity: 1,
+        colorName,
+        size,
+        net_gold_weight: product.net_gold_weight
+      }];
+    });
+    toast.success(`${product.name || "Product"} added to pre-order.`);
+  };
+  const removeFromCart = (cartItemId) => {
+    setCart((currentCart) => currentCart.filter((item) => item.id !== cartItemId));
+  };
+  const updateCartQuantity = (cartItemId, quantity) => {
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 10000) {
+      toast.error("Quantity must be between 1 and 10,000.");
+      return;
+    }
+    setCart((currentCart) => currentCart.map((item) => item.id === cartItemId
+      ? { ...item, quantity, total_price: Number(item.price || 0) * quantity }
+      : item));
+  };
 
   const productsById = new Map(products.map((product) => [String(product.id), product]));
   const pricedCart = cart.map((item) => {
@@ -477,12 +550,15 @@ const TackOrders = () => {
   const handleNetWeightChange = (cartItemId, value) => {
     setNetWeightEdits((current) => ({ ...current, [cartItemId]: value }));
   };
+  const productCountLabel = loading
+    ? "Loading your catalog..."
+    : `${filteredProducts.length}${filteredProducts.length === products.length ? "" : ` of ${products.length}`} products · Pre-order without stock limits`;
 
   const handleCreateTackOrder = async (event) => {
     event.preventDefault();
-    if (submitting || savedOrder) return;
-    if (gstSettingsLoading || gstSettingsError) {
-      toast.error("Tack-order GST settings are unavailable. Reload the page and try again.");
+    if (submitting) return;
+    if (!isValidGstRate(gstRate)) {
+      toast.error("GST rate must be between 0 and 100.");
       return;
     }
     if (hasInvalidNetWeight) {
@@ -509,16 +585,8 @@ const TackOrders = () => {
         advance_amount: Math.min(total, Math.max(0, Number(advanceAmount) || 0))
       });
 
-      try {
-        await clearCart();
-      } catch (clearError) {
-        console.error("Tack order created but the cart could not be cleared:", clearError);
-        setSavedOrder(data);
-        toast.error(`Tack order ${data.order_no} was created, but the cart could not be cleared.`);
-        return;
-      }
-
       toast.success(`Tack order ${data.order_no} added. Status: ${data.order_status || "Order Placed"}.`);
+      setCart([]);
       setCustomer({
         name: "",
         phone: "",
@@ -531,7 +599,12 @@ const TackOrders = () => {
       });
       setAdvanceAmount("");
       setDiscountValue("0");
+      setGstIncluded(false);
+      setGstRate("0");
       setNetWeightEdits({});
+      setCategoryFilter("ALL");
+      setMetalFilter("ALL");
+      setTackOrdersSearch("");
       setOrderStep("products");
     } catch (submitError) {
       console.error("Failed to create tack order:", submitError);
@@ -542,11 +615,82 @@ const TackOrders = () => {
   };
 
   return (
-    <section className="mt-0 flex h-[90vh] min-h-0 flex-col bg-[#fff8ef] px-2 pt-4 pb-0 sm:pt-6">
+    <section className="mt-0 flex h-[90vh] min-h-0 flex-col bg-gradient-to-br from-[#f1f7f3] via-[#f7f7f2] to-[#fbf2e5] px-2 pt-3 pb-2 sm:px-4 sm:pt-4">
       {orderStep === "products" ? (
       <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-stretch">
         <main className="flex min-w-0 flex-col xl:min-h-0">
+          <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/80 bg-white/90 p-4 shadow-[0_8px_24px_rgba(26,67,55,0.07)] backdrop-blur sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-md shadow-emerald-900/15">
+                <FiBox size={19} aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#087768]">Step 1 · Build order</p>
+                <h1 className="truncate text-lg font-black tracking-tight text-slate-900">Select products</h1>
+                <p className="truncate text-xs text-slate-500">{productCountLabel}</p>
+              </div>
+            </div>
+            <ol aria-label="Order progress" className="flex items-center gap-2">
+              <li aria-current="step" className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#087768] text-[10px] text-white">1</span>
+                <span className="hidden sm:inline">Products</span>
+              </li>
+              <li aria-hidden="true" className="h-px w-5 bg-slate-200" />
+              <li className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] text-slate-600">2</span>
+                <span className="hidden sm:inline">Customer</span>
+              </li>
+            </ol>
+          </div>
           <div className="xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pr-1">
+            <section aria-label="Search and filter products" className="mb-3 grid gap-2 rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-sm sm:grid-cols-[minmax(0,1fr)_minmax(130px,160px)_minmax(130px,160px)_auto]">
+              <label className="relative min-w-0">
+                <FiSearch aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setTackOrdersSearch(event.target.value)}
+                  placeholder="Search name, ID, metal, purity..."
+                  aria-label="Search pre-order products"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs text-slate-700 outline-none transition focus:border-[#087768] focus:ring-2 focus:ring-emerald-100"
+                />
+              </label>
+              <CustomSelect
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+                aria-label="Filter products by category"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-600 outline-none focus:border-[#087768] focus:ring-2 focus:ring-emerald-100"
+              >
+                <option value="ALL">All categories</option>
+                {availableCategories.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </CustomSelect>
+              <CustomSelect
+                value={metalFilter}
+                onChange={(event) => setMetalFilter(event.target.value)}
+                aria-label="Filter products by metal"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-600 outline-none focus:border-[#087768] focus:ring-2 focus:ring-emerald-100"
+              >
+                <option value="ALL">All metals</option>
+                {availableMetals.map((metal) => (
+                  <option key={metal} value={metal}>{metal}</option>
+                ))}
+              </CustomSelect>
+              {(search || categoryFilter !== "ALL" || metalFilter !== "ALL") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTackOrdersSearch("");
+                    setCategoryFilter("ALL");
+                    setMetalFilter("ALL");
+                  }}
+                  className="h-10 rounded-lg px-3 text-xs font-bold text-[#087768] transition hover:bg-emerald-50"
+                >
+                  Clear
+                </button>
+              )}
+            </section>
             {error ? (
         <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
           {error}
@@ -559,50 +703,33 @@ const TackOrders = () => {
           </button>
         </div>
       ) : loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {Array.from({ length: 6 }, (_, index) => (
-            <div key={index} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div key={index} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
               <div className="aspect-[4/3] animate-pulse bg-slate-100 xl:aspect-[8/5]" />
-              <div className="space-y-3 p-4 xl:p-3">
+              <div className="space-y-2 p-3">
                 <div className="h-4 w-2/3 animate-pulse rounded bg-slate-100" />
                 <div className="h-3 w-1/3 animate-pulse rounded bg-slate-100" />
-                <div className="h-10 animate-pulse rounded bg-slate-100" />
+                <div className="h-8 animate-pulse rounded bg-slate-100" />
               </div>
             </div>
           ))}
         </div>
-      ) : products.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {products.map((product) => {
+      ) : filteredProducts.length ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {filteredProducts.map((product) => {
             const imageUrl = getProductImageUrl(product);
-            const stock = Number(product.total_stock ?? 0);
-            const price = Number(product.final_selling_price ?? product.offer_price ?? product.mrp ?? 0);
-            const netWeight = formatWeight(product.net_gold_weight) || "—";
-            const originalPrice = Number(product.mrp ?? 0);
-            const offerPrice = Number(product.offer_price ?? price);
-            const discountPercent = originalPrice > offerPrice && originalPrice > 0
-              ? Math.round(((originalPrice - offerPrice) / originalPrice) * 100)
-              : 0;
-            const discountAmount = Number(product.applied_discount ?? 0);
-            const hasOffer = discountPercent > 0 || discountAmount > 0 || Number(product.offer ?? 0) > 0;
-            const offerLabel = discountPercent > 0
-              ? `${discountPercent}% OFF`
-              : discountAmount > 0
-                ? `${formatCurrency(discountAmount)} OFF`
-                : product.offer_type === "Percentage" && Number(product.offer) > 0
-                  ? `${Math.round(Number(product.offer))}% OFF`
-                  : "SPECIAL OFFER";
-            const stockLabel = stock <= 0 ? "Out of stock" : stock < 10 ? "Low stock" : "In stock";
-            const stockStyle = stock <= 0
-              ? "bg-rose-100 text-rose-700"
-              : stock < 10
-                ? "bg-amber-100 text-amber-800"
-                : "bg-emerald-100 text-emerald-700";
+            const isActive = product.status === "Active";
+            const price = Number(product.final_selling_price) > 0
+              ? Number(product.final_selling_price)
+              : Number(product.offer_price) > 0
+                ? Number(product.offer_price)
+                : Number(product.mrp || 0);
 
             return (
               <article
                 key={product.id}
-                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-white bg-white shadow-[0_5px_16px_rgba(26,67,55,0.08)] ring-1 ring-slate-200/70 transition duration-200 hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-[0_12px_26px_rgba(26,67,55,0.13)]"
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-amber-50 via-stone-100 to-teal-50 xl:aspect-[8/5]">
                   {imageUrl ? (
@@ -619,57 +746,40 @@ const TackOrders = () => {
                       </span>
                     </div>
                   )}
-                  <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur">
-                    {product.category || "Uncategorized"}
-                  </span>
-                  {hasOffer && (
-                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-xs font-extrabold tracking-wide text-white shadow-md">
-                      <FiTag size={13} aria-hidden="true" />
-                      {offerLabel}
-                    </span>
-                  )}
-                  <span className={`absolute bottom-3 right-3 rounded-full px-3 py-1 text-xs font-bold shadow-sm ${stockStyle}`}>
-                    {stockLabel}
-                  </span>
                 </div>
 
-                <div className="flex flex-1 flex-col p-4 xl:p-4">
-                  <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-1 flex-col p-2.5">
+                  <div className="flex min-w-0 items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <h2 className="truncate text-lg font-bold text-slate-800">
+                      <h2 className="truncate text-sm font-bold text-slate-800" title={product.name || "Unnamed product"}>
                         {product.name || "Unnamed product"}
                       </h2>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
-                        <span>{product.product_code || "No product code"}</span>
-                      </div>
+                      <p className="mt-0.5 truncate text-[10px] text-slate-500">
+                        Product ID: {product.product_code || product.id}
+                      </p>
                     </div>
-                    <p className="shrink-0 text-right text-base font-extrabold text-[#14534a]">
-                      {formatCurrency(price)}
-                    </p>
+                    <div className="shrink-0 text-right">
+                      <p className="text-[9px] font-medium text-slate-500">Price</p>
+                      <p className="text-xs font-extrabold text-[#14534a]">{formatCurrency(price)}</p>
+                    </div>
                   </div>
 
-                  <div className="mt-4 flex items-center gap-3">
-                    <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
-                      <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 p-2.5">
-                        <p className="text-[10px] font-medium text-slate-500">Metal / Purity</p>
-                        <p className="mt-1 break-words text-xs font-semibold leading-snug text-slate-700">
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-medium text-slate-500">Metal / Purity</p>
+                      <p className="truncate text-[11px] font-semibold text-slate-700" title={[product.metal_type, product.purity].filter(Boolean).join(" / ")}>
                         {[product.metal_type, product.purity].filter(Boolean).join(" / ") || "Not specified"}
-                        </p>
-                      </div>
-                      <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 p-2.5">
-                        <p className="text-[10px] font-medium text-slate-500">Net weight</p>
-                        <p className="mt-1 text-xs font-semibold text-slate-700">{netWeight}</p>
-                      </div>
+                      </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => void addToCart(product)}
-                      disabled={stock <= 0}
-                      aria-label={`Add ${product.name || "product"} to cart`}
-                      title="Add to cart"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#14534a] text-white shadow-sm transition hover:bg-[#0f4039] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#14534a] disabled:cursor-not-allowed disabled:bg-slate-300"
+                      disabled={!isActive}
+                      aria-label={`Add ${product.name || "product"} to pre-order`}
+                      title={isActive ? "Add to pre-order" : "Inactive products cannot be pre-ordered"}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14534a] text-white shadow-sm transition hover:bg-[#0f4039] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#14534a] disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
-                      <FiPlus size={20} aria-hidden="true" />
+                      <FiPlus size={17} aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -682,10 +792,25 @@ const TackOrders = () => {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-2xl text-[#b08d57]">
             <FiBox aria-hidden="true" />
           </div>
-          <h2 className="mt-4 text-lg font-bold text-slate-800">No products found</h2>
+          <h2 className="mt-4 text-lg font-bold text-slate-800">
+            {products.length ? "No products match these filters" : "No products found"}
+          </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Try another search to find a product.
+            {products.length ? "Try a different search or clear the selected filters." : "Products you can pre-order will appear here."}
           </p>
+          {products.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setTackOrdersSearch("");
+                setCategoryFilter("ALL");
+                setMetalFilter("ALL");
+              }}
+              className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-[#087768] hover:bg-emerald-100"
+            >
+              Clear search and filters
+            </button>
+          )}
         </div>
             )}
           </div>
@@ -694,14 +819,13 @@ const TackOrders = () => {
 
         <OrderSummary
           cart={pricedCart}
-          loadingCart={loadingCart}
           removeFromCart={removeFromCart}
           updateCartQuantity={updateCartQuantity}
           onNetWeightChange={handleNetWeightChange}
           gstIncluded={gstIncluded}
           gstRate={gstRate}
-          gstSettingsLoading={gstSettingsLoading}
-          gstSettingsError={gstSettingsError}
+          setGstIncluded={setGstIncluded}
+          setGstRate={setGstRate}
           discountType={discountType}
           setDiscountType={setDiscountType}
           discountValue={discountValue}
@@ -717,33 +841,38 @@ const TackOrders = () => {
           <form
             id="tack-order-form"
             onSubmit={handleCreateTackOrder}
-            className="mx-auto w-full max-w-4xl self-start rounded-2xl border border-orange-100 bg-white p-5 shadow-sm sm:p-7"
+            className="mx-auto w-full max-w-4xl self-start rounded-3xl border border-emerald-900/10 bg-gradient-to-br from-white via-white to-[#fffaf1] p-5 shadow-[0_20px_60px_rgba(18,54,45,0.08)] ring-1 ring-white/80 sm:p-8"
           >
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-orange-100 pb-5">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-50 to-amber-50 text-[#087768] shadow-inner">
                   <FiUser aria-hidden="true" size={20} />
                 </span>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-orange-600">Order details</p>
-                  <h2 className="mt-0.5 text-xl font-extrabold text-slate-800">Customer Details</h2>
-                  <p className="mt-0.5 text-sm text-slate-500">Enter the customer information for this shop order.</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#087768]">Step 2 · Customer</p>
+                  <h2 className="mt-0.5 text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">Customer &amp; delivery details</h2>
+                  <p className="mt-1 text-sm text-slate-500">Add the customer information to complete this shop order.</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setOrderStep("products")}
-                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-700 transition hover:bg-orange-100"
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-[#087768]"
               >
                 <FiArrowLeft aria-hidden="true" />
                 Back to Items
               </button>
             </div>
-            {savedOrder && (
-              <p role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                Tack order {savedOrder.order_no} was created, but the cart could not be cleared. Refresh the cart before creating another order.
-              </p>
-            )}
+            <ol aria-label="Order progress" className="mb-6 grid grid-cols-2 gap-2">
+              <li className="flex items-center gap-2 rounded-xl bg-emerald-50/80 px-3 py-2.5 text-xs font-bold text-emerald-800">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 text-[10px] text-white">1</span>
+                Items selected
+              </li>
+              <li aria-current="step" className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-xs font-bold text-amber-900">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-[10px] text-white">2</span>
+                Customer details
+              </li>
+            </ol>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="text-sm font-semibold text-slate-700">
                 Customer name *
@@ -753,7 +882,7 @@ const TackOrders = () => {
                   value={customer.name}
                   onChange={(event) => setCustomer({ ...customer, name: event.target.value })}
                   placeholder="Enter customer name"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal outline-none transition placeholder:text-slate-400 focus:border-[#087768] focus:ring-4 focus:ring-emerald-800/10"
                 />
               </label>
               <label className="text-sm font-semibold text-slate-700">
@@ -765,7 +894,7 @@ const TackOrders = () => {
                   value={customer.phone}
                   onChange={(event) => setCustomer({ ...customer, phone: event.target.value })}
                   placeholder="Enter phone number"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal outline-none transition placeholder:text-slate-400 focus:border-[#087768] focus:ring-4 focus:ring-emerald-800/10"
                 />
               </label>
               <label className="text-sm font-semibold text-slate-700">
@@ -776,7 +905,7 @@ const TackOrders = () => {
                   value={customer.email}
                   onChange={(event) => setCustomer({ ...customer, email: event.target.value })}
                   placeholder="Enter email address (optional)"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal outline-none transition placeholder:text-slate-400 focus:border-[#087768] focus:ring-4 focus:ring-emerald-800/10"
                 />
               </label>
               <label className="text-sm font-semibold text-slate-700">
@@ -786,7 +915,7 @@ const TackOrders = () => {
                   value={customer.city}
                   onChange={(event) => setCustomer({ ...customer, city: event.target.value })}
                   placeholder="Enter city"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal outline-none transition placeholder:text-slate-400 focus:border-[#087768] focus:ring-4 focus:ring-emerald-800/10"
                 />
               </label>
               <label className="text-sm font-semibold text-slate-700">
@@ -795,7 +924,7 @@ const TackOrders = () => {
                   value={customer.district}
                   onChange={(event) => setCustomer({ ...customer, district: event.target.value })}
                   placeholder="Enter district"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal outline-none transition placeholder:text-slate-400 focus:border-[#087768] focus:ring-4 focus:ring-emerald-800/10"
                 />
               </label>
               <label className="text-sm font-semibold text-slate-700">
@@ -804,7 +933,7 @@ const TackOrders = () => {
                   autoComplete="address-level1"
                   value={customer.state}
                   onChange={(event) => setCustomer({ ...customer, state: event.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal outline-none transition placeholder:text-slate-400 focus:border-[#087768] focus:ring-4 focus:ring-emerald-800/10"
                 >
                   <option value="">Select state</option>
                   {INDIAN_STATES_AND_UTS.map((state) => (
@@ -823,7 +952,7 @@ const TackOrders = () => {
                   value={customer.pincode}
                   onChange={(event) => setCustomer({ ...customer, pincode: event.target.value })}
                   placeholder="6-digit PIN code"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal outline-none transition placeholder:text-slate-400 focus:border-[#087768] focus:ring-4 focus:ring-emerald-800/10"
                 />
               </label>
               <label className="text-sm font-semibold text-slate-700">
@@ -834,7 +963,7 @@ const TackOrders = () => {
                   value={customer.address}
                   onChange={(event) => setCustomer({ ...customer, address: event.target.value })}
                   placeholder="Enter customer address (optional)"
-                  className="mt-1 w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-orange-400"
+                  className="mt-1 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal outline-none transition placeholder:text-slate-400 focus:border-[#087768] focus:ring-4 focus:ring-emerald-800/10"
                 />
               </label>
             </div>
@@ -842,14 +971,13 @@ const TackOrders = () => {
 
           <OrderSummary
             cart={pricedCart}
-            loadingCart={loadingCart}
             removeFromCart={removeFromCart}
             updateCartQuantity={updateCartQuantity}
             onNetWeightChange={handleNetWeightChange}
             gstIncluded={gstIncluded}
             gstRate={gstRate}
-            gstSettingsLoading={gstSettingsLoading}
-            gstSettingsError={gstSettingsError}
+            setGstIncluded={setGstIncluded}
+            setGstRate={setGstRate}
             discountType={discountType}
             setDiscountType={setDiscountType}
             discountValue={discountValue}
@@ -857,7 +985,6 @@ const TackOrders = () => {
             advanceAmount={advanceAmount}
             setAdvanceAmount={setAdvanceAmount}
             submitting={submitting}
-            savedOrder={savedOrder}
             orderStep={orderStep}
             onNext={() => setOrderStep("details")}
           />

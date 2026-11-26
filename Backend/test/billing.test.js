@@ -44,8 +44,7 @@ const exchangeItem = (overrides = {}) => ({
   credit_amount: 1,
   ...overrides
 });
-const enabledTaxSettings = (gst_rate, tax_mode = 'Tax Exclusive') => ({
-  gst_enabled: true,
+const gstDefaults = (gst_rate, tax_mode = 'Tax Exclusive') => ({
   gst_rate,
   tax_mode
 });
@@ -70,12 +69,12 @@ test('requires a phone number for every bill customer', () => {
   assert.match(normalizeBilling(input).error, /customers 1 phone is required/i);
 });
 
-test('deducts exchange credit before calculating configured GST', () => {
+test('deducts exchange credit before calculating the entered GST percentage', () => {
   const result = normalizeBilling(billingInput({
     payment_type: 'EXCHANGE_GOLD',
     gst_rate: 3,
     exchanges: [exchangeItem()]
-  }), currentRates, enabledTaxSettings(3));
+  }), currentRates, gstDefaults(3));
   assert.equal(result.error, undefined);
   assert.equal(result.billing.sub_total, 15000);
   assert.equal(result.billing.exchanges[0].metal_type, 'Gold');
@@ -144,22 +143,16 @@ test('rejects invalid manually entered exchange rates', () => {
   assert.match(result.error, /rate/i);
 });
 
-test('uses the owner tax settings instead of a client-supplied GST rate', () => {
-  const result = normalizeBilling(billingInput({ gst_rate: 3.33 }));
-  const configured = normalizeBilling(billingInput({ gst_rate: 100 }), null, enabledTaxSettings(3.33));
+test('calculates GST and bill total from the percentage entered for that bill', () => {
+  const result = normalizeBilling(billingInput({ gst_rate: 6 }));
   assert.equal(result.error, undefined);
-  assert.equal(result.billing.gst_amount, 0);
-  assert.equal(configured.error, undefined);
-  assert.equal(configured.billing.gst_amount, 499.5);
-  assert.equal(configured.billing.total_amount, 15499.5);
+  assert.equal(result.billing.gst_rate, 6);
+  assert.equal(result.billing.gst_amount, 900);
+  assert.equal(result.billing.total_amount, 15900);
 });
 
 test('calculates included GST without increasing the inclusive bill total', () => {
-  const result = normalizeBilling(
-    billingInput({ gst_rate: 99 }),
-    null,
-    enabledTaxSettings(12, 'Tax Inclusive')
-  );
+  const result = normalizeBilling(billingInput({ gst_rate: 12, tax_mode: 'Tax Inclusive' }));
   assert.equal(result.error, undefined);
   assert.equal(result.billing.gst_amount, 1607.14);
   assert.equal(result.billing.total_amount, 15000);
@@ -173,7 +166,7 @@ test('applies a fixed discount before exchange credit and GST', () => {
     gst_rate: 3,
     payment_type: 'EXCHANGE_GOLD',
     exchanges: [exchangeItem()]
-  }), currentRates, enabledTaxSettings(3));
+  }), currentRates, gstDefaults(3));
   assert.equal(result.error, undefined);
   assert.equal(result.billing.discount_amount, 1000);
   assert.equal(result.billing.gst_amount, 360);
@@ -203,7 +196,7 @@ test('preserves tack-order GST and discount totals when converting to a bill', (
   const result = normalizeBilling(billingInput({
     products: [{ product_name: 'Tack item', category: 'Chain', purity: '22K', price: 253 }],
     discount_amount: 20.24
-  }), null, enabledTaxSettings(2), 5.06);
+  }), null, gstDefaults(2), 5.06);
   assert.equal(result.error, undefined);
   assert.equal(result.billing.gst_amount, 5.06);
   assert.equal(result.billing.discount_amount, 20.24);
@@ -233,9 +226,10 @@ test('rejects discounts and exchange credits that exceed the products subtotal',
   }), currentRates).error, /cannot exceed/i);
 });
 
-test('rejects an invalid saved GST rate', () => {
-  assert.match(normalizeBilling(billingInput(), null, enabledTaxSettings(-1)).error, /saved GST rate/i);
-  assert.match(normalizeBilling(billingInput(), null, enabledTaxSettings(101)).error, /saved GST rate/i);
+test('rejects invalid GST percentages entered on a bill', () => {
+  assert.match(normalizeBilling(billingInput({ gst_rate: -1 })).error, /GST rate/i);
+  assert.match(normalizeBilling(billingInput({ gst_rate: 101 })).error, /GST rate/i);
+  assert.match(normalizeBilling(billingInput({ gst_rate: '' })).error, /GST rate/i);
 });
 
 test('rejects exchange credits over subtotal and missing exchange items', () => {
@@ -342,7 +336,9 @@ test('preserves a bill and its payment history when deletion is requested', asyn
     release: () => {},
     execute: async (query, values) => {
       executions.push({ query, values });
-      if (query.startsWith('SELECT id FROM billings')) return [[{ id: 20 }], []];
+      if (query.startsWith('SELECT id, source_tack_order_id FROM billings')) {
+        return [[{ id: 20, source_tack_order_id: null }], []];
+      }
       if (query.startsWith('SELECT id FROM billing_payments')) return [[{ id: 7 }], []];
       return [{ affectedRows: 1 }, []];
     }
@@ -370,7 +366,9 @@ test('deletes a bill only when it has no recorded payment transactions', async (
     release: () => {},
     execute: async (query, values) => {
       executions.push({ query, values });
-      if (query.startsWith('SELECT id FROM billings')) return [[{ id: 21 }], []];
+      if (query.startsWith('SELECT id, source_tack_order_id FROM billings')) {
+        return [[{ id: 21, source_tack_order_id: null }], []];
+      }
       if (query.startsWith('SELECT id FROM billing_payments')) return [[], []];
       return [{ affectedRows: 1 }, []];
     }
@@ -386,6 +384,36 @@ test('deletes a bill only when it has no recorded payment transactions', async (
     query: 'DELETE FROM billings WHERE id = ? AND user_id = ?',
     values: [21, 'shop-user-1']
   });
+});
+
+test('returns a tack order to Ready when its unpaid bill is deleted', async () => {
+  const originalGetConnection = pool.getConnection;
+  const executions = [];
+  const connection = {
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => {},
+    release: () => {},
+    execute: async (query, values) => {
+      executions.push({ query, values });
+      if (query.startsWith('SELECT id, source_tack_order_id FROM billings')) {
+        return [[{ id: 22, source_tack_order_id: 42 }], []];
+      }
+      if (query.startsWith('SELECT id FROM billing_payments')) return [[], []];
+      if (query.startsWith('DELETE FROM billings')) return [{ affectedRows: 1 }, []];
+      if (query.startsWith('SELECT id FROM billings WHERE source_tack_order_id')) return [[], []];
+      return [{ affectedRows: 1 }, []];
+    }
+  };
+  pool.getConnection = async () => connection;
+  try {
+    assert.equal(await deleteBilling(22, 'shop-user-1'), true);
+  } finally {
+    pool.getConnection = originalGetConnection;
+  }
+  const orderUpdate = executions.find(({ query }) => query.startsWith('UPDATE tack_orders'));
+  assert.deepEqual(orderUpdate.values, [42, 'shop-user-1']);
+  assert.match(orderUpdate.query, /SET order_status = 'Ready'/);
 });
 
 test('only returns a tack order when it belongs to the authenticated user', async () => {
@@ -416,6 +444,9 @@ test('records a transferred tack-order advance with the bill and fund ledger ato
     release: () => {},
     execute: async (query, values) => {
       executions.push({ query, values });
+      if (query.includes('SELECT id, order_status FROM tack_orders')) {
+        return [[{ id: 42, order_status: 'Ready' }], []];
+      }
       if (query.includes('INSERT INTO billings')) return [{ insertId: 84 }, []];
       if (query.includes('SELECT user_id FROM users')) return [[{ user_id: 'shop-user-1' }], []];
       if (query.includes('AS balance')) return [[{ balance: 0 }], []];
@@ -465,7 +496,7 @@ test('records a transferred tack-order advance with the bill and fund ledger ato
   assert.equal(fundInsert.values[2], 'CREDIT');
   assert.equal(fundInsert.values[4], '25.00');
   const statusUpdate = executions.find(({ query }) => query.includes('UPDATE tack_orders'));
-  assert.deepEqual(statusUpdate.values, ['Partial', '75.00', 'Billing Pending', 42, 'shop-user-1']);
+  assert.deepEqual(statusUpdate.values, ['Partial', '75.00', 'Completed', 42, 'shop-user-1']);
 });
 
 test('reuses a matching fund credit when retrying tack-order bill conversion', async () => {
@@ -480,6 +511,9 @@ test('reuses a matching fund credit when retrying tack-order bill conversion', a
     release: () => {},
     execute: async (query, values) => {
       executions.push({ query, values });
+      if (query.includes('SELECT id, order_status FROM tack_orders')) {
+        return [[{ id: 42, order_status: 'Ready' }], []];
+      }
       if (query.includes('INSERT INTO billings')) return [{ insertId: 86 }, []];
       if (query.includes('SELECT user_id FROM users')) return [[{ user_id: 'shop-user-1' }], []];
       if (query.includes('AS balance')) return [[{ balance: 0 }], []];
@@ -543,6 +577,9 @@ test('rejects a conflicting existing fund entry instead of masking it', async ()
     rollback: async () => { rolledBack = true; },
     release: () => {},
     execute: async (query) => {
+      if (query.includes('SELECT id, order_status FROM tack_orders')) {
+        return [[{ id: 42, order_status: 'Ready' }], []];
+      }
       if (query.includes('INSERT INTO billings')) return [{ insertId: 87 }, []];
       if (query.includes('SELECT user_id FROM users')) return [[{ user_id: 'shop-user-1' }], []];
       if (query.includes('AS balance')) return [[{ balance: 0 }], []];
@@ -608,6 +645,9 @@ test('reuses an existing advance bill and synchronizes its actual paid state', a
       release: () => {},
       execute: async (query, values) => {
         executions.push({ query, values });
+        if (query.includes('SELECT id, order_status FROM tack_orders')) {
+          return [[{ id: 42, order_status: 'Ready' }], []];
+        }
         if (query.includes('INSERT INTO billings')) return [{ insertId: 88 }, []];
         if (query.includes('SELECT user_id FROM users')) return [[{ user_id: 'shop-user-1' }], []];
         if (query.includes('AS balance')) return [[{ balance: 0 }], []];
@@ -676,10 +716,10 @@ test('reuses an existing advance bill and synchronizes its actual paid state', a
   };
 
   await retryWithExistingBill(100, 'Paid', 'Completed');
-  await retryWithExistingBill(25, 'Partial', 'Billing Pending');
+  await retryWithExistingBill(25, 'Partial', 'Completed');
 });
 
-test('sets a linked order to Billing Pending when a bill is created without an advance', async () => {
+test('marks a linked order Completed when a bill is created without an advance', async () => {
   const originalExecute = pool.execute;
   const originalGetConnection = pool.getConnection;
   const executions = [];
@@ -691,6 +731,9 @@ test('sets a linked order to Billing Pending when a bill is created without an a
     release: () => {},
     execute: async (query, values) => {
       executions.push({ query, values });
+      if (query.includes('SELECT id, order_status FROM tack_orders')) {
+        return [[{ id: 42, order_status: 'Ready' }], []];
+      }
       if (query.includes('INSERT INTO billings')) return [{ insertId: 85 }, []];
       return [{ affectedRows: 1 }, []];
     }
@@ -716,7 +759,45 @@ test('sets a linked order to Billing Pending when a bill is created without an a
   }
   assert.equal(committed, true);
   const statusUpdate = executions.find(({ query }) => query.includes('UPDATE tack_orders'));
-  assert.deepEqual(statusUpdate.values, ['Pending', '100.00', 'Billing Pending', 42, 'shop-user-1']);
+  assert.deepEqual(statusUpdate.values, ['Pending', '100.00', 'Completed', 42, 'shop-user-1']);
+});
+
+test('rejects bill creation until a linked order is Ready', async () => {
+  const originalGetConnection = pool.getConnection;
+  const executions = [];
+  let rolledBack = false;
+  const connection = {
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => { rolledBack = true; },
+    release: () => {},
+    execute: async (query, values) => {
+      executions.push({ query, values });
+      if (query.includes('SELECT id, order_status FROM tack_orders')) {
+        return [[{ id: 42, order_status: 'Confirmed' }], []];
+      }
+      return [[], []];
+    }
+  };
+  pool.getConnection = async () => connection;
+  try {
+    await assert.rejects(createBilling({
+      invoice_no: 'BILL-TEST-NOT-READY',
+      customers: [{ name: 'A Customer' }],
+      products: [],
+      exchanges: [],
+      payment_type: 'FULL_PAYMENT',
+      sub_total: 100,
+      discount_amount: 0,
+      gst_amount: 0,
+      total_amount: 100,
+      source_tack_order_id: 42
+    }, 'shop-user-1'), { code: 'TACK_ORDER_NOT_READY' });
+  } finally {
+    pool.getConnection = originalGetConnection;
+  }
+  assert.equal(rolledBack, true);
+  assert.equal(executions.some(({ query }) => query.includes('INSERT INTO billings')), false);
 });
 
 test('syncs linked-order completion when an edited bill becomes fully paid', async () => {
@@ -812,7 +893,7 @@ test('updates linked tack-order payment status when a bill is paid or refunded',
     assert.equal(committed, true);
     const statusUpdate = executions.find(({ query }) => query.includes('UPDATE tack_orders'));
     const expectedBalance = paymentKind === 'PAYMENT' ? '0.00' : '10.00';
-    const expectedOrderStatus = paymentKind === 'PAYMENT' ? 'Completed' : 'Billing Pending';
+    const expectedOrderStatus = 'Completed';
     assert.deepEqual(statusUpdate.values, [
       expectedStatus,
       expectedBalance,

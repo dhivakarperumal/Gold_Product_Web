@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast, Toaster } from "react-hot-toast";
 import {
   FiArrowLeft,
+  FiBox,
   FiCheck,
   FiImage,
   FiSave,
@@ -98,17 +99,28 @@ const EMPTY_PRODUCT = {
   best_seller: false
 };
 
-const inputClass = "mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100";
-const labelClass = "block text-xs font-bold uppercase tracking-wide text-gray-500";
+const inputClass = "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10";
+const labelClass = "block text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-500";
 
-const Section = ({ title, children }) => (
-  <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-    <div className="border-b border-gray-100 bg-[#003B3B]/5 px-5 py-4">
-      <h2 className="text-sm font-extrabold text-[#003B3B]">{title}</h2>
-    </div>
-    <div className="p-5">{children}</div>
-  </section>
-);
+const Section = ({ title, children }) => {
+  const sectionNumber = title.match(/^\d+/)?.[0];
+  const sectionTitle = title.replace(/^\d+\.\s*/, "");
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/50 px-5 py-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 to-teal-600 text-sm font-black text-white shadow-sm">
+            {sectionNumber || <FiBox aria-hidden="true" />}
+          </span>
+          <h2 className="truncate text-sm font-extrabold text-slate-900 sm:text-base">{sectionTitle}</h2>
+        </div>
+        {sectionNumber && <span className="hidden shrink-0 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 sm:inline">Section {sectionNumber}</span>}
+      </div>
+      <div className="p-5 sm:p-6">{children}</div>
+    </section>
+  );
+};
 
 const Field = ({ label, name, value, onChange, type = "text", placeholder = "", required = false, min, step, readOnly = false }) => (
   <label className={labelClass}>
@@ -458,10 +470,10 @@ const AddProducts = () => {
   }
 
   const uploadButton = (field, label, accept, multiple = false) => (
-    <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-5 text-center transition hover:border-amber-400 hover:bg-amber-50/40">
-      <FiUploadCloud className="mb-2 text-2xl text-amber-600" />
+    <label className="group flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-white p-5 text-center transition hover:border-emerald-500 hover:from-emerald-50/70 hover:to-white">
+      <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition group-hover:bg-emerald-700 group-hover:text-white"><FiUploadCloud className="text-xl" /></span>
       <span className="text-sm font-bold text-slate-700">{uploading ? "Uploading..." : label}</span>
-      <span className="mt-1 text-xs text-gray-500">{accept}</span>
+      <span className="mt-1 text-xs text-slate-500">{accept}</span>
       <input type="file" accept={field === "video" ? "video/mp4" : "image/png,image/jpeg,application/pdf"} multiple={multiple} disabled={uploading} onChange={(event) => handleUpload(event, field)} className="sr-only" />
     </label>
   );
@@ -469,18 +481,32 @@ const AddProducts = () => {
   return (
     <div className="space-y-5 pb-12">
       <Toaster position="top-right" />
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={() => navigate(-1)} aria-label="Go back" className="rounded-xl border border-gray-200 bg-white p-2.5 text-gray-500 shadow-sm transition hover:text-[#003B3B]">
-          <FiArrowLeft size={18} />
-        </button>
-        <div>
-          <h1 className="text-xl font-black text-[#003B3B]">{isEdit ? "Edit Product" : "Add Product"}</h1>
-          <p className="text-xs text-gray-500">Manage product details, metal pricing, media, and inventory.</p>
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#063f36] via-[#075348] to-[#0b6b5b] px-5 py-5 text-white shadow-[0_16px_36px_rgba(6,63,54,0.2)] sm:px-7 sm:py-6">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-20 h-56 w-56 rounded-full border-[28px] border-white/5" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 right-36 h-48 w-48 rounded-full bg-amber-300/10 blur-2xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-5">
+          <div className="flex min-w-0 items-center gap-4">
+            <button type="button" onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition hover:bg-white/20">
+              <FiArrowLeft size={19} />
+            </button>
+            <div className="min-w-0">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-emerald-200">Catalog management</p>
+              <h1 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">{isEdit ? "Edit product" : "Create a product"}</h1>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-white/75 sm:text-sm">Set up product details, precious-metal pricing, media, and inventory in one place.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white">
+              <FiBox aria-hidden="true" />
+              {isEdit ? "Product editor" : "New catalog item"}
+            </span>
+            <span className="rounded-full bg-amber-300/15 px-3 py-2 text-xs font-bold text-amber-100">SKU auto-generated</span>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 items-start gap-5 xl:grid-cols-3">
-        <div className="space-y-5 xl:col-span-2">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-5">
           <Section title="1. Basic Information">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Product Name" name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Classic Gold Chain" required />
@@ -728,34 +754,69 @@ const AddProducts = () => {
         </div>
 
         <aside className="space-y-4 xl:sticky xl:top-5">
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <FiImage className="text-[#003B3B]" />
-              <h2 className="text-sm font-extrabold text-[#003B3B]">Product Snapshot</h2>
-            </div>
-            {formData.images[0] ? (
-              <img src={resolveBackendImageUrl(formData.images[0])} alt={formData.name || "Product preview"} className="aspect-square w-full rounded-xl bg-gray-50 object-contain" />
-            ) : (
-              <div className="flex aspect-square w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-gray-400">
-                <FiImage size={30} />
-                <span className="mt-2 text-xs font-semibold">Product image preview</span>
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
+            <header className="flex items-center justify-between gap-3 bg-gradient-to-r from-[#063f36] to-[#0b6b5b] px-5 py-4 text-white">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10"><FiImage size={18} aria-hidden="true" /></span>
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-200">Live preview</p>
+                  <h2 className="text-sm font-extrabold">Product snapshot</h2>
+                </div>
               </div>
-            )}
-            <p className="mt-4 truncate font-bold text-slate-800">{formData.name || "Product name"}</p>
-            <p className="mt-1 text-xs text-gray-500">{formData.product_code || "SKU"} · {formData.purity}</p>
-            <div className="mt-4 flex items-baseline justify-between border-t border-gray-100 pt-4">
-              <span className="text-xs font-semibold text-gray-500">Final selling price</span>
-              <span className="font-black text-[#003B3B]">{formatCurrency(pricing.finalPrice)}</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white">{isEdit ? "Editing" : "New"}</span>
+            </header>
+            <div className="space-y-4 p-5">
+              <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-emerald-50">
+                {formData.images[0] ? (
+                  <img src={resolveBackendImageUrl(formData.images[0])} alt={formData.name || "Product preview"} className="h-full w-full object-contain p-2" />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center text-slate-400">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm"><FiImage size={27} /></span>
+                    <span className="mt-3 text-xs font-bold text-slate-500">Your product image appears here</span>
+                    <span className="mt-1 text-[11px] text-slate-400">Upload photos in Media & Uploads</span>
+                  </div>
+                )}
+                <span className="absolute left-3 top-3 rounded-full border border-white/80 bg-white/90 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-600 shadow-sm">Catalog preview</span>
+              </div>
+
+              <div className="min-w-0">
+                <p className="truncate text-base font-extrabold text-slate-900">{formData.name || "Product name"}</p>
+                <p className="mt-1 truncate text-xs font-medium text-slate-500">{formData.product_code || "SKU will appear here"}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {formData.category && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800">{formData.category}</span>}
+                  {formData.metal_type && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-800">{formData.metal_type}</span>}
+                  {formData.purity && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">{formData.purity}</span>}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 p-4">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-emerald-800">Final selling price</p>
+                <p className="mt-1 text-2xl font-black tracking-tight text-emerald-950">{formatCurrency(pricing.finalPrice)}</p>
+                <p className="mt-1 text-[11px] text-emerald-800/80">Based on metal rate, charges, and selected offer.</p>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Inventory</p>
+                  <p className="mt-1 text-sm font-bold text-slate-800">{formData.total_stock || 0} units</p>
+                </div>
+                <span className={`rounded-full px-3 py-1.5 text-[10px] font-extrabold ${formData.stock_status === "In Stock" ? "bg-emerald-100 text-emerald-800" : formData.stock_status === "Low Stock" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+                  {formData.stock_status || "Out of Stock"}
+                </span>
+              </div>
             </div>
-            <p className="mt-2 text-xs text-gray-500">Stock: {formData.total_stock || 0} · {formData.stock_status}</p>
-          </div>
-          <div className="flex gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <button type="button" onClick={() => navigate(-1)} className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 transition hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={loading || uploading} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#003B3B] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#008577] disabled:cursor-not-allowed disabled:opacity-50">
-              {loading ? <FiCheck /> : <FiSave />}
-              {loading ? "Saving..." : isEdit ? "Update Product" : "Save Product"}
-            </button>
-          </div>
+          </section>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-extrabold text-slate-900">Ready to save?</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">Review the product details and save to update your catalog.</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => navigate(-1)} className="rounded-xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50">Cancel</button>
+              <button type="submit" disabled={loading || uploading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00695C] to-[#008577] px-3 py-3 text-sm font-extrabold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
+                {loading ? <FiCheck /> : <FiSave />}
+                {loading ? "Saving..." : isEdit ? "Update" : "Save Product"}
+              </button>
+            </div>
+          </section>
         </aside>
       </form>
     </div>

@@ -50,6 +50,7 @@ const CustomSelect = ({
     onKeyDown,
     onInvalid,
     className = "",
+    variant = "default",
     style,
     name,
     id,
@@ -62,6 +63,7 @@ const CustomSelect = ({
     const selectId = id || generatedId;
     const listboxId = `${selectId}-options`;
     const fullWidth = /\b(?:w-full|block)\b/.test(className) || style?.width === "100%";
+    const darkVariant = variant === "dark";
     const wrapperRef = useRef(null);
     const triggerRef = useRef(null);
     const options = useMemo(() => getOptions(children), [children]);
@@ -179,7 +181,11 @@ const CustomSelect = ({
                     onBlur?.(event);
                     if (!wrapperRef.current?.contains(event.relatedTarget)) setOpen(false);
                 }}
-                className={`relative ${fullWidth ? "block w-full" : "inline-flex max-w-full"} cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 pr-10 text-left text-sm text-slate-800 shadow-sm transition duration-150 hover:border-emerald-500/60 focus:border-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+                className={`relative ${fullWidth ? "block w-full" : "inline-flex max-w-full"} cursor-pointer appearance-none rounded-xl border px-3 py-2.5 pr-10 text-left text-sm shadow-sm transition duration-150 focus:outline-none focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60 ${
+                    darkVariant
+                        ? "border-white/15 bg-white/10 text-white hover:border-white/30 focus:border-amber-300 focus:ring-amber-300/15"
+                        : "border-slate-200 bg-white text-slate-800 hover:border-emerald-500/60 focus:border-emerald-600 focus:ring-emerald-100"
+                } ${className}`}
                 style={{ ...style, paddingRight: style?.paddingRight ?? "2.5rem" }}
             >
                 <span className="block truncate">{selectedOption?.label ?? ""}</span>
@@ -187,7 +193,7 @@ const CustomSelect = ({
                     aria-hidden="true"
                     viewBox="0 0 20 20"
                     fill="none"
-                    className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+                    className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 transition-transform duration-200 ${darkVariant ? "text-white/60" : "text-slate-500"} ${open ? "rotate-180" : ""}`}
                 >
                     <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -219,7 +225,11 @@ const CustomSelect = ({
                     role="listbox"
                     aria-label={buttonProps["aria-label"] || buttonProps.title}
                     aria-labelledby={buttonProps["aria-label"] || buttonProps.title ? undefined : selectId}
-                    className="absolute inset-x-0 top-[calc(100%+0.375rem)] z-[130] max-h-64 overflow-y-auto rounded-xl border border-emerald-100 bg-white p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.2)] ring-1 ring-black/5"
+                    className={`absolute inset-x-0 top-[calc(100%+0.375rem)] z-[130] max-h-64 overflow-y-auto rounded-xl border p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.2)] ring-1 ${
+                        darkVariant
+                            ? "border-white/15 bg-[#0b3d37] ring-white/10"
+                            : "border-emerald-100 bg-white ring-black/5"
+                    }`}
                 >
                     {options.map((option, index) => (
                         <div key={`${option.value}-${index}`}>
@@ -244,15 +254,21 @@ const CustomSelect = ({
                                 }}
                                 className={`flex min-h-9 items-center rounded-lg px-2.5 py-2 text-sm transition-colors ${
                                     option.disabled
-                                        ? "cursor-not-allowed text-slate-300"
+                                        ? darkVariant
+                                            ? "cursor-not-allowed text-white/30"
+                                            : "cursor-not-allowed text-slate-300"
                                         : index === activeIndex
-                                            ? "cursor-pointer bg-gradient-to-r from-emerald-50 to-[#FBF8F0] font-semibold text-slate-800 ring-1 ring-inset ring-emerald-100"
-                                            : "cursor-pointer text-slate-700 hover:bg-slate-50"
+                                            ? darkVariant
+                                                ? "cursor-pointer bg-white/15 font-semibold text-white ring-1 ring-inset ring-white/15"
+                                                : "cursor-pointer bg-gradient-to-r from-emerald-50 to-[#FBF8F0] font-semibold text-slate-800 ring-1 ring-inset ring-emerald-100"
+                                            : darkVariant
+                                                ? "cursor-pointer text-white/75 hover:bg-white/10 hover:text-white"
+                                                : "cursor-pointer text-slate-700 hover:bg-slate-50"
                                 }`}
                             >
                                 <span className="min-w-0 flex-1 truncate">{option.label}</span>
                                 {option.value === selectedValue && (
-                                    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="ml-2 h-4 w-4 shrink-0 text-emerald-700">
+                                    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={`ml-2 h-4 w-4 shrink-0 ${darkVariant ? "text-amber-300" : "text-emerald-700"}`}>
                                         <path d="m4.5 10 3.5 3.5 7.5-7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                     </svg>
                                 )}
