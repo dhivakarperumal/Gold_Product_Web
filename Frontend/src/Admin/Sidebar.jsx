@@ -6,6 +6,7 @@ import {
   Users,
   BarChart3,
   X,
+  Eye,
   ChevronDown,
   ChevronLeft,
   Home,
@@ -34,6 +35,7 @@ import {
 const navItems = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { path: "/admin/settings/daily-gold-rate", label: "Daily Gold Rate", icon: Coins },
+  { path: "/admin/customer-view-products", label: "Customer View Product", icon: Eye },
 
  
   
