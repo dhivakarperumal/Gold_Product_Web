@@ -6,6 +6,7 @@ const {
   createBilling,
   getBillingById,
   listBillings,
+  deleteBilling,
   recordBillingPayment,
   updateBilling
 } = require('../src/modules/billingModule');
@@ -330,6 +331,63 @@ test('only returns a bill when it belongs to the authenticated user', async () =
   assert.deepEqual(capturedQuery.values, [42, 'shop-user-1']);
 });
 
+test('preserves a bill and its payment history when deletion is requested', async () => {
+  const originalGetConnection = pool.getConnection;
+  const executions = [];
+  let rolledBack = false;
+  const connection = {
+    beginTransaction: async () => {},
+    commit: async () => { throw new Error('A bill with payment history must not be deleted'); },
+    rollback: async () => { rolledBack = true; },
+    release: () => {},
+    execute: async (query, values) => {
+      executions.push({ query, values });
+      if (query.startsWith('SELECT id FROM billings')) return [[{ id: 20 }], []];
+      if (query.startsWith('SELECT id FROM billing_payments')) return [[{ id: 7 }], []];
+      return [{ affectedRows: 1 }, []];
+    }
+  };
+  pool.getConnection = async () => connection;
+  try {
+    await assert.rejects(deleteBilling(20, 'shop-user-1'), {
+      code: 'BILL_HAS_PAYMENT_HISTORY'
+    });
+  } finally {
+    pool.getConnection = originalGetConnection;
+  }
+  assert.equal(rolledBack, true);
+  assert.equal(executions.some(({ query }) => query.startsWith('DELETE FROM billings')), false);
+});
+
+test('deletes a bill only when it has no recorded payment transactions', async () => {
+  const originalGetConnection = pool.getConnection;
+  const executions = [];
+  let committed = false;
+  const connection = {
+    beginTransaction: async () => {},
+    commit: async () => { committed = true; },
+    rollback: async () => {},
+    release: () => {},
+    execute: async (query, values) => {
+      executions.push({ query, values });
+      if (query.startsWith('SELECT id FROM billings')) return [[{ id: 21 }], []];
+      if (query.startsWith('SELECT id FROM billing_payments')) return [[], []];
+      return [{ affectedRows: 1 }, []];
+    }
+  };
+  pool.getConnection = async () => connection;
+  try {
+    assert.equal(await deleteBilling(21, 'shop-user-1'), true);
+  } finally {
+    pool.getConnection = originalGetConnection;
+  }
+  assert.equal(committed, true);
+  assert.deepEqual(executions[executions.length - 1], {
+    query: 'DELETE FROM billings WHERE id = ? AND user_id = ?',
+    values: [21, 'shop-user-1']
+  });
+});
+
 test('only returns a tack order when it belongs to the authenticated user', async () => {
   const originalExecute = pool.execute;
   let capturedQuery;
@@ -407,7 +465,7 @@ test('records a transferred tack-order advance with the bill and fund ledger ato
   assert.equal(fundInsert.values[2], 'CREDIT');
   assert.equal(fundInsert.values[4], '25.00');
   const statusUpdate = executions.find(({ query }) => query.includes('UPDATE tack_orders'));
-  assert.deepEqual(statusUpdate.values, ['Pending', '75.00', 'Billing Pending', 42, 'shop-user-1']);
+  assert.deepEqual(statusUpdate.values, ['Partial', '75.00', 'Billing Pending', 42, 'shop-user-1']);
 });
 
 test('reuses a matching fund credit when retrying tack-order bill conversion', async () => {
@@ -618,7 +676,7 @@ test('reuses an existing advance bill and synchronizes its actual paid state', a
   };
 
   await retryWithExistingBill(100, 'Paid', 'Completed');
-  await retryWithExistingBill(25, 'Pending', 'Billing Pending');
+  await retryWithExistingBill(25, 'Partial', 'Billing Pending');
 });
 
 test('sets a linked order to Billing Pending when a bill is created without an advance', async () => {
@@ -765,5 +823,5 @@ test('updates linked tack-order payment status when a bill is paid or refunded',
   };
 
   await recordPaymentAndGetStatus('PAYMENT', 50, 50, 'Paid');
-  await recordPaymentAndGetStatus('REFUND', 10, 100, 'Pending');
+  await recordPaymentAndGetStatus('REFUND', 10, 100, 'Partial');
 });

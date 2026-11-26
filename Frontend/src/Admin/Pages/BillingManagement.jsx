@@ -935,6 +935,10 @@ export default function BillingManagement() {
   };
 
   const deleteBill = async (bill) => {
+    if (Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0) {
+      toast.error("This bill has payment history and cannot be deleted.");
+      return;
+    }
     if (!window.confirm(`Delete bill ${bill.invoice_no}? This cannot be undone.`)) return;
     try {
       await api.delete(`/billings/${bill.id}`);
@@ -1261,7 +1265,7 @@ export default function BillingManagement() {
                             <button type="button" onClick={() => setViewingBill(bill)} className="rounded-md p-2 text-sky-700 hover:bg-sky-50" aria-label={`View bill ${bill.invoice_no}`} title="View"><FiEye /></button>
                             <button type="button" onClick={() => printBill(bill)} className="rounded-md p-2 text-[#00695C] hover:bg-emerald-50" aria-label={`Print bill ${bill.invoice_no}`} title="Print"><FiPrinter /></button>
                             {Number(bill.paid_amount) === 0 && <button type="button" onClick={() => editBill(bill)} className="rounded-md p-2 text-amber-700 hover:bg-amber-50" aria-label={`Edit bill ${bill.invoice_no}`} title="Edit"><FiEdit2 /></button>}
-                            <button type="button" onClick={() => deleteBill(bill)} className="rounded-md p-2 text-rose-600 hover:bg-rose-50" aria-label={`Delete bill ${bill.invoice_no}`} title="Delete"><FiTrash2 /></button>
+                            <button type="button" onClick={() => deleteBill(bill)} disabled={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0} className="rounded-md p-2 text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40" aria-label={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0 ? `Cannot delete ${bill.invoice_no}; payment history exists` : `Delete bill ${bill.invoice_no}`} title={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0 ? "Payment history is preserved; this bill cannot be deleted" : "Delete"}><FiTrash2 /></button>
                           </div>
                         </td>
                       </tr>
@@ -1302,7 +1306,7 @@ export default function BillingManagement() {
                         <button type="button" onClick={() => setViewingBill(bill)} className="rounded-md p-2 text-sky-700 hover:bg-sky-50" aria-label={`View bill ${bill.invoice_no}`} title="View"><FiEye /></button>
                         <button type="button" onClick={() => printBill(bill)} className="rounded-md p-2 text-[#00695C] hover:bg-emerald-50" aria-label={`Print bill ${bill.invoice_no}`} title="Print"><FiPrinter /></button>
                         {Number(bill.paid_amount) === 0 && <button type="button" onClick={() => editBill(bill)} className="rounded-md p-2 text-amber-700 hover:bg-amber-50" aria-label={`Edit bill ${bill.invoice_no}`} title="Edit"><FiEdit2 /></button>}
-                        <button type="button" onClick={() => deleteBill(bill)} className="rounded-md p-2 text-rose-600 hover:bg-rose-50" aria-label={`Delete bill ${bill.invoice_no}`} title="Delete"><FiTrash2 /></button>
+                        <button type="button" onClick={() => deleteBill(bill)} disabled={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0} className="rounded-md p-2 text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40" aria-label={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0 ? `Cannot delete ${bill.invoice_no}; payment history exists` : `Delete bill ${bill.invoice_no}`} title={Number(bill.payment_count) > 0 || Number(bill.paid_amount) > 0 ? "Payment history is preserved; this bill cannot be deleted" : "Delete"}><FiTrash2 /></button>
                       </div>
                     </article>
                   );

@@ -51,7 +51,8 @@ async function initializeTackOrderModule() {
   await pool.query(`
     UPDATE tack_orders t
     JOIN billings b ON b.source_tack_order_id = t.id AND b.user_id = t.user_id
-    SET t.payment_status = CASE WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Paid' ELSE 'Pending' END,
+    SET t.payment_status = CASE WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Paid'
+                                WHEN b.paid_amount > 0 THEN 'Partial' ELSE 'Pending' END,
         t.balance_due = GREATEST(b.total_amount - b.paid_amount, 0),
         t.order_status = CASE WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Completed' ELSE 'Billing Pending' END
   `);

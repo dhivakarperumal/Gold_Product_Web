@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiBox, FiCalendar, FiChevronRight, FiFileText, FiGrid, FiList, FiMapPin, FiPhone, FiPlus, FiRefreshCw, FiSearch, FiUser, FiUsers } from "react-icons/fi";
+import { FiBox, FiCalendar, FiChevronRight, FiFileText, FiGrid, FiList, FiMapPin, FiPhone, FiPlus, FiSearch, FiUser, FiUsers } from "react-icons/fi";
 import { FaCoins, FaGem, FaRupeeSign } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
 import DateRangeFilter from "../Components/DateRangeFilter";
+import { resolveDatePreset } from "../Components/dateRange";
 
 const SUMMARY_CARDS = [
   {
@@ -47,6 +48,11 @@ const SUMMARY_CARDS = [
 ];
 
 const MANUAL_ORDER_STATUSES = ["Order Placed", "Confirmed", "Ready", "Billing Pending"];
+const ORDER_STATUS_FILTERS = [...MANUAL_ORDER_STATUSES, "Completed"];
+
+function getOrderStatus(order) {
+  return order.order_status === "Bill Completed" ? "Completed" : order.order_status || "Order Placed";
+}
 
 function parseCustomer(value) {
   const customer = typeof value === "string" ? JSON.parse(value) : value;
@@ -107,8 +113,9 @@ export default function AllTackOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [dateRange, setDateRange] = useState({ preset: "all", startDate: "", endDate: "" });
+  const [dateRange, setDateRange] = useState(() => resolveDatePreset("today"));
   const [paymentFilter, setPaymentFilter] = useState("ALL");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("ALL");
   const [viewMode, setViewMode] = useState("list");
   const [retryCount, setRetryCount] = useState(0);
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
@@ -195,6 +202,7 @@ export default function AllTackOrders() {
   const filteredOrders = useMemo(() => {
     const query = search.trim().toLowerCase();
     return orders.filter((order) => {
+      if (orderStatusFilter !== "ALL" && getOrderStatus(order) !== orderStatusFilter) return false;
       if (paymentFilter !== "ALL" && getPaymentStatus(order) !== paymentFilter) return false;
       const orderDate = getOrderDateKey(order.created_at);
       if (dateRange.startDate && (!orderDate || orderDate < dateRange.startDate)) return false;
@@ -210,7 +218,7 @@ export default function AllTackOrders() {
         ...order.items.map((item) => item.product_name)
       ].some((value) => String(value || "").toLowerCase().includes(query));
     });
-  }, [orders, search, dateRange, paymentFilter]);
+  }, [orders, search, dateRange, paymentFilter, orderStatusFilter]);
 
   return (
     <section className="min-h-full p-2 sm:p-2">
@@ -278,7 +286,18 @@ export default function AllTackOrders() {
             />
           </label>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
-            <DateRangeFilter onApply={setDateRange} />
+            <DateRangeFilter onApply={setDateRange} initialPreset="today" showActiveRangeDetails={false} />
+            <select
+              value={orderStatusFilter}
+              onChange={(event) => setOrderStatusFilter(event.target.value)}
+              aria-label="Filter tack orders by order status"
+              className="h-[52px] min-w-[170px] rounded-xl border border-slate-200 bg-slate-50/70 px-4 text-sm font-semibold text-slate-600 outline-none focus:border-[#00695C] focus:ring-2 focus:ring-emerald-100"
+            >
+              <option value="ALL">All Order Statuses</option>
+              {ORDER_STATUS_FILTERS.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
             <select
               value={paymentFilter}
               onChange={(event) => setPaymentFilter(event.target.value)}
@@ -310,15 +329,6 @@ export default function AllTackOrders() {
                 <FiGrid size={18} />
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setRetryCount((count) => count + 1)}
-              disabled={loading}
-              aria-label="Refresh tack orders"
-              className="inline-flex h-[52px] w-[52px] items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-            >
-              <FiRefreshCw className={loading ? "animate-spin" : ""} aria-hidden="true" />
-            </button>
             <button
               type="button"
               onClick={() => navigate("/admin/tack-orders")}

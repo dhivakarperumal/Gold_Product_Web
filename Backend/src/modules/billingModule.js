@@ -146,6 +146,7 @@ async function listBillings(userId, dateRange = {}) {
       b.source_tack_order_id,
       CASE WHEN b.paid_amount >= b.total_amount THEN 'Paid'
         WHEN b.paid_amount > 0 THEN 'Partial' ELSE 'Pending' END AS payment_status,
+      (SELECT COUNT(*) FROM billing_payments p WHERE p.billing_id = b.id) AS payment_count,
       b.created_at, b.updated_at, b.created_by,
       COALESCE(NULLIF(creator.name, ''), creator.username, b.created_by) AS created_by_name,
       b.updated_by, COALESCE(NULLIF(updater.name, ''), updater.username, b.updated_by) AS updated_by_name
@@ -165,6 +166,7 @@ async function getBillingById(id, userId) {
        b.source_tack_order_id,
        CASE WHEN b.paid_amount >= b.total_amount THEN 'Paid'
          WHEN b.paid_amount > 0 THEN 'Partial' ELSE 'Pending' END AS payment_status,
+       (SELECT COUNT(*) FROM billing_payments p WHERE p.billing_id = b.id) AS payment_count,
        b.created_at, b.updated_at, b.created_by,
        COALESCE(NULLIF(creator.name, ''), creator.username, b.created_by) AS created_by_name,
        b.updated_by, COALESCE(NULLIF(updater.name, ''), updater.username, b.updated_by) AS updated_by_name
@@ -246,42 +248,6 @@ async function createBilling(billing, userId, initialPayment = null) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    if (billing.source_tack_order_id != null) {
-      const [orders] = await connection.execute(
-        'SELECT id FROM tack_orders WHERE id = ? AND user_id = ? FOR UPDATE',
-        [billing.source_tack_order_id, userId]
-      );
-      if (!orders.length) {
-        const error = new Error('Tack order not found');
-        error.code = 'TACK_ORDER_NOT_FOUND';
-        throw error;
-      }
-      const [existingBills] = await connection.execute(
-        `SELECT id, total_amount, paid_amount
-         FROM billings
-         WHERE source_tack_order_id = ? AND user_id = ?
-         ORDER BY id DESC
-         LIMIT 1 FOR UPDATE`,
-        [billing.source_tack_order_id, userId]
-      );
-      if (existingBills.length) {
-        const existingBill = existingBills[0];
-        const state = getPaymentState(existingBill.total_amount, existingBill.paid_amount);
-        await connection.execute(
-          'UPDATE billings SET balance_due = ? WHERE id = ? AND user_id = ?',
-          [state.balanceDue.toFixed(2), existingBill.id, userId]
-        );
-        await syncTackOrderPaymentState(
-          connection,
-          billing.source_tack_order_id,
-          userId,
-          existingBill.total_amount,
-          existingBill.paid_amount
-        );
-        await connection.commit();
-        return { ...(await getBillingById(existingBill.id, userId)), already_exists: true };
-      }
-    }
     if (initialPayment) {
       await getFundBalance(connection, initialPayment.created_by_user_id, true);
     }
@@ -529,8 +495,40 @@ async function recordBillingPayment(id, payment, userId) {
 }
 
 async function deleteBilling(id, userId) {
-  const [result] = await pool.execute('DELETE FROM billings WHERE id = ? AND user_id = ?', [id, userId]);
-  return result.affectedRows > 0;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [bills] = await connection.execute(
+      'SELECT id FROM billings WHERE id = ? AND user_id = ? FOR UPDATE',
+      [id, userId]
+    );
+    if (!bills.length) {
+      await connection.rollback();
+      return false;
+    }
+
+    const [payments] = await connection.execute(
+      'SELECT id FROM billing_payments WHERE billing_id = ? LIMIT 1 FOR UPDATE',
+      [id]
+    );
+    if (payments.length) {
+      const error = new Error('This bill has payment history and cannot be deleted. Payment records are preserved.');
+      error.code = 'BILL_HAS_PAYMENT_HISTORY';
+      throw error;
+    }
+
+    const [result] = await connection.execute(
+      'DELETE FROM billings WHERE id = ? AND user_id = ?',
+      [id, userId]
+    );
+    await connection.commit();
+    return result.affectedRows > 0;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 module.exports = {

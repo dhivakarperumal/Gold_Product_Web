@@ -274,7 +274,7 @@ test('updates a tack-order status only for an order owned by the authenticated s
   } finally {
     pool.execute = originalExecute;
   }
-  assert.match(executions[0].query, /WHERE id = \? AND user_id = \? AND order_status <> 'Bill Completed'/);
+  assert.match(executions[0].query, /order_status NOT IN \('Completed', 'Bill Completed'\)/);
   assert.deepEqual(executions[0].values, ['Confirmed', 42, 'shop-user-1']);
 });
 

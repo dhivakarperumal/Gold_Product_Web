@@ -341,17 +341,17 @@ async function getBillings(req, res, next) {
   } catch (error) {
     return next(error);
   }
+}
 
-  async function getBillingByTackOrder(req, res, next) {
-    const tackOrderId = validBillingId(req.params.tackOrderId);
-    if (!tackOrderId) return res.status(400).json({ message: 'Invalid tack order ID' });
-    try {
-      const bill = await getBillingByTackOrderId(tackOrderId, req.adminUser.user_id);
-      if (!bill) return res.status(404).json({ message: 'No bill found for this tack order' });
-      return res.json(bill);
-    } catch (error) {
-      return next(error);
-    }
+async function getBillingByTackOrder(req, res, next) {
+  const tackOrderId = validBillingId(req.params.tackOrderId);
+  if (!tackOrderId) return res.status(400).json({ message: 'Invalid tack order ID' });
+  try {
+    const bill = await getBillingByTackOrderId(tackOrderId, req.adminUser.user_id);
+    if (!bill) return res.status(404).json({ message: 'No bill found for this tack order' });
+    return res.json(bill);
+  } catch (error) {
+    return next(error);
   }
 }
 
@@ -479,6 +479,9 @@ async function removeBilling(req, res, next) {
     if (!deleted) return res.status(404).json({ message: 'Bill not found' });
     return res.status(204).end();
   } catch (error) {
+    if (error.code === 'BILL_HAS_PAYMENT_HISTORY') {
+      return res.status(409).json({ message: error.message });
+    }
     if (error.code === 'ER_ROW_IS_REFERENCED_2') {
       return res.status(409).json({ message: 'A bill with recorded payments cannot be deleted.' });
     }

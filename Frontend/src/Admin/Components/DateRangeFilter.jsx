@@ -2,8 +2,13 @@ import { useState } from "react";
 import { CalendarDays, RotateCcw } from "lucide-react";
 import { DATE_RANGE_OPTIONS, resolveDatePreset } from "./dateRange";
 
-export default function DateRangeFilter({ onApply, className = "" }) {
-  const [preset, setPreset] = useState("all");
+export default function DateRangeFilter({
+  onApply,
+  className = "",
+  initialPreset = "all",
+  showActiveRangeDetails = true
+}) {
+  const [preset, setPreset] = useState(initialPreset);
   const [customRange, setCustomRange] = useState({ startDate: "", endDate: "" });
   const [error, setError] = useState("");
 
@@ -43,10 +48,10 @@ export default function DateRangeFilter({ onApply, className = "" }) {
             {DATE_RANGE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
-        {preset !== "all" && preset !== "custom" && (
+        {showActiveRangeDetails && preset !== "all" && preset !== "custom" && (
           <span className="text-xs font-medium text-slate-500">{resolveDatePreset(preset).startDate} – {resolveDatePreset(preset).endDate}</span>
         )}
-        {preset !== "all" && (
+        {showActiveRangeDetails && preset !== "all" && (
           <button type="button" onClick={clearFilter} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-bold text-slate-600 transition hover:bg-slate-50" aria-label="Clear date filter">
             <RotateCcw size={14} /> Clear
           </button>
