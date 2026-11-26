@@ -395,7 +395,7 @@ export default function AllTackOrders() {
                           <option key={status} value={status}>{status}</option>
                         ))}
                         <option value="Bill Completed" disabled={orderStatus !== "Bill Completed"}>
-                          Bill Completed
+                          Bill Completed (automatic)
                         </option>
                       </select>
                       <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${

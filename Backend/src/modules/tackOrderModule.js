@@ -51,9 +51,9 @@ async function initializeTackOrderModule() {
   await pool.query(`
     UPDATE tack_orders t
     JOIN billings b ON b.source_tack_order_id = t.id AND b.user_id = t.user_id
-    SET t.payment_status = CASE WHEN b.balance_due <= 0 THEN 'Paid' ELSE 'Pending' END,
-        t.balance_due = b.balance_due,
-        t.order_status = CASE WHEN b.balance_due <= 0 THEN 'Bill Completed' ELSE 'Billing Pending' END
+    SET t.payment_status = CASE WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Paid' ELSE 'Pending' END,
+        t.balance_due = GREATEST(b.total_amount - b.paid_amount, 0),
+        t.order_status = CASE WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Bill Completed' ELSE 'Billing Pending' END
   `);
 }
 
@@ -113,11 +113,11 @@ async function listTackOrders(userId) {
     `SELECT t.id, t.order_no, t.customer, t.items, t.sub_total, t.gst_included, t.gst_rate, t.gst_amount,
        t.discount_type, t.discount_value, t.discount_amount, t.total_amount,
        CASE WHEN b.id IS NULL THEN t.order_status
-         WHEN b.balance_due <= 0 THEN 'Bill Completed' ELSE 'Billing Pending' END AS order_status,
+         WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Bill Completed' ELSE 'Billing Pending' END AS order_status,
        CASE WHEN b.id IS NULL THEN t.payment_status
-         WHEN b.balance_due <= 0 THEN 'Paid' ELSE 'Pending' END AS payment_status,
+         WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Paid' ELSE 'Pending' END AS payment_status,
        t.advance_amount,
-       COALESCE(b.balance_due, t.balance_due) AS balance_due,
+       COALESCE(GREATEST(b.total_amount - b.paid_amount, 0), t.balance_due) AS balance_due,
        COALESCE(b.paid_amount, GREATEST(t.total_amount - t.balance_due, 0)) AS paid_amount,
        t.created_at
      FROM tack_orders t
