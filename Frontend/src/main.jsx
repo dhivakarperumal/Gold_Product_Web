@@ -30,6 +30,7 @@ const Metals = React.lazy(() => import("./Admin/Metal Type/Metals.jsx"));
 const AddProducts = React.lazy(() => import("./Admin/Products/AddProducts.jsx"));
 const AllProducts = React.lazy(() => import("./Admin/Products/AllProducts.jsx"));
 const CustomerViewProducts = React.lazy(() => import("./Admin/Products/CustomerViewProducts.jsx"));
+const CustomerViewProductDetail = React.lazy(() => import("./Admin/Products/CustomerViewProductDetail.jsx"));
 const AddStock = React.lazy(() => import("./Admin/Products/AddStock.jsx"));
 const ProductDetail = React.lazy(() => import("./Admin/Products/ProductDetail.jsx"));
 const StockDetails = React.lazy(() => import("./Admin/Pages/StockDetails.jsx"));
@@ -128,6 +129,7 @@ const router = createHashRouter([
       { path: "products/add", element: <AddProducts /> },
       { path: "products/all", element: <AllProducts /> },
       { path: "customer-view-products", element: <CustomerViewProducts /> },
+      { path: "customer-view-products/:id", element: <CustomerViewProductDetail /> },
       { path: "products/stock", element: <StockDetails /> },
       { path: "products/stock/add", element: <AddStock /> },
       { path: "products/edit/:id", element: <AddProducts /> },

@@ -146,6 +146,7 @@ const Header = ({
 
   const getPageTitle = () => {
     if (pageTitles[location.pathname]) return pageTitles[location.pathname];
+    if (location.pathname.startsWith("/admin/customer-view-products/")) return "Product Details";
     if (location.pathname.startsWith("/admin/enquiries/edit/")) return pageTitles["/admin/enquiries/edit"];
     if (/^\/admin\/products\/[^/]+$/.test(location.pathname)
       && !["all", "add", "stock", "category"].includes(location.pathname.split("/").at(-1))) {
