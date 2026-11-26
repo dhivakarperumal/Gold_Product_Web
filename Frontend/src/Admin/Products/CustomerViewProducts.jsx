@@ -25,10 +25,9 @@ const getProductPrice = (product) =>
 
 const getDiscount = (product) => {
     const mrp = Number(product.mrp || 0);
-    if (Number(product.discount) > 0) return Number(product.discount);
-    return mrp > 0
-        ? Math.max(0, Math.round(((mrp - getProductPrice(product)) / mrp) * 100))
-        : 0;
+    const offerPrice = getProductPrice(product);
+    if (mrp <= 0 || offerPrice >= mrp) return 0;
+    return Math.min(100, Math.max(0, Math.round(((mrp - offerPrice) / mrp) * 100)));
 };
 
 const productIsInStock = (product) =>
