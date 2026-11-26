@@ -101,8 +101,8 @@ const EMPTY_PRODUCT = {
 const inputClass = "mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100";
 const labelClass = "block text-xs font-bold uppercase tracking-wide text-gray-500";
 
-const Section = ({ title, children }) => (
-  <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+const Section = ({ title, children, overflowVisible = false }) => (
+  <section className={`${overflowVisible ? "relative z-20 overflow-visible" : "overflow-hidden"} rounded-2xl border border-gray-200 bg-white shadow-sm`}>
     <div className="border-b border-gray-100 bg-[#003B3B]/5 px-5 py-4">
       <h2 className="text-sm font-extrabold text-[#003B3B]">{title}</h2>
     </div>
@@ -481,7 +481,7 @@ const AddProducts = () => {
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 items-start gap-5 xl:grid-cols-3">
         <div className="space-y-5 xl:col-span-2">
-          <Section title="1. Basic Information">
+          <Section title="1. Basic Information" overflowVisible>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Product Name" name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Classic Gold Chain" required />
               <Field label="SKU / Product Code (Auto-generated)" name="product_code" value={formData.product_code} onChange={handleChange} placeholder="Generating..." required readOnly />
