@@ -553,7 +553,7 @@ export default function AddGoldShop({
   };
 
   const sectionClass = registrationMode
-    ? "rounded-2xl border-0 bg-transparent p-4 sm:p-6 lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto"
+    ? "min-h-0 flex-1 rounded-2xl border-0 bg-transparent overflow-y-auto p-4 sm:p-6"
     : "rounded-2xl border border-stone-200 bg-white p-4 sm:p-5";
   const activeTabIndex = TABS.findIndex((tab) => tab.id === activeTab);
   const tabNavigation = (
@@ -624,7 +624,7 @@ export default function AddGoldShop({
             <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
           )}
 
-          <div className={registrationMode ? "overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)] lg:flex lg:min-h-0 lg:flex-col" : "contents"}>
+          <div className={registrationMode ? "flex h-[600px] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)] sm:h-[520px] lg:h-full lg:min-h-0 lg:flex-1" : "contents"}>
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
               {!registrationMode && <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>}
               <div className="grid gap-2 sm:grid-cols-2">
@@ -635,7 +635,7 @@ export default function AddGoldShop({
               </div>
             </section>
 
-            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className={registrationMode ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : "space-y-2"}>
+            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className={registrationMode ? "flex min-h-0 flex-1 flex-col" : "space-y-2"}>
               <div className={sectionClass}>
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
