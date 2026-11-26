@@ -10,12 +10,14 @@ const {
   deleteGoldShop,
   downloadGoldShopDocument,
   getGoldShop,
+  getGoldShopPayment,
   getGoldShopPayments,
   getGoldShops,
   getPlans,
   patchGoldShopStatus,
   postGoldShop,
   postConfirmShopPayment,
+  putVerifyGoldShopPayment,
   postSubscription,
   rejectShop,
   putGoldShop
@@ -38,7 +40,9 @@ router.delete('/subscription-plans/:id', subscriptionPlanController.deletePlan);
 router.get('/gold-shops', getGoldShops);
 router.post('/gold-shops', handleGoldShopDocumentUpload, postGoldShop);
 router.get('/gold-shops/:id/payments', getGoldShopPayments);
+router.get('/gold-shops/:id/payment', getGoldShopPayment);
 router.post('/gold-shops/:id/payments/:paymentId/confirm', postConfirmShopPayment);
+router.put('/gold-shops/:id/payment/verify', putVerifyGoldShopPayment);
 router.get('/gold-shops/:id/documents/:documentId', downloadGoldShopDocument);
 router.post('/gold-shops/:id/subscription', postSubscription);
 router.post('/gold-shops/:id/approve', approveShop);

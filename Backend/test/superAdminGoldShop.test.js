@@ -5,6 +5,7 @@ const { pool } = require('../src/config/db');
 const {
   calculateEndDate,
   calculateTrialEndDate,
+  confirmGoldShopPayment,
   createGoldShop,
   expireSubscriptions,
   getPlanPrice,
@@ -336,18 +337,171 @@ test('creation never accepts client-supplied price or paid status', () => {
 test('requires a transaction reference and supported method for manual payment confirmation', () => {
   assert.deepEqual(validatePaymentConfirmation({
     transactionId: '  UPI-REF-2048  ',
-    paymentMethod: 'upi'
+    paymentMethod: 'upi',
+    verificationRemarks: '  Checked with bank statement  '
   }), {
     confirmation: {
       transactionId: 'UPI-REF-2048',
-      paymentMethod: 'UPI'
+      paymentMethod: 'UPI',
+      verificationRemarks: 'Checked with bank statement'
     }
   });
+  assert.equal(validatePaymentConfirmation({
+    transactionId: 'UPI-REF-2048',
+    paymentMethod: 'upi'
+  }).confirmation.verificationRemarks, null);
   assert.equal(validatePaymentConfirmation({ transactionId: '', paymentMethod: 'upi' }).error,
     'Enter a valid transaction/reference ID (up to 120 characters)');
   assert.equal(validatePaymentConfirmation({ transactionId: 'REF-1', paymentMethod: 'unknown' }).error,
     'Select a valid payment method');
+  assert.ok(validatePaymentConfirmation({
+    transactionId: 'REF-1',
+    paymentMethod: 'upi',
+    verificationRemarks: 'x'.repeat(1001)
+  }).error);
   assert.ok(validatePaymentConfirmation({ transactionId: `REF${'\n'}1`, paymentMethod: 'cash' }).error);
+});
+
+test('records payment verification metadata transactionally', async () => {
+  const originalGetConnection = pool.getConnection;
+  const originalExecute = pool.execute;
+  const connectionQueries = [];
+  let committed = false;
+  let rolledBack = false;
+  pool.getConnection = async () => ({
+    beginTransaction: async () => {},
+    commit: async () => { committed = true; },
+    rollback: async () => { rolledBack = true; },
+    release: () => {},
+    execute: async (sql, values = []) => {
+      connectionQueries.push({ sql: String(sql), values });
+      if (sql.includes('SELECT id FROM gold_shops')) return [[{ id: 7 }], []];
+      if (sql.includes('SELECT id, payment_status, end_date')) {
+        return [[{ id: 20, payment_status: 'pending', is_unexpired: 1 }], []];
+      }
+      if (sql.includes('SELECT id, subscription_id, payment_status, amount FROM payments')) {
+        return [[{ id: 55, subscription_id: 20, payment_status: 'pending', amount: '1500.00' }], []];
+      }
+      return [{ affectedRows: 1 }, []];
+    }
+  });
+  pool.execute = async (sql) => {
+    if (String(sql).includes('SELECT gs.*')) {
+      return [[{
+        id: 7,
+        current_subscription_id: 20,
+        payment_status: 'paid',
+        database_date: '2026-11-25'
+      }], []];
+    }
+    return [[], []];
+  };
+
+  try {
+    const shop = await confirmGoldShopPayment(7, 55, {
+      transactionId: 'UPI-VERIFIED-1',
+      paymentMethod: 'UPI',
+      verificationRemarks: 'Matched against bank statement'
+    }, 3);
+
+    const paymentUpdate = connectionQueries.find(({ sql }) => sql.includes('UPDATE payments'));
+    assert.ok(paymentUpdate);
+    assert.match(paymentUpdate.sql, /verified_by = \?, verified_at = CURRENT_TIMESTAMP, verification_remarks = \?/);
+    assert.deepEqual(paymentUpdate.values, [
+      'UPI-VERIFIED-1', 'UPI', 3, 3, 'Matched against bank statement', 55
+    ]);
+    assert.ok(connectionQueries.some(({ sql }) => sql.includes("UPDATE subscriptions SET payment_status = 'paid'")));
+    assert.ok(committed);
+    assert.equal(rolledBack, false);
+    assert.equal(shop.id, 7);
+  } finally {
+    pool.getConnection = originalGetConnection;
+    pool.execute = originalExecute;
+  }
+});
+
+test('rejects repeated or duplicate payment verification without updating the subscription', async () => {
+  const originalGetConnection = pool.getConnection;
+  const originalExecute = pool.execute;
+  const updates = [];
+  let rolledBack = false;
+  pool.getConnection = async () => ({
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => { rolledBack = true; },
+    release: () => {},
+    execute: async (sql) => {
+      const query = String(sql);
+      if (query.includes('SELECT id FROM gold_shops')) return [[{ id: 7 }], []];
+      if (query.includes('SELECT id, payment_status, end_date')) {
+        return [[{ id: 20, payment_status: 'paid', is_unexpired: 1 }], []];
+      }
+      if (query.includes('SELECT id, subscription_id, payment_status, amount FROM payments')) {
+        return [[{ id: 55, subscription_id: 20, payment_status: 'paid', amount: '1500.00' }], []];
+      }
+      if (query.includes('UPDATE payments') || query.includes('UPDATE subscriptions')) updates.push(query);
+      return [{ affectedRows: 1 }, []];
+    }
+  });
+  pool.execute = async () => [[], []];
+
+  try {
+    await assert.rejects(
+      confirmGoldShopPayment(7, 55, {
+        transactionId: 'UPI-VERIFIED-1',
+        paymentMethod: 'UPI'
+      }, 3),
+      (error) => error.status === 409
+    );
+    assert.equal(rolledBack, true);
+    assert.deepEqual(updates, []);
+  } finally {
+    pool.getConnection = originalGetConnection;
+    pool.execute = originalExecute;
+  }
+});
+
+test('rolls back payment verification when the transaction reference is already used', async () => {
+  const originalGetConnection = pool.getConnection;
+  const connectionQueries = [];
+  let rolledBack = false;
+  pool.getConnection = async () => ({
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => { rolledBack = true; },
+    release: () => {},
+    execute: async (sql) => {
+      const query = String(sql);
+      connectionQueries.push(query);
+      if (query.includes('SELECT id FROM gold_shops')) return [[{ id: 7 }], []];
+      if (query.includes('SELECT id, payment_status, end_date')) {
+        return [[{ id: 20, payment_status: 'pending', is_unexpired: 1 }], []];
+      }
+      if (query.includes('SELECT id, subscription_id, payment_status, amount FROM payments')) {
+        return [[{ id: 55, subscription_id: 20, payment_status: 'pending', amount: '1500.00' }], []];
+      }
+      if (query.includes('UPDATE payments')) {
+        const duplicateError = new Error('Duplicate transaction reference');
+        duplicateError.code = 'ER_DUP_ENTRY';
+        throw duplicateError;
+      }
+      return [{ affectedRows: 1 }, []];
+    }
+  });
+
+  try {
+    await assert.rejects(
+      confirmGoldShopPayment(7, 55, {
+        transactionId: 'ALREADY-USED',
+        paymentMethod: 'UPI'
+      }, 3),
+      (error) => error.status === 409 && /already been recorded/.test(error.message)
+    );
+    assert.equal(rolledBack, true);
+    assert.equal(connectionQueries.some((sql) => sql.includes('UPDATE subscriptions')), false);
+  } finally {
+    pool.getConnection = originalGetConnection;
+  }
 });
 
 test('creates the shop admin user only after approval and preserves the submitted password', async () => {
