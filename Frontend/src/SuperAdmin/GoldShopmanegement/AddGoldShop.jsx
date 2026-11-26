@@ -766,6 +766,24 @@ export default function AddGoldShop({
                 </div>
               )}
             </section>
+            {registrationMode && (
+              <div className="flex shrink-0 justify-between gap-3 px-4 pb-4 pt-2 sm:px-6">
+                <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="inline-flex min-h-12 min-w-[132px] items-center justify-center gap-2 rounded-full border border-emerald-800 bg-transparent px-5 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[150px]">
+                  <ArrowLeft size={16} /> Previous
+                </button>
+                {activeTabIndex === TABS.length - 1 ? (
+                  <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex min-h-12 min-w-[160px] items-center justify-center gap-2 rounded-full bg-[#064A41] px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#043D37] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[184px]">
+                    {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                    {isEditing ? "Save Changes" : "Save Gold Shop"}
+                    {!submitting && <ArrowRight size={17} />}
+                  </button>
+                ) : (
+                  <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="inline-flex min-h-12 min-w-[160px] items-center justify-center gap-2 rounded-full bg-[#064A41] px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#043D37] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[184px]">
+                    Save &amp; Next <ArrowRight size={17} />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           </fieldset>
           </div>
@@ -783,24 +801,6 @@ export default function AddGoldShop({
                 </button>
               ) : (
                 <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-800 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
-                  Save &amp; Next <ArrowRight size={17} />
-                </button>
-              )}
-            </footer>
-          )}
-          {registrationMode && (
-            <footer className="flex shrink-0 justify-between gap-3 px-1 py-4 sm:px-2">
-              <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="inline-flex min-h-12 min-w-[132px] items-center justify-center gap-2 rounded-full border border-emerald-800 bg-transparent px-5 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[150px]">
-                <ArrowLeft size={16} /> Previous
-              </button>
-              {activeTabIndex === TABS.length - 1 ? (
-                <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex min-h-12 min-w-[160px] items-center justify-center gap-2 rounded-full bg-[#064A41] px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#043D37] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[184px]">
-                  {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                  {isEditing ? "Save Changes" : "Save Gold Shop"}
-                  {!submitting && <ArrowRight size={17} />}
-                </button>
-              ) : (
-                <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="inline-flex min-h-12 min-w-[160px] items-center justify-center gap-2 rounded-full bg-[#064A41] px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#043D37] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[184px]">
                   Save &amp; Next <ArrowRight size={17} />
                 </button>
               )}
