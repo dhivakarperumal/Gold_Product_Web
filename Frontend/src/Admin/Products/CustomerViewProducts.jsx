@@ -1,6 +1,7 @@
 import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, RefreshCw, Search, SlidersHorizontal, Star } from "lucide-react";
+import { Link } from "react-router-dom";
 import api from "../../api";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { formatCurrency } from "../../utils/currency";
@@ -8,6 +9,7 @@ import { formatCurrency } from "../../utils/currency";
 const PRODUCTS_PAGE_SIZE = 100;
 const PRODUCTS_PER_PAGE = 18;
 const OFFER_THRESHOLDS = [10, 20, 30, 40];
+const RATING_THRESHOLDS = [4, 3, 2, 1];
 const PRICE_STEP = 1_000;
 const PRICE_RANGES = [
     { label: "₹ 0 - 25K", minimum: 0, maximum: 25_000 },
@@ -29,6 +31,9 @@ const getDiscount = (product) => {
         : 0;
 };
 
+const productIsInStock = (product) =>
+    Number(product.total_stock ?? product.stock ?? 0) > 0;
+
 const CustomerViewProducts = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -39,15 +44,19 @@ const CustomerViewProducts = () => {
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [selectedMetals, setSelectedMetals] = useState([]);
     const [offerThreshold, setOfferThreshold] = useState(0);
+    const [minimumRating, setMinimumRating] = useState(0);
+    const [availability, setAvailability] = useState("");
     const [minimumPrice, setMinimumPrice] = useState("");
     const [maximumPrice, setMaximumPrice] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const [filtersVisible, setFiltersVisible] = useState(true);
+    const [filtersVisible, setFiltersVisible] = useState(false);
     const [openFilters, setOpenFilters] = useState({
         category: true,
         metal: true,
         offer: true,
         price: true,
+        rating: true,
+        availability: true,
     });
 
     useEffect(() => {
@@ -107,6 +116,18 @@ const CustomerViewProducts = () => {
         return counts;
     }, {}), [products]);
 
+    const ratingCounts = useMemo(() => products.reduce((counts, product) => {
+        const rating = Number(product.rating) || 0;
+        RATING_THRESHOLDS.forEach((threshold) => {
+            if (rating >= threshold) counts[threshold] += 1;
+        });
+        return counts;
+    }, Object.fromEntries(RATING_THRESHOLDS.map((rating) => [rating, 0]))), [products]);
+    const inStockCount = useMemo(
+        () => products.filter(productIsInStock).length,
+        [products]
+    );
+
     const categories = Object.keys(categoryCounts).sort((first, second) => first.localeCompare(second));
     const metals = Object.keys(metalCounts).sort((first, second) => first.localeCompare(second));
     const priceSliderMaximum = useMemo(() => {
@@ -137,11 +158,16 @@ const CustomerViewProducts = () => {
             const matchesMetal = !selectedMetals.length
                 || selectedMetals.includes(product.metal_type);
             const matchesOffer = !offerThreshold || getDiscount(product) >= offerThreshold;
+            const matchesRating = !minimumRating || Number(product.rating || 0) >= minimumRating;
+            const inStock = productIsInStock(product);
+            const matchesAvailability = !availability
+                || (availability === "in-stock" ? inStock : !inStock);
             const price = getProductPrice(product);
             const matchesMinimum = minimumPrice === "" || price >= Number(minimumPrice);
             const matchesMaximum = maximumPrice === "" || price <= Number(maximumPrice);
 
             return matchesSearch && matchesCategory && matchesMetal && matchesOffer
+                && matchesRating && matchesAvailability
                 && matchesMinimum && matchesMaximum;
         });
 
@@ -153,7 +179,7 @@ const CustomerViewProducts = () => {
             const secondDate = new Date(second.created_at || 0).getTime();
             return sortBy === "oldest" ? firstDate - secondDate : secondDate - firstDate;
         });
-    }, [maximumPrice, minimumPrice, offerThreshold, products, search, selectedCategories, selectedMetals, sortBy]);
+    }, [availability, maximumPrice, minimumPrice, minimumRating, offerThreshold, products, search, selectedCategories, selectedMetals, sortBy]);
 
     const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
     const activePage = Math.min(currentPage, Math.max(totalPages, 1));
@@ -167,6 +193,8 @@ const CustomerViewProducts = () => {
         setSelectedCategories([]);
         setSelectedMetals([]);
         setOfferThreshold(0);
+        setMinimumRating(0);
+        setAvailability("");
         setMinimumPrice("");
         setMaximumPrice("");
         setCurrentPage(1);
@@ -213,11 +241,8 @@ const CustomerViewProducts = () => {
 
     return (
         <section className="space-y-5 pb-10">
-            <header className="rounded-2xl border border-[#eadfce] bg-gradient-to-r from-[#fffaf0] via-white to-[#f6f1e7] p-5 shadow-sm sm:p-7">
-                <h1 className="mb-3 font-serif text-base font-bold text-[#201a13]">
-                    Customer View Product
-                </h1>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <header className="rounded-xl border border-[#eadfce] bg-gradient-to-r from-[#fffaf0] via-white to-[#f6f1e7] p-3 shadow-sm sm:p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <label className="relative block w-full sm:max-w-sm">
                         <Search
                             size={17}
@@ -233,20 +258,10 @@ const CustomerViewProducts = () => {
                             }}
                             placeholder="Search your products..."
                             aria-label="Search your products"
-                            className="w-full rounded-xl border border-[#e8dfd1] bg-white py-3 pl-10 pr-4 text-sm text-[#30271b] outline-none transition focus:border-[#174a38] focus:ring-2 focus:ring-[#174a38]/10"
+                            className="w-full rounded-lg border border-[#e8dfd1] bg-white py-2 pl-10 pr-4 text-sm text-[#30271b] outline-none transition focus:border-[#174a38] focus:ring-2 focus:ring-[#174a38]/10"
                         />
                     </label>
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                        <button
-                            type="button"
-                            onClick={() => setFiltersVisible((visible) => !visible)}
-                            aria-expanded={filtersVisible}
-                            aria-controls="customer-product-filters"
-                            className="flex shrink-0 items-center gap-2 rounded-lg border border-[#e8dfd1] bg-white px-3 py-2 text-xs font-semibold text-[#174a38] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
-                        >
-                            <SlidersHorizontal size={14} aria-hidden="true" />
-                            {filtersVisible ? "Hide Filters" : "Show Filters"}
-                        </button>
                         <label className="flex items-center gap-2 text-xs text-[#62594d]">
                             Sort by:
                             <CustomSelect
@@ -255,7 +270,7 @@ const CustomerViewProducts = () => {
                                     setCurrentPage(1);
                                     setSortBy(event.target.value);
                                 }}
-                                className="rounded-md border border-[#e8dfd1] bg-white px-2.5 py-2 text-xs text-[#30271b] outline-none focus:border-[#174a38]"
+                                className="rounded-md border border-[#e8dfd1] bg-white px-2.5 py-1.5 text-xs text-[#30271b] outline-none focus:border-[#174a38]"
                             >
                                 <option value="newest">Newest First</option>
                                 <option value="oldest">Oldest First</option>
@@ -264,6 +279,16 @@ const CustomerViewProducts = () => {
                                 <option value="name">Name: A to Z</option>
                             </CustomSelect>
                         </label>
+                        <button
+                            type="button"
+                            onClick={() => setFiltersVisible((visible) => !visible)}
+                            aria-expanded={filtersVisible}
+                            aria-controls="customer-product-filters"
+                            className="flex shrink-0 items-center gap-2 rounded-lg border border-[#e8dfd1] bg-white px-3 py-1.5 text-xs font-semibold text-[#174a38] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
+                        >
+                            <SlidersHorizontal size={14} aria-hidden="true" />
+                            {filtersVisible ? "Hide Filters" : "Show Filters"}
+                        </button>
                     </div>
                 </div>
             </header>
@@ -378,6 +403,49 @@ const CustomerViewProducts = () => {
                             </div>
                         </>
                     ))}
+
+                    {filterSection("rating", "Rating", (
+                        <div className="space-y-2">
+                            {RATING_THRESHOLDS.map((rating) => (
+                                <label key={rating} className="flex cursor-pointer items-center gap-2 text-xs text-[#514b42]">
+                                    <input
+                                        type="checkbox"
+                                        checked={minimumRating === rating}
+                                        onChange={() => {
+                                            setCurrentPage(1);
+                                            setMinimumRating((current) => current === rating ? 0 : rating);
+                                        }}
+                                        aria-label={`${rating} stars and above`}
+                                        className="h-3.5 w-3.5 shrink-0 accent-[#174a38]"
+                                    />
+                                    <span className="flex items-center gap-0.5" aria-hidden="true">
+                                        {Array.from({ length: 5 }, (_, index) => (
+                                            <Star
+                                                key={index}
+                                                size={11}
+                                                className={index < rating ? "fill-[#e6a323] text-[#e6a323]" : "text-[#dedbd5]"}
+                                            />
+                                        ))}
+                                    </span>
+                                    <span className="min-w-0 flex-1 whitespace-nowrap">{rating} &amp; above</span>
+                                    <span className="text-[10px] text-[#9a9286]">{ratingCounts[rating]}</span>
+                                </label>
+                            ))}
+                        </div>
+                    ))}
+
+                    {filterSection("availability", "Availability", (
+                        <>
+                            {checkboxOption("In stock", availability === "in-stock", () => {
+                                setCurrentPage(1);
+                                setAvailability((current) => current === "in-stock" ? "" : "in-stock");
+                            }, inStockCount)}
+                            {checkboxOption("Out of stock", availability === "out-of-stock", () => {
+                                setCurrentPage(1);
+                                setAvailability((current) => current === "out-of-stock" ? "" : "out-of-stock");
+                            }, products.length - inStockCount)}
+                        </>
+                    ))}
                 </aside>
 
                 <main className="min-w-0">
@@ -409,13 +477,23 @@ const CustomerViewProducts = () => {
                         </div>
                     ) : visibleProducts.length ? (
                         <>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
+                            <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 ${filtersVisible ? "xl:grid-cols-4 2xl:grid-cols-4" : "xl:grid-cols-5 2xl:grid-cols-5"}`}>
                                 {visibleProducts.map((product) => {
                                     const image = getProductImageUrl(product);
+                                    const productId = product.id ?? product.product_id;
+                                    const offerPrice = getProductPrice(product);
+                                    const mrp = Number(product.mrp || 0);
+                                    const discount = getDiscount(product);
+                                    const grossWeight = Number(product.gross_weight);
+                                    const weight = grossWeight > 0 ? product.gross_weight : product.net_gold_weight;
+                                    const weightText = weight != null && Number.isFinite(Number(weight)) && Number(weight) > 0
+                                        ? `${Number(weight).toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`
+                                        : "";
                                     return (
-                                        <article
-                                            key={product.id ?? product.product_id ?? product.product_code}
-                                            className="group overflow-hidden rounded-xl border border-[#eadfce] bg-white shadow-sm transition hover:border-[#d8b46c] hover:shadow-md"
+                                        <Link
+                                            key={productId}
+                                            to={`/admin/customer-view-products/${productId}`}
+                                            className="group overflow-hidden rounded-xl border border-[#eadfce] bg-white shadow-sm transition hover:border-[#d8b46c] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#174a38]"
                                         >
                                             <div className="relative aspect-square overflow-hidden bg-[#f6efe4]">
                                                 {image ? (
@@ -433,16 +511,31 @@ const CustomerViewProducts = () => {
                                                 <span className="absolute left-2 top-2 max-w-[85%] truncate rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#765323] shadow-sm">
                                                     {product.category || "Jewelry"}
                                                 </span>
+                                                {discount > 0 && (
+                                                    <span className="absolute right-2 top-2 rounded-full bg-[#fff0ee] px-2.5 py-1 text-[10px] font-bold text-[#d33627] shadow-sm">
+                                                        {discount}% OFF
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="p-3">
                                                 <h3 className="line-clamp-2 min-h-10 text-sm font-semibold text-[#292018]" title={product.name}>
                                                     {product.name || "Unnamed product"}
                                                 </h3>
-                                                <p className="mt-1 text-base font-bold text-[#c51e18]">
-                                                    {formatCurrency(getProductPrice(product))}
+                                                <p className="mt-1 truncate text-[10px] text-[#81786b]">
+                                                    {[product.metal_type, weightText].filter(Boolean).join(" · ")}
                                                 </p>
+                                                <div className="mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+                                                    <span className="text-sm font-bold text-[#c51e18]">
+                                                        {formatCurrency(offerPrice)}
+                                                    </span>
+                                                    {mrp > offerPrice && (
+                                                        <span className="text-[10px] text-[#858b87] line-through">
+                                                            {formatCurrency(mrp)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </article>
+                                        </Link>
                                     );
                                 })}
                             </div>
@@ -473,7 +566,7 @@ const CustomerViewProducts = () => {
                     ) : (
                         <div className="rounded-xl border border-[#eee7dc] bg-white py-16 text-center">
                             <p className="font-serif text-lg font-semibold text-[#29231c]">
-                                {search || selectedCategories.length || selectedMetals.length || offerThreshold || minimumPrice || maximumPrice
+                                {search || selectedCategories.length || selectedMetals.length || offerThreshold || minimumRating || availability || minimumPrice || maximumPrice
                                     ? "No matching products found"
                                     : "No products yet"}
                             </p>
