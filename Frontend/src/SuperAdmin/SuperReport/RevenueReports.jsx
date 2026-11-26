@@ -327,17 +327,21 @@ export default function RevenueReports() {
   return (
     <div className="space-y-6 pb-12 font-sans" id="revenue-reports-main-content">
       {/* ── TOP HEADER & ACTIONS ─────────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-200/80 pb-5">
+      <div className="relative isolate rounded-3xl border border-emerald-900/10 bg-gradient-to-br from-[#07564B] via-[#086257] to-[#0A7465] px-5 py-5 text-white shadow-lg shadow-emerald-950/10 sm:px-7 sm:py-6">
+        <span aria-hidden="true" className="pointer-events-none absolute -right-6 -top-14 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+        <span aria-hidden="true" className="pointer-events-none absolute bottom-[-4rem] right-1/3 h-36 w-36 rounded-full bg-amber-300/10 blur-3xl" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#07564B] to-[#0A6F62] text-white shadow-md shadow-emerald-950/20">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-amber-200 shadow-inner">
               <BarChart3 className="h-5 w-5" />
             </span>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-emerald-100/80">Super Admin | Finance</p>
+              <h1 className="mt-1 text-xl font-black tracking-tight text-white sm:text-2xl">
                 Revenue Reports
               </h1>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="mt-1 max-w-2xl text-xs font-medium leading-5 text-emerald-50/80 sm:text-sm">
                 Super Admin financial analytics, subscription income, and verified transaction ledgers
               </p>
             </div>
@@ -345,7 +349,7 @@ export default function RevenueReports() {
         </div>
 
         {/* Global Toolbar: Date filter, Coming Soon toggle, Export, Refresh */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Refresh Button */}
           <button
             type="button"
@@ -355,10 +359,10 @@ export default function RevenueReports() {
               loadPaymentData();
               toast.success("Revenue data refreshed");
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-white/20 active:scale-95"
             title="Refresh All Revenue Data"
           >
-            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+            <RefreshCw className="h-3.5 w-3.5 text-amber-200" />
             <span className="hidden sm:inline">Refresh</span>
           </button>
 
@@ -367,7 +371,7 @@ export default function RevenueReports() {
             <button
               type="button"
               onClick={() => setExportOpen(!exportOpen)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#07564B] to-[#0A6F62] px-4 py-2 text-xs font-bold text-white shadow-md shadow-emerald-950/20 transition hover:from-[#06473E] hover:to-[#08594E] active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-200/70 bg-amber-300 px-4 py-2.5 text-xs font-extrabold text-emerald-950 shadow-md shadow-emerald-950/15 transition hover:bg-amber-200 active:scale-95"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Export Reports</span>
@@ -375,7 +379,7 @@ export default function RevenueReports() {
             </button>
 
             {exportOpen && (
-              <div className="absolute right-0 mt-2 w-52 origin-top-right rounded-2xl border border-slate-100 bg-white p-1.5 shadow-xl ring-1 ring-black/5 z-30">
+              <div className="absolute right-0 z-50 mt-2 w-52 origin-top-right rounded-2xl border border-slate-100 bg-white p-1.5 text-slate-800 shadow-xl ring-1 ring-black/5">
                 <button
                   type="button"
                   onClick={handleExportExcel}
@@ -409,17 +413,22 @@ export default function RevenueReports() {
           <button
             type="button"
             onClick={() => setShowComingSoon(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-emerald-600/40 bg-emerald-50/50 px-3 py-2 text-xs font-semibold text-[#07564B] transition hover:bg-emerald-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-white/20"
             title="Preview Coming Soon Screen"
           >
             <Sparkles className="h-3.5 w-3.5" />
             <span className="hidden md:inline">Coming Soon Preview</span>
           </button>
         </div>
+        </div>
       </div>
 
       {/* ── SECTION 6: FILTERS & SEARCH TOOLBAR ──────────────────────────── */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+          <Filter className="h-3.5 w-3.5 text-emerald-700" />
+          <span>Report filters</span>
+        </div>
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="relative w-full xl:w-72 xl:flex-none">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -429,7 +438,7 @@ export default function RevenueReports() {
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search shops, transactions, invoices..."
               aria-label="Search revenue reports"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm font-medium text-slate-800 focus:border-[#07564B] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#07564B]"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-9 pr-3 text-sm font-medium text-slate-800 transition focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/10"
             />
           </div>
 
@@ -439,7 +448,7 @@ export default function RevenueReports() {
                 value={datePreset}
                 onChange={(e) => setDatePreset(e.target.value)}
                 aria-label="Filter revenue reports by period"
-                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-[#07564B] focus:outline-none focus:ring-2 focus:ring-[#07564B]/15 xl:w-[150px]"
+                className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/10 xl:w-[150px]"
               >
                 {[
                   { id: "all", label: "All Time" },
@@ -463,7 +472,7 @@ export default function RevenueReports() {
               value={selectedPlan}
               onChange={(e) => setSelectedPlan(e.target.value)}
               aria-label="Filter revenue reports by subscription plan"
-              className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-[#07564B] focus:outline-none focus:ring-2 focus:ring-[#07564B]/15 xl:w-[190px]"
+              className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/10 xl:w-[190px]"
             >
               <option value="all">All Subscription Plans</option>
               {plansList.map((plan) => (
@@ -477,7 +486,7 @@ export default function RevenueReports() {
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               aria-label="Filter revenue reports by payment status"
-              className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-[#07564B] focus:outline-none focus:ring-2 focus:ring-[#07564B]/15 xl:w-[190px]"
+              className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/10 xl:w-[190px]"
             >
               <option value="all">All Payment Statuses</option>
               <option value="paid">Paid Only</option>
@@ -490,7 +499,7 @@ export default function RevenueReports() {
 
         {/* Custom Date Range Picker when preset === 'custom' */}
         {datePreset === "custom" && (
-          <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-3 text-xs">
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 text-xs">
             <div className="flex items-center gap-1.5">
               <label htmlFor={customStartDateId} className="font-semibold text-slate-600">Start Date:</label>
               <input
@@ -498,7 +507,7 @@ export default function RevenueReports() {
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="rounded-lg border border-slate-200 px-2.5 py-1 text-slate-700 focus:border-[#07564B] focus:outline-none"
+                className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-1.5 text-slate-700 focus:border-emerald-700 focus:bg-white focus:outline-none"
               />
             </div>
             <div className="flex items-center gap-1.5">
@@ -509,7 +518,7 @@ export default function RevenueReports() {
                 value={customEnd}
                 min={customStart || undefined}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="rounded-lg border border-slate-200 px-2.5 py-1 text-slate-700 focus:border-[#07564B] focus:outline-none"
+                className="rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-1.5 text-slate-700 focus:border-emerald-700 focus:bg-white focus:outline-none"
               />
             </div>
             <button
@@ -519,7 +528,7 @@ export default function RevenueReports() {
                 loadShopData();
                 loadPaymentData();
               }}
-              className="rounded-lg bg-[#07564B] px-3 py-1 font-bold text-white shadow-sm hover:bg-[#06473E] transition"
+              className="rounded-lg bg-emerald-800 px-3.5 py-2 font-bold text-white shadow-sm transition hover:bg-emerald-900"
             >
               Apply Filter
             </button>
@@ -529,9 +538,9 @@ export default function RevenueReports() {
 
       {/* Filter Notice Banner if custom or specific filter is active */}
       {overview.filteredSummary && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 flex items-center justify-between text-xs text-emerald-900">
-          <div className="flex items-center gap-2">
-            <span className="font-bold">Filtered Period Revenue:</span>
+        <div className="flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white p-4 text-xs text-emerald-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-extrabold">Filtered Period Revenue:</span>
             <span className="font-black text-sm font-sans">
               {formatCurrency(overview.filteredSummary.filteredRevenue)}
             </span>
@@ -551,7 +560,7 @@ export default function RevenueReports() {
       <RevenueSummaryCards data={overview} loading={loading} />
 
       {/* ── NAVIGATION TABS (All / Analytics / Shop-wise / Subscription / Payments) ── */}
-      <div className="flex border-b border-slate-200">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
         {[
           { id: "all", label: "Executive Overview", icon: BarChart3 },
           { id: "analytics", label: "Analytics Charts", icon: TrendingUp },
@@ -566,10 +575,10 @@ export default function RevenueReports() {
               key={tab.id}
               type="button"
               onClick={() => setActiveView(tab.id)}
-              className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold transition-all ${
                 isActive
-                  ? "border-[#07564B] text-[#07564B]"
-                  : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800"
+                  ? "border-emerald-800 bg-emerald-800 text-white shadow-sm"
+                  : "border-transparent text-slate-500 hover:border-emerald-100 hover:bg-emerald-50 hover:text-emerald-900"
               }`}
             >
               <Icon className="h-4 w-4" />

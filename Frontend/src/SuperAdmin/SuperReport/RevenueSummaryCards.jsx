@@ -3,46 +3,46 @@ import { formatCurrency } from "../../utils/currency";
 
 const metricTones = {
   forest: {
-    card: "border-[#2F6B59] border-l-emerald-400 bg-[#123B32]",
-    icon: "bg-[#08745D] text-white",
-    label: "text-emerald-50/90",
-    detail: "text-emerald-300",
-    bars: "bg-emerald-300"
+    card: "border-emerald-100 border-t-4 border-t-emerald-500 bg-gradient-to-br from-white via-white to-emerald-50",
+    icon: "bg-emerald-700 text-white shadow-emerald-900/15",
+    detail: "text-emerald-700",
+    dot: "bg-emerald-500",
+    glow: "bg-emerald-300/35"
   },
   gold: {
-    card: "border-[#8A702E] border-l-amber-400 bg-[#443719]",
-    icon: "bg-[#C58B11] text-white",
-    label: "text-amber-50/90",
-    detail: "text-amber-300",
-    bars: "bg-amber-300"
+    card: "border-amber-100 border-t-4 border-t-amber-500 bg-gradient-to-br from-white via-white to-amber-50",
+    icon: "bg-amber-500 text-white shadow-amber-900/15",
+    detail: "text-amber-700",
+    dot: "bg-amber-500",
+    glow: "bg-amber-300/35"
   },
   blue: {
-    card: "border-[#3B7897] border-l-sky-400 bg-[#17364D]",
-    icon: "bg-[#007A61] text-white",
-    label: "text-sky-50/90",
-    detail: "text-sky-300",
-    bars: "bg-sky-300"
+    card: "border-sky-100 border-t-4 border-t-sky-500 bg-gradient-to-br from-white via-white to-sky-50",
+    icon: "bg-sky-700 text-white shadow-sky-900/15",
+    detail: "text-sky-700",
+    dot: "bg-sky-500",
+    glow: "bg-sky-300/35"
   },
   indigo: {
-    card: "border-[#555E9C] border-l-violet-300 bg-[#292B50]",
-    icon: "bg-[#7138E8] text-white",
-    label: "text-violet-50/90",
-    detail: "text-violet-200",
-    bars: "bg-violet-300"
+    card: "border-violet-100 border-t-4 border-t-violet-500 bg-gradient-to-br from-white via-white to-violet-50",
+    icon: "bg-violet-600 text-white shadow-violet-900/15",
+    detail: "text-violet-700",
+    dot: "bg-violet-500",
+    glow: "bg-violet-300/35"
   },
   teal: {
-    card: "border-[#34766D] border-l-teal-300 bg-[#153E3A]",
-    icon: "bg-[#087D70] text-white",
-    label: "text-teal-50/90",
-    detail: "text-teal-200",
-    bars: "bg-teal-300"
+    card: "border-teal-100 border-t-4 border-t-teal-500 bg-gradient-to-br from-white via-white to-teal-50",
+    icon: "bg-teal-700 text-white shadow-teal-900/15",
+    detail: "text-teal-700",
+    dot: "bg-teal-500",
+    glow: "bg-teal-300/35"
   },
   rust: {
-    card: "border-[#905342] border-l-orange-300 bg-[#4A2B25]",
-    icon: "bg-[#C58B11] text-white",
-    label: "text-orange-50/90",
-    detail: "text-orange-200",
-    bars: "bg-orange-200"
+    card: "border-rose-100 border-t-4 border-t-rose-500 bg-gradient-to-br from-white via-white to-rose-50",
+    icon: "bg-rose-600 text-white shadow-rose-900/15",
+    detail: "text-rose-700",
+    dot: "bg-rose-500",
+    glow: "bg-rose-300/35"
   }
 };
 
@@ -116,44 +116,39 @@ export default function RevenueSummaryCards({ data = {}, loading = false }) {
         return (
           <div
             key={card.id}
-            className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}
+            className={`group relative isolate flex min-h-36 min-w-0 items-center justify-between gap-3 overflow-hidden rounded-2xl border p-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl sm:p-5 ${colors.card}`}
           >
-            <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-inner ${colors.icon}`}>
-              <Icon size={25} strokeWidth={1.9} />
-            </span>
-            <div className="min-w-0 flex-1 pb-1">
-              <p className={`truncate text-sm font-semibold ${colors.label}`}>{card.title}</p>
+            <span aria-hidden="true" className={`absolute -right-8 -top-10 h-28 w-28 rounded-full blur-2xl transition duration-300 group-hover:scale-125 ${colors.glow}`} />
+            <div className="relative min-w-0 flex-1">
+              <p className="truncate text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 sm:text-[11px]">{card.title}</p>
               {loading
-                ? <div className="mt-2 h-8 w-28 animate-pulse rounded bg-white/15" />
-                : <p className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-[28px]">{formatCurrency(card.amount)}</p>}
-              <div className={`mt-2 flex min-h-5 min-w-0 items-center gap-1.5 text-xs ${colors.detail}`}>
+                ? <div className="mt-2 h-8 w-32 animate-pulse rounded-lg bg-slate-200/80" />
+                : <p title={formatCurrency(card.amount)} className="mt-2 truncate text-2xl font-black leading-none tracking-tight text-slate-900 sm:text-3xl">{formatCurrency(card.amount)}</p>}
+              <div className={`mt-3 flex min-h-5 min-w-0 items-center gap-1.5 text-[10px] leading-4 sm:text-[11px] ${colors.detail}`}>
                 {loading
-                  ? <div className="h-3 w-24 animate-pulse rounded bg-white/15" />
+                  ? <div className="h-3 w-28 animate-pulse rounded bg-slate-200/80" />
                   : (
                     <>
                       {hasGrowth
                         ? (
-                          <span className={isPositive ? "text-emerald-300" : "text-rose-300"}>
+                          <span className={`shrink-0 ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
                             {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                           </span>
                         )
-                        : <span className={`h-2 w-2 shrink-0 rounded-full ${colors.bars}`} />}
-                      <span className="min-w-0 flex-1 truncate font-semibold">{card.subtext}</span>
+                        : <span className={`h-2 w-2 shrink-0 rounded-full ${colors.dot}`} />}
+                      <span className="min-w-0 flex-1 font-bold leading-4">{card.subtext}</span>
                     </>
                   )}
                 {card.badge && !loading && (
-                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${card.badgeType === "amber" ? "border-amber-300/40 bg-amber-300/15 text-amber-100" : "border-white/15 bg-white/10 text-white/80"}`}>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide ${card.badgeType === "amber" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-100 bg-emerald-50 text-emerald-800"}`}>
                     {card.badge}
                   </span>
                 )}
               </div>
             </div>
-            <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-8 items-end gap-1 opacity-90 ${colors.detail}`}>
-              <span className="h-3 w-1.5 rounded-t-sm bg-current" />
-              <span className="h-5 w-1.5 rounded-t-sm bg-current" />
-              <span className="h-4 w-1.5 rounded-t-sm bg-current" />
-              <span className="h-7 w-1.5 rounded-t-sm bg-current" />
-            </div>
+            <span className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-lg sm:h-12 sm:w-12 ${colors.icon}`}>
+              <Icon size={22} strokeWidth={2} />
+            </span>
           </div>
         );
       })}

@@ -13,8 +13,10 @@ import {
   MapPin,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
   ShieldAlert,
+  SlidersHorizontal,
   Store,
   Trash2,
   X
@@ -52,6 +54,14 @@ const formatDate = (value) => {
     : date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+const getInitials = (value) =>
+  String(value || "Shop")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
 const hasCurrentSubscription = (shop) => shop.subscription_is_current === true
   || Number(shop.subscription_is_current) === 1;
 const approvalStatus = (shop) => shop.approval_status || (shop.approved_at ? "approved" : "pending");
@@ -75,7 +85,8 @@ const isVerifiablePayment = (shop, payment) => Boolean(payment)
 function StatusBadge({ value }) {
   const status = String(value || "pending").toLowerCase();
   return (
-    <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ring-1 ring-inset ${STATUS_STYLES[status] || STATUS_STYLES.pending}`}>
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ring-1 ring-inset ${STATUS_STYLES[status] || STATUS_STYLES.pending}`}>
+      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
       {status}
     </span>
   );
@@ -84,65 +95,51 @@ function StatusBadge({ value }) {
 function StatCard({ label, value, note, icon: Icon, theme }) {
   const themes = {
     emerald: {
-      card: "border-l-emerald-400 bg-[#123F37]",
-      icon: "bg-emerald-700 text-white",
-      note: "text-emerald-300",
-      dot: "bg-emerald-300",
-      bars: "bg-emerald-300"
+      card: "border-emerald-100 border-t-4 border-t-emerald-500 bg-gradient-to-br from-white via-white to-emerald-50",
+      icon: "bg-emerald-700 text-white shadow-emerald-900/15",
+      note: "text-emerald-700",
+      dot: "bg-emerald-500",
+      glow: "bg-emerald-300/35"
     },
     amber: {
-      card: "border-l-amber-400 bg-[#3D321B]",
-      icon: "bg-amber-500 text-white",
-      note: "text-amber-300",
-      dot: "bg-amber-300",
-      bars: "bg-amber-300"
+      card: "border-amber-100 border-t-4 border-t-amber-500 bg-gradient-to-br from-white via-white to-amber-50",
+      icon: "bg-amber-500 text-white shadow-amber-900/15",
+      note: "text-amber-700",
+      dot: "bg-amber-500",
+      glow: "bg-amber-300/35"
     },
     sky: {
-      card: "border-l-sky-400 bg-[#173B56]",
-      icon: "bg-[#00796B] text-white",
-      note: "text-sky-300",
-      dot: "bg-sky-300",
-      bars: "bg-sky-300"
+      card: "border-sky-100 border-t-4 border-t-sky-500 bg-gradient-to-br from-white via-white to-sky-50",
+      icon: "bg-sky-700 text-white shadow-sky-900/15",
+      note: "text-sky-700",
+      dot: "bg-sky-500",
+      glow: "bg-sky-300/35"
     },
     rose: {
-      card: "border-l-orange-400 bg-[#4A2A24]",
-      icon: "bg-amber-500 text-white",
-      note: "text-orange-200",
-      dot: "bg-orange-300",
-      bars: "bg-orange-300"
+      card: "border-rose-100 border-t-4 border-t-rose-500 bg-gradient-to-br from-white via-white to-rose-50",
+      icon: "bg-rose-600 text-white shadow-rose-900/15",
+      note: "text-rose-700",
+      dot: "bg-rose-500",
+      glow: "bg-rose-300/35"
     }
   };
   const colors = themes[theme];
 
   return (
-    <article className={`relative isolate flex min-h-36 items-center gap-4 overflow-hidden rounded-2xl border border-white/10 border-l-4 p-5 text-white shadow-md transition duration-200 hover:-translate-y-0.5 hover:shadow-lg ${colors.card}`}>
-      <ChevronRightIcon />
-      <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-md ${colors.icon}`}>
-        <Icon size={23} />
-      </span>
-      <div className="min-w-0 pb-1">
-        <p className="truncate text-xs font-semibold text-white/90">{label}</p>
-        <p className="mt-1 text-2xl font-black leading-none tracking-tight">{Number(value || 0).toLocaleString("en-IN")}</p>
+    <article className={`group relative isolate flex min-h-36 items-center justify-between gap-4 overflow-hidden rounded-2xl border p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl ${colors.card}`}>
+      <span aria-hidden="true" className={`absolute -right-8 -top-10 h-28 w-28 rounded-full blur-2xl transition duration-300 group-hover:scale-125 ${colors.glow}`} />
+      <div className="relative min-w-0">
+        <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+        <p className="mt-2 text-3xl font-black leading-none tracking-tight text-slate-900">{Number(value || 0).toLocaleString("en-IN")}</p>
         <p className={`mt-3 flex items-center gap-1.5 truncate text-[11px] font-bold ${colors.note}`}>
           <span className={`h-2 w-2 shrink-0 rounded-full ${colors.dot}`} />
           {note}
         </p>
       </div>
-      <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-7 items-end gap-1 opacity-90 ${colors.bars}`}>
-        <span className="h-3 w-1 rounded-t-sm bg-current" />
-        <span className="h-5 w-1 rounded-t-sm bg-current" />
-        <span className="h-4 w-1 rounded-t-sm bg-current" />
-        <span className="h-7 w-1 rounded-t-sm bg-current" />
-      </div>
+      <span className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-lg ${colors.icon}`}>
+        <Icon size={22} strokeWidth={2} />
+      </span>
     </article>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-white/70 text-slate-600">
-      <ChevronRight size={15} />
-    </span>
   );
 }
 
@@ -407,6 +404,7 @@ export default function AllGoldsShop() {
 
   const refreshList = () => {
     setLoading(true);
+    setLoadError("");
     if (page !== 1) {
       setPage(1);
       return;
@@ -421,12 +419,17 @@ export default function AllGoldsShop() {
           ...(planFilter !== "all" ? { planId: planFilter } : {})
         }
       }).then(({ data }) => {
-        setShops(data.shops || []);
-        setPagination(data.pagination || { page: 1, total: 0, totalPages: 0 });
-        setSummary(data.summary || {});
+        if (!Array.isArray(data?.shops) || !data?.pagination || !data?.summary) {
+          throw new TypeError("Gold shop list response is invalid");
+        }
+        setShops(data.shops);
+        setPagination(data.pagination);
+        setSummary(data.summary);
       }).catch((error) => {
         console.error("Failed to refresh gold shops:", error);
-        toast.error(error.response?.data?.message || "Could not refresh gold shops.");
+        const message = error.response?.data?.message || "Could not refresh gold shops.";
+        setLoadError(message);
+        toast.error(message);
       }).finally(() => setLoading(false));
     }
   };
@@ -623,56 +626,134 @@ export default function AllGoldsShop() {
 
   const selectedPlan = plans.find((plan) => String(plan.id) === String(subscriptionForm.planId));
   const subscriptionPrice = selectedPlan ? Number(selectedPlan[`${subscriptionForm.duration}_price`]) : 0;
+  const hasFilters = Boolean(search.trim()) || statusFilter !== "all" || planFilter !== "all";
+  const firstVisibleShop = shops.length ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const lastVisibleShop = shops.length ? firstVisibleShop + shops.length - 1 : 0;
 
   return (
-    <main className="space-y-3 pb-5">
-      <section aria-label="Gold shop summary" className="mb-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <main className="space-y-5 pb-6">
+      <section className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-[#063B35] via-[#075F54] to-[#0D776D] p-5 text-white shadow-[0_18px_38px_rgba(4,78,67,0.2)] sm:p-6">
+        <div aria-hidden="true" className="absolute -right-12 -top-24 h-64 w-64 rounded-full border border-white/10 bg-white/5" />
+        <div aria-hidden="true" className="absolute -right-2 -top-14 h-44 w-44 rounded-full border border-amber-200/20 bg-amber-300/10 blur-sm" />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <span className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-amber-200 shadow-inner">
+              <Store size={23} />
+            </span>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">Super Admin · Control Center</p>
+              <h2 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">Gold shop portfolio</h2>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-emerald-50/80 sm:text-sm">Manage onboarding, approvals, subscriptions, and payment verification from one place.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-[11px] font-bold text-white/90 backdrop-blur">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300" />
+              Shop operations
+            </span>
+            <button
+              type="button"
+              onClick={() => { setSelectedShop(null); setModal("create"); }}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-300 to-yellow-400 px-4 py-2.5 text-sm font-extrabold text-emerald-950 shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:from-amber-200 hover:to-yellow-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-200/40"
+            >
+              <Plus size={17} /> Add Gold Shop
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section aria-label="Gold shop summary" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total Shops" value={summary.total_shops} note="All registered gold shops" icon={Store} theme="emerald" />
         <StatCard label="Pending" value={summary.pending_shops} note="Awaiting activation" icon={Clock3} theme="amber" />
         <StatCard label="Active" value={summary.active_shops} note="Active subscriptions" icon={CheckCircle2} theme="sky" />
         <StatCard label="Expired" value={summary.expired_subscriptions} note="Expired subscriptions" icon={ShieldAlert} theme="rose" />
       </section>
 
-      <section className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
-        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
-          <label className="relative min-w-0 flex-1 lg:max-w-sm">
+      <section aria-label="Shop search and filters" className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.06)] sm:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+          <label className="relative min-w-0 flex-1">
             <span className="sr-only">Search gold shops</span>
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={(event) => { setLoading(true); setSearch(event.target.value); setPage(1); }} className="min-h-9 w-full rounded-lg border border-slate-200 pl-9 pr-3 text-xs outline-none focus:border-[#008577]" placeholder="Search by name, code, owner or mobile..." />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-700" />
+            <input
+              value={search}
+              onChange={(event) => { setLoading(true); setSearch(event.target.value); setPage(1); }}
+              className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-10 pr-3.5 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100/70"
+              placeholder="Search by shop, code, owner, or mobile..."
+            />
           </label>
-          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-            <CustomSelect value={statusFilter} onChange={(event) => { setLoading(true); setStatusFilter(event.target.value); setPage(1); }} aria-label="Filter by operational shop status" className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#008577]">
+          <div className="flex flex-wrap items-center gap-2 xl:ml-auto">
+            <span className="inline-flex items-center gap-1.5 pr-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+              <SlidersHorizontal size={14} /> Filters
+            </span>
+            <CustomSelect value={statusFilter} onChange={(event) => { setLoading(true); setStatusFilter(event.target.value); setPage(1); }} aria-label="Filter by operational shop status" className="min-h-10 min-w-[145px] rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none transition hover:border-emerald-300 focus:border-emerald-600">
               <option value="all">All statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="pending">Pending</option>
               <option value="suspended">Suspended</option>
             </CustomSelect>
-            <CustomSelect value={planFilter} onChange={(event) => { setLoading(true); setPlanFilter(event.target.value); setPage(1); }} aria-label="Filter by subscription plan" className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#008577]">
+            <CustomSelect value={planFilter} onChange={(event) => { setLoading(true); setPlanFilter(event.target.value); setPage(1); }} aria-label="Filter by subscription plan" className="min-h-10 min-w-[145px] rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none transition hover:border-emerald-300 focus:border-emerald-600">
               <option value="all">All plans</option>
               {planOptions.map((plan) => <option key={plan.id} value={plan.id}>{plan.displayName}</option>)}
             </CustomSelect>
-            <div className="flex overflow-hidden rounded-lg border border-slate-200">
-              <button type="button" title="Table view" aria-label="Table view" onClick={() => setViewMode("table")} className={`inline-flex h-9 w-9 items-center justify-center ${viewMode === "table" ? "bg-slate-100 text-[#00796B]" : "text-slate-400"}`}><List size={16} /></button>
-              <button type="button" title="Grid view" aria-label="Grid view" onClick={() => setViewMode("grid")} className={`inline-flex h-9 w-9 items-center justify-center ${viewMode === "grid" ? "bg-slate-100 text-[#00796B]" : "text-slate-400"}`}><LayoutGrid size={16} /></button>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("all");
+                  setPlanFilter("all");
+                  setPage(1);
+                  setLoading(true);
+                }}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold text-slate-500 transition hover:bg-rose-50 hover:text-rose-700"
+              >
+                <RotateCcw size={14} /> Reset
+              </button>
+            )}
+            <div className="ml-auto inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+              <button type="button" title="Table view" aria-label="Table view" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition ${viewMode === "table" ? "bg-white text-emerald-800 shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><List size={16} /></button>
+              <button type="button" title="Grid view" aria-label="Grid view" aria-pressed={viewMode === "grid"} onClick={() => setViewMode("grid")} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition ${viewMode === "grid" ? "bg-white text-emerald-800 shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><LayoutGrid size={16} /></button>
             </div>
-            <button type="button" onClick={() => { setSelectedShop(null); setModal("create"); }} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-[#00796B] px-3 py-2 text-xs font-bold text-white">
-              <Plus size={15} /> Add Gold Shop
-            </button>
           </div>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_34px_rgba(15,23,42,0.07)]">
+        <header className="flex flex-col gap-2 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div>
+            <h2 className="text-sm font-extrabold tracking-tight text-slate-800">Shop directory</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Review each shop’s plan, payment, and approval status.</p>
+          </div>
+          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 ring-1 ring-inset ring-emerald-100">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            {Number(pagination.total || 0).toLocaleString("en-IN")} shops
+          </span>
+        </header>
         {loading ? (
           <div className="space-y-3 p-5" aria-label="Loading shops" role="status">
-            {[1, 2, 3].map((row) => <div key={row} className="h-12 animate-pulse rounded-xl bg-stone-100" />)}
+            {[1, 2, 3, 4].map((row) => <div key={row} className="h-14 animate-pulse rounded-xl bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100" />)}
           </div>
         ) : loadError ? (
-          <div role="alert" className="p-8 text-center text-sm text-rose-700">{loadError}</div>
+          <div role="alert" className="flex flex-col items-center gap-3 p-10 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600"><ShieldAlert size={22} /></span>
+            <p className="max-w-md text-sm font-semibold text-rose-800">{loadError}</p>
+            <button type="button" onClick={refreshList} className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-50">Try again</button>
+          </div>
         ) : !shops.length ? (
-          <div className="min-h-36 p-10 text-center">
-            <p className="text-sm text-slate-500">No gold shops found. Add one to get started.</p>
+          <div className="flex min-h-64 flex-col items-center justify-center px-5 py-12 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-100"><Store size={25} /></span>
+            <h3 className="mt-4 text-sm font-extrabold text-slate-800">{hasFilters ? "No shops match these filters" : "No gold shops yet"}</h3>
+            <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">{hasFilters ? "Try changing the search or filters to find the shop you’re looking for." : "Create the first shop to begin managing onboarding and subscriptions."}</p>
+            {hasFilters ? (
+              <button type="button" onClick={() => { setSearch(""); setStatusFilter("all"); setPlanFilter("all"); setPage(1); setLoading(true); }} className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-emerald-200 hover:text-emerald-800">
+                <RotateCcw size={14} /> Clear filters
+              </button>
+            ) : (
+              <button type="button" onClick={() => { setSelectedShop(null); setModal("create"); }} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-emerald-800 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700">
+                <Plus size={15} /> Add Gold Shop
+              </button>
+            )}
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -683,11 +764,16 @@ export default function AllGoldsShop() {
                 && hasCurrentSubscription(shop);
               const action = shop.status === "active" ? "Suspend Shop" : "Activate Shop";
               return (
-              <article key={shop.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <article key={shop.id} className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-emerald-50/40 p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold text-[#00796B]">{shop.shop_code}</p>
-                    <h3 className="mt-1 font-bold text-slate-900">{shop.shop_name}</h3>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-800 to-emerald-600 text-xs font-black text-white shadow-md shadow-emerald-900/15">
+                      {getInitials(shop.shop_name)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="inline-flex rounded-md bg-amber-50 px-2 py-1 font-mono text-[10px] font-black tracking-wide text-amber-800">{shop.shop_code}</p>
+                      <h3 className="mt-1 truncate font-bold text-slate-900">{shop.shop_name}</h3>
+                    </div>
                   </div>
                   <div className="shrink-0 text-right">
                     <StatusBadge value={approvalStatus(shop)} />
@@ -695,14 +781,14 @@ export default function AllGoldsShop() {
                   </div>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                  <div className="col-span-2"><dt className="text-slate-400">Owner</dt><dd className="mt-1 font-semibold text-slate-700">{shop.owner_name || "—"} </dd></div>
-                  <div className="col-span-2"><dt className="text-slate-400">Mobile</dt><dd className="mt-1 font-semibold text-slate-700"></dd></div>
-                  <div><dt className="text-slate-400">City</dt><dd className="mt-1 font-semibold text-slate-700">{shop.city || "—"}</dd></div>
-                  <div><dt className="text-slate-400">Plan</dt><dd className="mt-1 font-semibold text-slate-700">{shop.plan_name || "No plan"}</dd></div>
-                  <div><dt className="text-slate-400">Account type</dt><dd className="mt-1 font-semibold capitalize text-slate-700">{accountPlanTypeLabel(shop)}</dd></div>
-                  <div className="col-span-2"><dt className="text-slate-400">Start</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.account_start_date)}</dd></div>
-                  <div className="col-span-2"><dt className="text-slate-400">Expiry</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.account_end_date)}</dd></div>
-                  <div><dt className="text-slate-400">Payment</dt><dd className="mt-1"><StatusBadge value={shop.payment_status || "unpaid"} /></dd></div>
+                  <div className="col-span-2 rounded-xl border border-slate-100 bg-white/80 p-3"><dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Owner</dt><dd className="mt-1 font-semibold text-slate-700">{shop.owner_name || "—"}</dd></div>
+                  <div className="col-span-2 rounded-xl border border-slate-100 bg-white/80 p-3"><dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Mobile</dt><dd className="mt-1 font-semibold text-slate-700">{shop.mobile || "—"}</dd></div>
+                  <div className="rounded-xl border border-slate-100 bg-white/80 p-3"><dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">City</dt><dd className="mt-1 truncate font-semibold text-slate-700">{shop.city || "—"}</dd></div>
+                  <div className="rounded-xl border border-slate-100 bg-white/80 p-3"><dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Plan</dt><dd className="mt-1 truncate font-semibold text-slate-700">{shop.plan_name || "No plan"}</dd></div>
+                  <div className="rounded-xl border border-slate-100 bg-white/80 p-3"><dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Account type</dt><dd className="mt-1 truncate font-semibold capitalize text-slate-700">{accountPlanTypeLabel(shop)}</dd></div>
+                  <div className="rounded-xl border border-slate-100 bg-white/80 p-3"><dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Payment</dt><dd className="mt-1"><StatusBadge value={shop.payment_status || "unpaid"} /></dd></div>
+                  <div className="rounded-xl border border-slate-100 bg-white/80 p-3"><dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Start</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.account_start_date)}</dd></div>
+                  <div className="rounded-xl border border-slate-100 bg-white/80 p-3"><dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Expiry</dt><dd className="mt-1 font-semibold text-slate-700">{formatDate(shop.account_end_date)}</dd></div>
                 </dl>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
                   {isPendingApproval && (
@@ -728,11 +814,11 @@ export default function AllGoldsShop() {
                     </>
                   )}
                   <div className="flex items-center gap-1">
-                  <button type="button" onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="View details and confirm payment"><Eye size={16} /></button>
-                  <button type="button" onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50" title="Edit shop"><Pencil size={16} /></button>
-                  <button type="button" onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50" title="Change subscription"><CreditCard size={16} /></button>
+                  <button type="button" onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100" title="View details and confirm payment" aria-label={`View details for ${shop.shop_name}`}><Eye size={16} /></button>
+                  <button type="button" onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 transition hover:bg-blue-50" title="Edit shop" aria-label={`Edit ${shop.shop_name}`}><Pencil size={16} /></button>
+                  <button type="button" onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 transition hover:bg-amber-50" title="Change subscription" aria-label={`Change subscription for ${shop.shop_name}`}><CreditCard size={16} /></button>
                   <button type="button" title={canActivate || shop.status === "active" ? action : "Approval and a current paid subscription are required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>
-                  <button type="button" onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50" title="Archive shop"><Trash2 size={16} /></button>
+                  <button type="button" onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 transition hover:bg-rose-50" title="Archive shop" aria-label={`Archive ${shop.shop_name}`}><Trash2 size={16} /></button>
                   </div>
                 </div>
               </article>
@@ -740,15 +826,15 @@ export default function AllGoldsShop() {
             })}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overscroll-x-contain">
             <table className="w-full min-w-[1220px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
-              <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
+              <thead className="bg-gradient-to-r from-[#064E3B] via-[#08796B] to-[#0D776D] text-[10px] font-extrabold uppercase tracking-[0.08em] text-white">
                 <tr>
-                  <th className="whitespace-nowrap rounded-tl-2xl px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Payment Confirmation</th><th className="px-4 py-4">Approval status</th><th className="px-4 py-4">Review</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
+                  <th className="whitespace-nowrap rounded-tl-2xl px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Payment confirmation</th><th className="px-4 py-4">Approval status</th><th className="px-4 py-4">Review</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
-                {shops.map((shop, index) => {
+              <tbody className="divide-y divide-slate-100">
+                {shops.map((shop) => {
                   const hasPaidCurrentSubscription = String(shop.payment_status).toLowerCase() === "paid"
                     && shop.subscription_status !== "expired"
                     && hasCurrentSubscription(shop);
@@ -759,18 +845,38 @@ export default function AllGoldsShop() {
                   const canVerifyPayment = Boolean(shop.subscription_id)
                     && ["pending", "unpaid"].includes(currentPaymentStatus);
                   return (
-                    <tr key={shop.id} className="transition hover:bg-amber-50/30">
-                      <td className="whitespace-nowrap px-4 py-4 font-mono text-xs font-bold text-amber-800">{shop.shop_code}</td>
-                      <td className="px-4 py-4"><p className="font-semibold text-stone-800">{shop.shop_name}</p><p className="mt-0.5 text-xs text-stone-500">{shop.email || "No email"}</p></td>
-                      <td className="px-4 py-4"><p className="whitespace-nowrap font-medium text-stone-800">{shop.owner_name || "—"}</p><p className="mt-0.5 whitespace-nowrap text-xs text-stone-500">{shop.mobile || "—"}</p></td>
-                      <td className="px-4 py-4"><p className="whitespace-nowrap font-medium text-stone-800">{shop.plan_name || "No plan"}</p><p className="mt-0.5 whitespace-nowrap text-xs text-stone-500">Start Date: {formatDate(shop.account_start_date)}</p><p className="whitespace-nowrap text-xs text-stone-500">Expiry: {formatDate(shop.account_end_date)}</p></td>
+                    <tr key={shop.id} className="transition-colors hover:bg-emerald-50/45">
+                      <td className="whitespace-nowrap px-4 py-4"><span className="rounded-md bg-amber-50 px-2 py-1 font-mono text-[11px] font-black text-amber-800">{shop.shop_code}</span></td>
+                      <td className="px-4 py-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-800 to-emerald-600 text-[10px] font-black text-white shadow-sm shadow-emerald-900/15">{getInitials(shop.shop_name)}</span>
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-slate-800">{shop.shop_name}</p>
+                            <p className="mt-1 truncate text-xs text-slate-500">{shop.email || "No email"}</p>
+                            <p className={`mt-1 inline-flex items-center gap-1.5 text-[10px] font-bold capitalize ${shop.status === "active" ? "text-emerald-700" : "text-slate-500"}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${shop.status === "active" ? "bg-emerald-500" : "bg-slate-400"}`} />
+                              Shop {shop.status || "unknown"}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[10px] font-black text-amber-900">{getInitials(shop.owner_name || shop.shop_name)}</span>
+                          <div>
+                            <p className="whitespace-nowrap font-semibold text-slate-700">{shop.owner_name || "—"}</p>
+                            <p className="mt-1 whitespace-nowrap text-xs text-slate-500">{shop.mobile || "—"}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4"><p className="whitespace-nowrap font-semibold text-slate-700">{shop.plan_name || "No plan"}</p><p className="mt-1 whitespace-nowrap text-xs text-slate-500">Start: {formatDate(shop.account_start_date)}</p><p className="whitespace-nowrap text-xs text-slate-500">Expiry: {formatDate(shop.account_end_date)}</p></td>
                       <td className="px-4 py-4">
                         {canVerifyPayment ? (
                           <button
                             type="button"
                             disabled={paymentDetailsLoadingShopId !== null}
                             onClick={() => openShopPaymentConfirmation(shop)}
-                            className="whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-50"
+                            className="whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:cursor-wait disabled:opacity-50"
                           >
                             {paymentDetailsLoadingShopId === shop.id ? "Loading…" : "Verify Payment"}
                           </button>
@@ -796,12 +902,12 @@ export default function AllGoldsShop() {
                         ) : "—"}
                       </td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center gap-1">
-                          <button type="button" title="View details and confirm payment" aria-label={`View details and confirm payment for ${shop.shop_name}`} onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><Eye size={16} /></button>
-                          <button type="button" title="Edit shop" aria-label={`Edit ${shop.shop_name}`} onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil size={16} /></button>
-                          <button type="button" title="Change subscription" aria-label={`Change subscription for ${shop.shop_name}`} onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 hover:bg-amber-50"><CreditCard size={16} /></button>
-                          <button type="button" title={canActivate || shop.status === "active" ? action : "Approval and a current paid subscription are required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>
-                          <button type="button" title="Archive shop" aria-label={`Archive ${shop.shop_name}`} onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 hover:bg-rose-50"><Trash2 size={16} /></button>
+                        <div className="inline-flex items-center gap-0.5 rounded-xl border border-slate-100 bg-slate-50 p-1">
+                          <button type="button" title="View details and confirm payment" aria-label={`View details and confirm payment for ${shop.shop_name}`} onClick={() => openDetails(shop)} className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100"><Eye size={16} /></button>
+                          <button type="button" title="Edit shop" aria-label={`Edit ${shop.shop_name}`} onClick={() => openEdit(shop)} className="rounded-lg p-2 text-blue-700 transition hover:bg-blue-50"><Pencil size={16} /></button>
+                          <button type="button" title="Change subscription" aria-label={`Change subscription for ${shop.shop_name}`} onClick={() => { setSelectedShop(shop); setModal("subscription"); }} className="rounded-lg p-2 text-amber-800 transition hover:bg-amber-50"><CreditCard size={16} /></button>
+                          <button type="button" title={canActivate || shop.status === "active" ? action : "Approval and a current paid subscription are required"} aria-label={`${action}: ${shop.shop_name}`} disabled={shop.status !== "active" && !canActivate} onClick={() => changeStatus(shop)} className="rounded-lg p-2 text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={16} /></button>
+                          <button type="button" title="Archive shop" aria-label={`Archive ${shop.shop_name}`} onClick={() => archiveShop(shop)} className="rounded-lg p-2 text-rose-700 transition hover:bg-rose-50"><Trash2 size={16} /></button>
                         </div>
                       </td>
                     </tr>
@@ -811,13 +917,14 @@ export default function AllGoldsShop() {
             </table>
           </div>
         )}
-        <footer className="flex items-center justify-between border-t border-slate-100 px-4 py-3 sm:px-5">
+        <footer className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="text-xs text-slate-500">
-            Showing {shops.length ? 1 : 0} to {shops.length} of {Number(pagination.total || 0)} gold shops
+            Showing <span className="font-bold text-slate-700">{firstVisibleShop}–{lastVisibleShop}</span> of <span className="font-bold text-slate-700">{Number(pagination.total || 0).toLocaleString("en-IN")}</span> shops
           </p>
-          <div className="flex gap-2">
-            <button type="button" disabled={page <= 1 || loading} onClick={() => { setLoading(true); setPage((current) => Math.max(current - 1, 1)); }} className="rounded-lg border border-stone-200 p-2 text-stone-600 hover:bg-stone-50 disabled:opacity-40"><ChevronLeft size={17} /></button>
-            <button type="button" disabled={page >= (pagination.totalPages || 1) || loading} onClick={() => { setLoading(true); setPage((current) => current + 1); }} className="rounded-lg border border-stone-200 p-2 text-stone-600 hover:bg-stone-50 disabled:opacity-40"><ChevronRight size={17} /></button>
+          <div className="flex items-center gap-2">
+            <span className="mr-1 text-xs font-semibold text-slate-500">Page {page} of {Math.max(Number(pagination.totalPages || 1), 1)}</span>
+            <button type="button" aria-label="Previous page" disabled={page <= 1 || loading} onClick={() => { setLoading(true); setPage((current) => Math.max(current - 1, 1)); }} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-200 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft size={17} /></button>
+            <button type="button" aria-label="Next page" disabled={page >= (pagination.totalPages || 1) || loading} onClick={() => { setLoading(true); setPage((current) => current + 1); }} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-200 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight size={17} /></button>
           </div>
         </footer>
       </section>

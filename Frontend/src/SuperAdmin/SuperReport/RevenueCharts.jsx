@@ -280,18 +280,20 @@ export default function RevenueCharts({
   ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
       {/* Main Revenue Chart (8 cols on lg) */}
-      <div className="lg:col-span-8 flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm">
+      <div className="flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-emerald-50/30 p-5 shadow-sm sm:p-6 lg:col-span-8">
         {/* Header & Tabs */}
         <div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div className="flex flex-col justify-between gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center">
             <div>
-              <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-[#07564B]" />
+              <h2 className="flex items-center gap-2 text-base font-black tracking-tight text-slate-900 sm:text-lg">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800">
+                  <BarChart3 className="h-4 w-4" />
+                </span>
                 Revenue Analytics & Trends
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="mt-1 text-xs text-slate-500">
                 Real-time subscription income performance aggregated from verified database transactions
               </p>
             </div>
@@ -300,7 +302,7 @@ export default function RevenueCharts({
               <button
                 type="button"
                 onClick={onRefresh}
-                className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                className="inline-flex items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-900 sm:self-auto"
                 title="Refresh analytics data"
               >
                 <RefreshCcw className="h-3.5 w-3.5" />
@@ -310,16 +312,16 @@ export default function RevenueCharts({
           </div>
 
           {/* Interactive Navigation Pills */}
-          <div className="mt-4 flex flex-wrap gap-1.5">
+          <div className="mt-4 flex flex-wrap gap-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
                   activeTab === tab.id
-                    ? "bg-[#07564B] text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "border-emerald-800 bg-emerald-800 text-white shadow-sm"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50"
                 }`}
               >
                 {tab.label}
@@ -343,15 +345,17 @@ export default function RevenueCharts({
       </div>
 
       {/* Secondary Chart: Plan Revenue Distribution (4 cols on lg) */}
-      <div className="lg:col-span-4 flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm">
+      <div className="flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-sky-50/30 p-5 shadow-sm sm:p-6 lg:col-span-4">
         <div>
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                <PieChart className="h-5 w-5 text-[#07564B]" />
+            <h2 className="flex items-center gap-2 text-base font-black tracking-tight text-slate-900 sm:text-lg">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-800">
+                <PieChart className="h-4 w-4" />
+              </span>
                 Plan Distribution
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">Revenue share by subscription tier</p>
+            <p className="mt-1 text-xs text-slate-500">Revenue share by subscription tier</p>
             </div>
           </div>
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "../../api";
+import CustomSelect from "../../Components/CustomSelect.jsx";
 import {
     FiCalendar,
     FiChevronLeft,
@@ -8,6 +9,7 @@ import {
     FiEye,
     FiGrid,
     FiList,
+    FiLock,
     FiMail,
     FiPhone,
     FiPlus,
@@ -36,32 +38,32 @@ const DATE_RANGE_OPTIONS = [
 ];
 const superAdminStatTones = {
     forest: {
-        card: "border-[#2F6B59] border-l-emerald-400 bg-[#123B32]",
-        icon: "bg-[#08745D] text-white",
-        label: "text-emerald-50/90",
-        detail: "text-emerald-300",
-        bars: "bg-emerald-300",
+        card: "border-emerald-100 border-t-4 border-t-emerald-500 bg-gradient-to-br from-white via-white to-emerald-50",
+        icon: "bg-emerald-700 text-white shadow-emerald-900/15",
+        detail: "text-emerald-700",
+        dot: "bg-emerald-500",
+        glow: "bg-emerald-300/35",
     },
     gold: {
-        card: "border-[#8A702E] border-l-amber-400 bg-[#443719]",
-        icon: "bg-[#C58B11] text-white",
-        label: "text-amber-50/90",
-        detail: "text-amber-300",
-        bars: "bg-amber-300",
+        card: "border-amber-100 border-t-4 border-t-amber-500 bg-gradient-to-br from-white via-white to-amber-50",
+        icon: "bg-amber-500 text-white shadow-amber-900/15",
+        detail: "text-amber-700",
+        dot: "bg-amber-500",
+        glow: "bg-amber-300/35",
     },
     blue: {
-        card: "border-[#3B7897] border-l-sky-400 bg-[#17364D]",
-        icon: "bg-[#007A61] text-white",
-        label: "text-sky-50/90",
-        detail: "text-sky-300",
-        bars: "bg-sky-300",
+        card: "border-sky-100 border-t-4 border-t-sky-500 bg-gradient-to-br from-white via-white to-sky-50",
+        icon: "bg-sky-700 text-white shadow-sky-900/15",
+        detail: "text-sky-700",
+        dot: "bg-sky-500",
+        glow: "bg-sky-300/35",
     },
     rust: {
-        card: "border-[#905342] border-l-orange-300 bg-[#4A2B25]",
-        icon: "bg-[#C58B11] text-white",
-        label: "text-orange-50/90",
-        detail: "text-orange-200",
-        bars: "bg-orange-200",
+        card: "border-rose-100 border-t-4 border-t-rose-500 bg-gradient-to-br from-white via-white to-rose-50",
+        icon: "bg-rose-600 text-white shadow-rose-900/15",
+        detail: "text-rose-700",
+        dot: "bg-rose-500",
+        glow: "bg-rose-300/35",
     },
 };
 
@@ -150,13 +152,12 @@ function SuperAdminDateRangeFilter({ onApply }) {
 
     return (
         <div>
-            <label className="flex min-h-10 min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 focus-within:border-[#008577] focus-within:ring-2 focus-within:ring-emerald-800/10">
+            <div className="flex min-h-10 min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition focus-within:border-[#008577] focus-within:ring-2 focus-within:ring-emerald-800/10">
                 <FiCalendar size={16} className="shrink-0 text-[#008577]" />
-                <span className="sr-only">Filter users by date</span>
-                <select value={preset} onChange={(event) => selectPreset(event.target.value)} className="w-full bg-transparent py-2 text-slate-700 outline-none [&_option]:text-slate-900">
+                <CustomSelect value={preset} onChange={(event) => selectPreset(event.target.value)} aria-label="Filter users by date" className="min-h-10 min-w-[145px] rounded-lg border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-none hover:border-emerald-300 focus:border-emerald-600">
                     {DATE_RANGE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-            </label>
+                </CustomSelect>
+            </div>
             {preset === "custom" && (
                 <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
                     <label className="text-xs font-semibold text-slate-600">
@@ -400,52 +401,58 @@ const Usersmanagements = () => {
     ];
 
     return (
-        <section className="min-h-screen bg-[#F4F7F6] px-0 py-1 text-slate-800">
-            <div className="mx-auto max-w-[1600px] space-y-4">
+        <section className="min-h-screen bg-gradient-to-br from-[#EFF6F3] via-[#F7F9F8] to-[#F5F0E3] px-3 py-4 text-slate-800 sm:px-5 lg:px-6">
+            <div className="mx-auto max-w-[1600px] space-y-5">
+                <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#A77C1B]">Customer intelligence</p>
+                        <h2 className="mt-1 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">A clearer view of your customer base</h2>
+                        <p className="mt-1 text-xs text-slate-500 sm:text-sm">Review account activity, update customer details, and keep your directory organized.</p>
+                    </div>
+                    <span className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-100 bg-white/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 shadow-sm">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]" />
+                        Super Admin Workspace
+                    </span>
+                </header>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     {statCards.map(({ label, value, note, icon: Icon, tone }) => {
                         const colors = superAdminStatTones[tone];
                         return (
-                            <article key={label} className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}>
-                                <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-inner ${colors.icon}`}>
-                                    <Icon size={25} />
-                                </span>
-                                <div className="min-w-0 flex-1 pb-1">
-                                    <p className={`truncate text-sm font-semibold ${colors.label}`}>{label}</p>
+                            <article key={label} className={`group relative isolate flex min-h-36 min-w-0 items-center justify-between gap-4 overflow-hidden rounded-2xl border p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl ${colors.card}`}>
+                                <span aria-hidden="true" className={`absolute -right-8 -top-10 h-28 w-28 rounded-full blur-2xl transition duration-300 group-hover:scale-125 ${colors.glow}`} />
+                                <div className="relative min-w-0">
+                                    <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">{label}</p>
                                     {loading
-                                        ? <div className="mt-2 h-8 w-28 animate-pulse rounded bg-white/15" />
-                                        : <p className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-[28px]">{value.toLocaleString()}</p>}
-                                    <div className={`mt-2 flex min-h-5 items-center gap-1.5 text-xs ${colors.detail}`}>
+                                        ? <div className="mt-2 h-8 w-28 animate-pulse rounded-lg bg-slate-200/80" />
+                                        : <p className="mt-2 text-3xl font-black leading-none tracking-tight text-slate-900">{Number(value || 0).toLocaleString("en-IN")}</p>}
+                                    <p className={`mt-3 flex items-center gap-1.5 truncate text-[11px] font-bold ${colors.detail}`}>
                                         {loading
-                                            ? <div className="h-3 w-24 animate-pulse rounded bg-white/15" />
+                                            ? <span className="h-3 w-24 animate-pulse rounded bg-slate-200/80" />
                                             : (
                                                 <>
-                                                    <span className={`h-2 w-2 rounded-full ${colors.bars}`} />
-                                                    <span className="font-semibold">{note}</span>
+                                                    <span className={`h-2 w-2 shrink-0 rounded-full ${colors.dot}`} />
+                                                    {note}
                                                 </>
                                             )}
-                                    </div>
+                                    </p>
                                 </div>
-                                <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-8 items-end gap-1 opacity-90 ${colors.detail}`}>
-                                    <span className="h-3 w-1.5 rounded-t-sm bg-current" />
-                                    <span className="h-5 w-1.5 rounded-t-sm bg-current" />
-                                    <span className="h-4 w-1.5 rounded-t-sm bg-current" />
-                                    <span className="h-7 w-1.5 rounded-t-sm bg-current" />
-                                </div>
+                                <span className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-lg ${colors.icon}`}>
+                                    <Icon size={22} strokeWidth={2} />
+                                </span>
                             </article>
                         );
                     })}
                 </div>
 
-                <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
-                    <div className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-white p-3 shadow-sm lg:flex-row lg:items-center lg:justify-between xl:col-span-2">
+                <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+                    <div className="flex flex-col gap-3 rounded-2xl border border-white bg-white/90 p-3 shadow-lg shadow-slate-900/[0.04] ring-1 ring-slate-200/70 backdrop-blur lg:flex-row lg:items-center lg:justify-between xl:col-span-2">
                         <label className="relative min-w-0 flex-1">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-700" />
                             <input
                                 value={searchTerm}
                                 onChange={(event) => setSearchTerm(event.target.value)}
-                                placeholder="Search name, phone, email..."
-                                className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-3 text-xs outline-none transition placeholder:text-slate-400 focus:border-[#008577] focus:ring-2 focus:ring-emerald-100"
+                                placeholder="Search by name, phone, email, or ID..."
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-3 text-xs outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-100/70"
                             />
                         </label>
                         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
@@ -453,7 +460,7 @@ const Usersmanagements = () => {
                                 setCurrentPage(1);
                                 setDateRange(range);
                             }} />
-                            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Filter users by status">
+                            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-1" role="group" aria-label="Filter users by status">
                                 {[
                                     { value: "all", label: "All" },
                                     { value: "active", label: "Active" },
@@ -464,20 +471,20 @@ const Usersmanagements = () => {
                                         type="button"
                                         onClick={() => setStatusFilter(value)}
                                         aria-pressed={statusFilter === value}
-                                        className={`rounded-md px-3 py-2 text-xs font-semibold transition ${statusFilter === value ? "bg-[#00695C] text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}
+                                        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${statusFilter === value ? "bg-gradient-to-r from-[#00695C] to-[#008577] text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}
                                     >
                                         {label}
                                     </button>
                                 ))}
                             </div>
-                            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Customer view mode">
+                            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-1" role="group" aria-label="Customer view mode">
                                 <button
                                     type="button"
                                     onClick={() => setViewMode("card")}
                                     aria-label="Card view"
                                     title="Card view"
                                     aria-pressed={viewMode === "card"}
-                                    className={`inline-flex h-8 w-8 items-center justify-center rounded-md transition ${viewMode === "card" ? "bg-[#008577] text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}
+                                    className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition ${viewMode === "card" ? "bg-gradient-to-br from-[#00695C] to-[#008577] text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}
                                 >
                                     <FiGrid size={15} />
                                 </button>
@@ -487,7 +494,7 @@ const Usersmanagements = () => {
                                     aria-label="Table view"
                                     title="Table view"
                                     aria-pressed={viewMode === "table"}
-                                    className={`inline-flex h-8 w-8 items-center justify-center rounded-md transition ${viewMode === "table" ? "bg-[#008577] text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}
+                                    className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition ${viewMode === "table" ? "bg-gradient-to-br from-[#00695C] to-[#008577] text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}
                                 >
                                     <FiList size={15} />
                                 </button>
@@ -495,17 +502,17 @@ const Usersmanagements = () => {
                             <button
                                 type="button"
                                 onClick={openAddModal}
-                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#00695C] px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#008577]"
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00695C] to-[#008577] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:shadow-lg"
                             >
                                 <FiPlus /> Add User
                             </button>
                         </div>
                     </div>
-                    <section className="min-w-0 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                    <section className="min-w-0 overflow-hidden rounded-2xl border border-white bg-white shadow-lg shadow-slate-900/[0.05] ring-1 ring-slate-200/70">
                         {viewMode === "table" ? <div className="overflow-x-auto">
                             <table className="w-full min-w-[720px] border-separate border-spacing-0 text-left">
                                 <thead>
-                                    <tr className="bg-gradient-to-r from-[#003B3B] to-[#008577] text-[10px] font-bold uppercase tracking-wide text-white">
+                                    <tr className="bg-gradient-to-r from-[#063E38] via-[#00695C] to-[#008577] text-[10px] font-extrabold uppercase tracking-[0.12em] text-white">
                                         <th className="rounded-tl-xl px-4 py-4">S No</th>
                                         <th className="px-4 py-4">Customer</th>
                                         <th className="px-4 py-4">Contact</th>
@@ -524,12 +531,12 @@ const Usersmanagements = () => {
                                         <tr
                                             key={user.id ?? `${user.email}-${index}`}
                                             onClick={() => setSelectedUserId(user.id)}
-                                            className={`cursor-pointer transition hover:bg-emerald-50/40 ${String(selectedUserId) === String(user.id) ? "bg-emerald-50/50" : ""}`}
+                                            className={`cursor-pointer transition-colors hover:bg-emerald-50/60 ${String(selectedUserId) === String(user.id) ? "bg-emerald-50/80 shadow-[inset_3px_0_0_#008577]" : ""}`}
                                         >
                                             <td className="px-3 py-3 text-xs font-medium text-slate-400">{(safePage - 1) * PAGE_SIZE + index + 1}</td>
                                             <td className="px-3 py-3">
                                                 <div className="flex items-center gap-2.5">
-                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F7EBCB] text-xs font-bold text-[#795713]">{getInitials(user.name)}</div>
+                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FFF6D8] to-[#EBD48C] text-xs font-extrabold text-[#795713] shadow-sm ring-2 ring-white">{getInitials(user.name)}</div>
                                                     <span className="max-w-[150px] truncate text-xs font-bold text-slate-800">{user.name}</span>
                                                 </div>
                                             </td>
@@ -537,20 +544,20 @@ const Usersmanagements = () => {
                                                 <p className="max-w-[190px] truncate text-xs font-medium text-slate-700">{user.email || "Email not provided"}</p>
                                                 <p className="mt-0.5 text-[10px] text-slate-400">{user.phone || "Phone not provided"}</p>
                                             </td>
-                                            <td className="px-3 py-3 text-xs capitalize text-slate-600">{user.role}</td>
+                                            <td className="px-3 py-3"><span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-bold capitalize text-slate-600">{user.role}</span></td>
                                             <td className="px-3 py-3">
-                                                <select
+                                                <CustomSelect
                                                     value={user.status}
                                                     onChange={(event) => void handleStatusChange(user, event.target.value)}
                                                     onClick={(event) => event.stopPropagation()}
                                                     disabled={refreshing || statusUpdatingUserId !== null}
                                                     aria-label={`Change status for ${user.name}`}
                                                     title="Change user status"
-                                                    className={`rounded-md border px-2 py-1 text-[10px] font-bold outline-none transition disabled:cursor-wait disabled:opacity-60 ${user.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}
+                                                    className={`min-h-[34px] rounded-lg px-2 py-1 text-[10px] font-bold shadow-none disabled:cursor-wait disabled:opacity-60 ${user.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}
                                                 >
                                                     <option value="Active">Active</option>
                                                     <option value="Inactive">Inactive</option>
-                                                </select>
+                                                </CustomSelect>
                                             </td>
                                             <td className="px-3 py-3 text-xs text-slate-500">{formatJoinDate(user.created_at, { day: "2-digit", month: "short", year: "numeric" })}</td>
                                             <td className="px-3 py-3">
@@ -576,11 +583,11 @@ const Usersmanagements = () => {
                                             <article
                                                 key={user.id ?? user.email}
                                                 onClick={() => setSelectedUserId(user.id)}
-                                                className={`cursor-pointer rounded-xl border p-4 transition hover:border-emerald-200 hover:bg-emerald-50/30 ${String(selectedUserId) === String(user.id) ? "border-emerald-300 bg-emerald-50/50" : "border-slate-100 bg-white"}`}
+                                                className={`cursor-pointer rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/30 hover:shadow-md ${String(selectedUserId) === String(user.id) ? "border-emerald-300 bg-emerald-50/50 shadow-md" : "border-slate-100 bg-white"}`}
                                             >
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="flex min-w-0 items-center gap-2.5">
-                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F7EBCB] text-xs font-bold text-[#795713]">{getInitials(user.name)}</div>
+                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FFF6D8] to-[#EBD48C] text-xs font-extrabold text-[#795713] shadow-sm">{getInitials(user.name)}</div>
                                                         <div className="min-w-0">
                                                             <p className="truncate text-sm font-bold text-slate-800">{user.name}</p>
                                                             <p className="text-[10px] text-slate-400">Customer #{user.id ?? "—"}</p>
@@ -605,41 +612,47 @@ const Usersmanagements = () => {
                             </div>
                         )}
 
-                        <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                             <p className="text-xs text-slate-500">
                                 Showing {filteredUsers.length ? (safePage - 1) * PAGE_SIZE + 1 : 0} to {Math.min(safePage * PAGE_SIZE, filteredUsers.length)} of {filteredUsers.length} customers
                             </p>
                             <div className="flex items-center justify-end gap-1">
                                 <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={safePage <= 1 || loading} aria-label="Previous page" className="rounded-md border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 disabled:opacity-40"><FiChevronLeft /></button>
-                                <span className="min-w-9 rounded-md bg-[#008577] px-2.5 py-2 text-center text-xs font-bold text-white">{safePage}</span>
+                                <span className="min-w-9 rounded-lg bg-gradient-to-br from-[#00695C] to-[#008577] px-2.5 py-2 text-center text-xs font-bold text-white shadow-sm">{safePage}</span>
                                 <span className="px-1 text-xs text-slate-400">of {Math.max(totalPages, 1)}</span>
                                 <button type="button" onClick={() => setCurrentPage((page) => Math.min(Math.max(totalPages, 1), page + 1))} disabled={safePage >= totalPages || loading} aria-label="Next page" className="rounded-md border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 disabled:opacity-40"><FiChevronRight /></button>
                             </div>
                         </div>
                     </section>
 
-                    <aside className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                    <aside className="overflow-hidden rounded-2xl border border-white bg-gradient-to-b from-white to-[#FBFCF8] p-4 shadow-lg shadow-slate-900/[0.05] ring-1 ring-slate-200/70">
                         <div className="mb-4 flex items-center justify-between">
-                            <h2 className="text-sm font-extrabold text-slate-800">Customer Details</h2>
+                            <div>
+                                <p className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-[#A77C1B]">Profile snapshot</p>
+                                <h2 className="mt-1 text-sm font-extrabold text-slate-800">Customer Details</h2>
+                            </div>
                             {selectedUser && <button type="button" onClick={() => setSelectedUserId(null)} aria-label="Clear selected customer" className="text-slate-400 hover:text-slate-700"><FiX /></button>}
                         </div>
                         {selectedUser ? (
                             <>
                                 <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#F7EBCB] text-lg font-bold text-[#795713]">{getInitials(selectedUser.name)}</div>
+                                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FFF6D8] to-[#EBD48C] text-lg font-black text-[#795713] shadow-sm ring-4 ring-amber-50">{getInitials(selectedUser.name)}</div>
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-bold text-slate-800">{selectedUser.name}</p>
                                         <p className="text-xs text-slate-400">Customer #{selectedUser.id ?? "—"}</p>
-                                        <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${selectedUser.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{selectedUser.status}</span>
+                                        <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${selectedUser.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                                            <span className={`h-1.5 w-1.5 rounded-full ${selectedUser.status === "Active" ? "bg-emerald-500" : "bg-rose-500"}`} />
+                                            {selectedUser.status}
+                                        </span>
                                     </div>
                                 </div>
                                 <dl className="space-y-3 py-4 text-xs">
-                                    <div className="flex items-start gap-2"><FiMail className="mt-0.5 shrink-0 text-[#008577]" /><dt className="w-20 shrink-0 text-slate-500">Email</dt><dd className="break-all font-medium text-slate-700">{selectedUser.email || "Not provided"}</dd></div>
-                                    <div className="flex items-start gap-2"><FiPhone className="mt-0.5 shrink-0 text-[#008577]" /><dt className="w-20 shrink-0 text-slate-500">Phone</dt><dd className="font-medium text-slate-700">{selectedUser.phone || "Not provided"}</dd></div>
-                                    <div className="flex items-start gap-2"><FiUser className="mt-0.5 shrink-0 text-[#008577]" /><dt className="w-20 shrink-0 text-slate-500">Role</dt><dd className="font-medium capitalize text-slate-700">{selectedUser.role}</dd></div>
-                                    <div className="flex items-start gap-2"><FiCalendar className="mt-0.5 shrink-0 text-[#008577]" /><dt className="w-20 shrink-0 text-slate-500">Joined</dt><dd className="font-medium text-slate-700">{formatJoinDate(selectedUser.created_at, { day: "numeric", month: "long", year: "numeric" })}</dd></div>
+                                    <div className="flex items-start gap-2 rounded-xl bg-slate-50/80 p-2.5"><FiMail className="mt-0.5 shrink-0 text-[#008577]" /><dt className="w-14 shrink-0 text-slate-500">Email</dt><dd className="break-all font-semibold text-slate-700">{selectedUser.email || "Not provided"}</dd></div>
+                                    <div className="flex items-start gap-2 rounded-xl bg-slate-50/80 p-2.5"><FiPhone className="mt-0.5 shrink-0 text-[#008577]" /><dt className="w-14 shrink-0 text-slate-500">Phone</dt><dd className="font-semibold text-slate-700">{selectedUser.phone || "Not provided"}</dd></div>
+                                    <div className="flex items-start gap-2 rounded-xl bg-slate-50/80 p-2.5"><FiUser className="mt-0.5 shrink-0 text-[#008577]" /><dt className="w-14 shrink-0 text-slate-500">Role</dt><dd className="font-semibold capitalize text-slate-700">{selectedUser.role}</dd></div>
+                                    <div className="flex items-start gap-2 rounded-xl bg-slate-50/80 p-2.5"><FiCalendar className="mt-0.5 shrink-0 text-[#008577]" /><dt className="w-14 shrink-0 text-slate-500">Joined</dt><dd className="font-semibold text-slate-700">{formatJoinDate(selectedUser.created_at, { day: "numeric", month: "long", year: "numeric" })}</dd></div>
                                 </dl>
-                                <button type="button" onClick={() => openEditModal(selectedUser)} className="w-full rounded-lg bg-[#00695C] px-3 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#008577]">Edit Customer</button>
+                                <button type="button" onClick={() => openEditModal(selectedUser)} className="w-full rounded-xl bg-gradient-to-r from-[#00695C] to-[#008577] px-3 py-3 text-xs font-bold text-white shadow-md shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:shadow-lg">Edit Customer</button>
                             </>
                         ) : (
                             <div className="py-10 text-center text-xs text-slate-400">Choose a customer to view their details.</div>
@@ -649,53 +662,92 @@ const Usersmanagements = () => {
             </div>
 
             {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-                    <form onSubmit={handleSaveUser} className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-                        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-                            <div>
-                                <h2 className="text-lg font-extrabold text-slate-800">{isEditing ? "Edit Customer" : "Add Customer"}</h2>
-                                <p className="mt-1 text-xs text-slate-500">{isEditing ? "Update the customer's account details." : "Create a customer account."}</p>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+                    <form
+                        onSubmit={handleSaveUser}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="customer-modal-title"
+                        className="w-full max-w-2xl rounded-3xl border border-white/70 bg-white shadow-2xl shadow-slate-950/30"
+                    >
+                        <div className="flex items-center justify-between gap-4 rounded-t-3xl bg-gradient-to-r from-[#063E38] via-[#00695C] to-[#008577] px-5 py-5 text-white sm:px-7">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-amber-200 shadow-inner">
+                                    <FiUserPlus size={22} />
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-emerald-100/80">Customer account</p>
+                                    <h2 id="customer-modal-title" className="mt-1 truncate text-lg font-extrabold sm:text-xl">{isEditing ? "Edit Customer" : "Add Customer"}</h2>
+                                    <p className="mt-1 text-xs text-emerald-50/80">{isEditing ? "Update profile and account access." : "Set up a customer profile and account access."}</p>
+                                </div>
                             </div>
-                            <button type="button" onClick={() => setIsModalOpen(false)} aria-label="Close dialog" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><FiX /></button>
+                            <button type="button" onClick={() => setIsModalOpen(false)} aria-label="Close dialog" className="shrink-0 rounded-xl p-2.5 text-white/80 transition hover:bg-white/10 hover:text-white"><FiX size={19} /></button>
                         </div>
-                        <div className="grid gap-4 p-6 sm:grid-cols-2">
+                        <div className="grid gap-x-5 gap-y-4 p-5 sm:grid-cols-2 sm:p-7">
+                            <div className="flex items-center gap-3 sm:col-span-2">
+                                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-[10px] font-black text-amber-800">01</span>
+                                <div>
+                                    <h3 className="text-xs font-extrabold text-slate-800">Profile information</h3>
+                                    <p className="mt-0.5 text-[10px] text-slate-500">Enter the customer&apos;s basic details.</p>
+                                </div>
+                            </div>
                             {[
-                                { name: "username", label: "Username", required: true },
-                                { name: "name", label: "Full name" },
-                                { name: "email", label: "Email address", required: true, type: "email" },
-                                { name: "phone", label: "Phone number", type: "tel" },
+                                { name: "username", label: "Username", required: true, icon: FiUser },
+                                { name: "name", label: "Full name", icon: FiUser },
+                                { name: "email", label: "Email address", required: true, type: "email", icon: FiMail },
+                                { name: "phone", label: "Phone number", type: "tel", icon: FiPhone },
                             ].map((field) => (
-                                <label key={field.name} className="text-xs font-semibold text-slate-600">
-                                    {field.label}{field.required ? " *" : ""}
-                                    <input
-                                        name={field.name}
-                                        type={field.type || "text"}
-                                        required={field.required}
-                                        value={formData[field.name]}
-                                        onChange={(event) => setFormData((current) => ({ ...current, [field.name]: event.target.value }))}
-                                        className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#008577] focus:ring-2 focus:ring-emerald-100"
-                                    />
+                                <label key={field.name} className="block min-w-0 text-xs font-semibold text-slate-600">
+                                    <span className="flex items-center justify-between gap-2">
+                                        {field.label}
+                                        {field.required && <span className="text-[9px] font-bold uppercase tracking-wider text-amber-700">Required</span>}
+                                    </span>
+                                    <span className="relative mt-1.5 block">
+                                        <field.icon aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                                        <input
+                                            name={field.name}
+                                            type={field.type || "text"}
+                                            required={field.required}
+                                            value={formData[field.name]}
+                                            onChange={(event) => setFormData((current) => ({ ...current, [field.name]: event.target.value }))}
+                                            className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-3 pl-10 pr-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-100/70"
+                                        />
+                                    </span>
                                 </label>
                             ))}
-                            <label className="text-xs font-semibold text-slate-600">
-                                Role
-                                <select name="role" value={formData.role} onChange={(event) => setFormData((current) => ({ ...current, role: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-[#008577]">
+                            <div className="min-w-0">
+                                <span className="text-xs font-semibold text-slate-600">Role</span>
+                                <CustomSelect name="role" aria-label="Role" value={formData.role} onChange={(event) => setFormData((current) => ({ ...current, role: event.target.value }))} className="mt-1.5 min-h-11 w-full rounded-xl border-slate-200 bg-slate-50/70 py-3 text-sm font-medium text-slate-800 shadow-none hover:border-slate-300 focus:border-[#008577]">
                                     <option value="user">Customer</option>
                                     <option value="manager">Manager</option>
                                     <option value="dealer">Dealer</option>
                                     <option value="admin">Admin</option>
-                                </select>
-                            </label>
+                                </CustomSelect>
+                            </div>
                             {!isEditing && (
-                                <label className="text-xs font-semibold text-slate-600">
-                                    Password *
-                                    <input name="password" type="password" required value={formData.password} onChange={(event) => setFormData((current) => ({ ...current, password: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#008577] focus:ring-2 focus:ring-emerald-100" />
+                                <label className="block min-w-0 text-xs font-semibold text-slate-600">
+                                    <span className="flex items-center justify-between gap-2">
+                                        Password
+                                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-700">Required</span>
+                                    </span>
+                                    <span className="relative mt-1.5 block">
+                                        <FiLock aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                                        <input
+                                            name="password"
+                                            type="password"
+                                            required
+                                            value={formData.password}
+                                            onChange={(event) => setFormData((current) => ({ ...current, password: event.target.value }))}
+                                            className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-3 pl-10 pr-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-100/70"
+                                        />
+                                    </span>
+                                    <span className="mt-1.5 block text-[10px] font-normal text-slate-400">Use a secure password for this account.</span>
                                 </label>
                             )}
                         </div>
-                        <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
-                            <button type="submit" disabled={submitLoading} className="inline-flex min-w-32 items-center justify-center gap-2 rounded-lg bg-[#008577] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#00695C] disabled:cursor-not-allowed disabled:opacity-60">
+                        <div className="flex justify-end gap-2 rounded-b-3xl border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-7">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50">Cancel</button>
+                            <button type="submit" disabled={submitLoading} className="inline-flex min-w-36 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00695C] to-[#008577] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60">
                                 {submitLoading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
                                 {isEditing ? "Save Changes" : "Add Customer"}
                             </button>
