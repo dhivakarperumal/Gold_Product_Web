@@ -707,12 +707,12 @@ export default function AllGoldsShop() {
                       <td className="px-4 py-4"><StatusBadge value={approvalStatus(shop)} /></td>
                       <td className="px-4 py-4">
                         {isPendingApproval ? (
-                          <div className="flex flex-col items-start gap-1">
+                          <div className="flex items-center gap-2">
                             <button type="button" disabled={approvalSubmitting || rejectingShopId !== null} aria-label={`Approve ${shop.shop_name}`} onClick={() => approveShop(shop)} className="whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-50">
                               {approvalSubmitting && pendingApproval?.id === shop.id ? "Approving…" : "Approve"}
                             </button>
-                            <button type="button" disabled={approvalSubmitting || rejectingShopId !== null} aria-label={`Reject ${shop.shop_name}`} onClick={() => rejectShop(shop)} className="whitespace-nowrap rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:cursor-wait disabled:opacity-50">
-                              {rejectingShopId === shop.id ? "Rejecting…" : "Reject"}
+                            <button type="button" title={`Reject ${shop.shop_name}`} disabled={approvalSubmitting || rejectingShopId !== null} aria-label={`Reject ${shop.shop_name}`} onClick={() => rejectShop(shop)} className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-700 hover:bg-rose-100 disabled:cursor-wait disabled:opacity-50">
+                              <X size={16} aria-hidden="true" />
                             </button>
                           </div>
                         ) : "—"}
