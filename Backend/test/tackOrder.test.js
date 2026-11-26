@@ -87,6 +87,29 @@ test('marks a tack order Paid when its full total is paid in advance', () => {
   assert.equal(result.tackOrder.payment_status, 'Paid');
 });
 
+test('uses saved tax settings instead of client GST values for tack-order totals', () => {
+  const enabledResult = normalizeTackOrder(
+    orderInput({ gst_included: false, gst_rate: 1 }),
+    [product],
+    { gst_enabled: true, gst_rate: 18 }
+  );
+  assert.equal(enabledResult.error, undefined);
+  assert.equal(enabledResult.tackOrder.gst_included, true);
+  assert.equal(enabledResult.tackOrder.gst_rate, 18);
+  assert.equal(enabledResult.tackOrder.gst_amount, 36);
+  assert.equal(enabledResult.tackOrder.total_amount, 226);
+
+  const disabledResult = normalizeTackOrder(
+    orderInput({ gst_included: true, gst_rate: 18 }),
+    [product],
+    { gst_enabled: false, gst_rate: 18 }
+  );
+  assert.equal(disabledResult.error, undefined);
+  assert.equal(disabledResult.tackOrder.gst_included, false);
+  assert.equal(disabledResult.tackOrder.gst_amount, 0);
+  assert.equal(disabledResult.tackOrder.total_amount, 190);
+});
+
 test('recalculates the unit price and stores the entered net weight', () => {
   const pricedProduct = {
     ...product,

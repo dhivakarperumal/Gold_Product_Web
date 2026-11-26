@@ -6,6 +6,7 @@ import { formatCurrency } from "../../utils/currency";
 import { calculatePriceForNetWeight } from "../../utils/productPricing";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
+import { getTaxSettings } from "../Pages/taxSettings";
 import { FiArrowLeft, FiBox, FiMinus, FiPlus, FiTag, FiTrash2, FiUser } from "react-icons/fi";
 
 function calculateOrderTotals(cart, gstIncluded, gstRate, discountType, discountValue) {
@@ -81,9 +82,9 @@ function OrderSummary({
   updateCartQuantity,
   onNetWeightChange,
   gstIncluded,
-  setGstIncluded,
   gstRate,
-  setGstRate,
+  gstSettingsLoading,
+  gstSettingsError,
   discountType,
   setDiscountType,
   discountValue,
@@ -214,27 +215,6 @@ function OrderSummary({
               <span className="font-semibold">{formatCurrency(subtotal)}</span>
             </div>
 
-            <div>
-              <p className="mb-2 text-sm font-bold">GST for this order</p>
-              <div className="grid grid-cols-2 gap-2">
-                {[true, false].map((included) => (
-                  <button
-                    key={String(included)}
-                    type="button"
-                    aria-pressed={gstIncluded === included}
-                    onClick={() => setGstIncluded(included)}
-                    className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${
-                      gstIncluded === included
-                        ? "border-orange-400 bg-orange-500/20 text-orange-200"
-                        : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
-                    }`}
-                  >
-                    {included ? "Include GST" : "Exclude GST"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <label className="flex items-center justify-between gap-3 text-sm">
               <span className="text-white/65">GST rate</span>
               <span className="flex items-center gap-2">
@@ -244,7 +224,8 @@ function OrderSummary({
                   max="100"
                   step="0.01"
                   value={gstRate}
-                  onChange={(event) => setGstRate(event.target.value)}
+                  readOnly
+                  title="Automatically configured from Tax Settings"
                   className="w-20 rounded-lg border border-white/15 bg-white/10 px-2 py-1.5 text-right font-bold text-white outline-none focus:border-orange-400"
                   aria-label="GST rate percentage"
                 />
@@ -255,6 +236,13 @@ function OrderSummary({
               <span>GST on subtotal (before discount)</span>
               <span>{formatCurrency(gstAmount)}</span>
             </div>
+            <p className="text-[11px] text-white/50">
+              {gstSettingsLoading
+                ? "Loading store Tax Settings..."
+                : gstSettingsError
+                  ? "GST settings could not be loaded. Reload the page to retry."
+                  : "GST is automatically set from store Tax Settings."}
+            </p>
 
             <div>
               <p className="mb-2 text-sm font-bold">Discount</p>
@@ -331,7 +319,7 @@ function OrderSummary({
           <button
             type="submit"
             form="tack-order-form"
-            disabled={submitting || Boolean(savedOrder) || cart.length === 0 || hasInvalidNetWeight}
+            disabled={submitting || Boolean(savedOrder) || gstSettingsLoading || gstSettingsError || cart.length === 0 || hasInvalidNetWeight}
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Adding Tack Order..." : "Add Tack Order"}
@@ -359,8 +347,10 @@ const TackOrders = () => {
     pincode: "",
     address: ""
   });
-  const [gstIncluded, setGstIncluded] = useState(true);
-  const [gstRate, setGstRate] = useState("12");
+  const [gstIncluded, setGstIncluded] = useState(false);
+  const [gstRate, setGstRate] = useState("0");
+  const [gstSettingsLoading, setGstSettingsLoading] = useState(true);
+  const [gstSettingsError, setGstSettingsError] = useState(false);
   const [discountType, setDiscountType] = useState("Percent");
   const [discountValue, setDiscountValue] = useState("0");
   const [netWeightEdits, setNetWeightEdits] = useState({});
@@ -369,6 +359,29 @@ const TackOrders = () => {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [savedOrder, setSavedOrder] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    getTaxSettings()
+      .then((settings) => {
+        if (!active) return;
+        setGstIncluded(Boolean(settings.gst_enabled));
+        setGstRate(String(Number(settings.gst_rate) || 0));
+      })
+      .catch((settingsError) => {
+        console.error("Failed to load tack-order tax settings:", settingsError);
+        if (active) {
+          setGstSettingsError(true);
+          toast.error(settingsError.response?.data?.message || "Could not load GST settings.");
+        }
+      })
+      .finally(() => {
+        if (active) setGstSettingsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -467,6 +480,10 @@ const TackOrders = () => {
   const handleCreateTackOrder = async (event) => {
     event.preventDefault();
     if (submitting || savedOrder) return;
+    if (gstSettingsLoading || gstSettingsError) {
+      toast.error("Tack-order GST settings are unavailable. Reload the page and try again.");
+      return;
+    }
     if (hasInvalidNetWeight) {
       toast.error("Correct the net weight before creating this tack order.");
       return;
@@ -681,9 +698,9 @@ const TackOrders = () => {
           updateCartQuantity={updateCartQuantity}
           onNetWeightChange={handleNetWeightChange}
           gstIncluded={gstIncluded}
-          setGstIncluded={setGstIncluded}
           gstRate={gstRate}
-          setGstRate={setGstRate}
+          gstSettingsLoading={gstSettingsLoading}
+          gstSettingsError={gstSettingsError}
           discountType={discountType}
           setDiscountType={setDiscountType}
           discountValue={discountValue}
@@ -829,9 +846,9 @@ const TackOrders = () => {
             updateCartQuantity={updateCartQuantity}
             onNetWeightChange={handleNetWeightChange}
             gstIncluded={gstIncluded}
-            setGstIncluded={setGstIncluded}
             gstRate={gstRate}
-            setGstRate={setGstRate}
+            gstSettingsLoading={gstSettingsLoading}
+            gstSettingsError={gstSettingsError}
             discountType={discountType}
             setDiscountType={setDiscountType}
             discountValue={discountValue}

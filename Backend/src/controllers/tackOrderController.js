@@ -7,6 +7,7 @@ const {
   updateTackOrderStatus
 } = require('../modules/tackOrderModule');
 const { calculateProductPricing } = require('../services/productPricing');
+const { getTaxSettings } = require('../modules/taxSettingsModule');
 
 const MAX_ITEMS = 100;
 const MAX_AMOUNT = 9999999999.99;
@@ -24,7 +25,7 @@ function normalizeText(value, field, maxLength, required = false) {
   return { value: normalized };
 }
 
-function normalizeTackOrder(body, catalogProducts) {
+function normalizeTackOrder(body, catalogProducts, taxSettings = null) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'Tack order details are required' };
   }
@@ -131,8 +132,8 @@ function normalizeTackOrder(body, catalogProducts) {
     items.push(item);
   }
 
-  const gstIncluded = body.gst_included;
-  const gstRate = Number(body.gst_rate);
+  const gstIncluded = taxSettings ? Boolean(taxSettings.gst_enabled) : body.gst_included;
+  const gstRate = taxSettings ? Number(taxSettings.gst_rate) : Number(body.gst_rate);
   if (typeof gstIncluded !== 'boolean'
     || !Number.isFinite(gstRate) || gstRate < 0 || gstRate > 100) {
     return { error: 'Enter a valid GST selection and rate between 0 and 100' };
@@ -196,11 +197,12 @@ async function postTackOrder(req, res, next) {
   }
 
   try {
+    const taxSettings = await getTaxSettings(req.adminUser.user_id);
     const catalogProducts = await getTackOrderProductsByIds(
       [...new Set(productIds)],
       req.adminUser.user_id
     );
-    const { tackOrder, error } = normalizeTackOrder(req.body, catalogProducts);
+    const { tackOrder, error } = normalizeTackOrder(req.body, catalogProducts, taxSettings);
     if (error) return res.status(400).json({ message: error });
     return res.status(201).json(await createTackOrder(tackOrder, req.adminUser.user_id));
   } catch (error) {
