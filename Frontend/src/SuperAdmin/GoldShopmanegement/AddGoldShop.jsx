@@ -770,7 +770,7 @@ export default function AddGoldShop({
           </fieldset>
           </div>
 
-          <footer className={`flex shrink-0 justify-between gap-3 ${registrationMode ? "mt-3 px-1 pt-2 sm:px-2" : "border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6"}`}>
+          <footer className={`flex shrink-0 justify-between gap-3 ${registrationMode ? "mt-6 px-1 pt-2 sm:px-2" : "border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6"}`}>
             <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-40 ${registrationMode ? "border border-emerald-600 text-emerald-950" : "border border-stone-300 text-stone-700"}`}>
               {registrationMode && <ArrowLeft size={16} />}
               Previous
