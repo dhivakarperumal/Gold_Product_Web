@@ -217,7 +217,25 @@ const CustomerViewProducts = () => {
                     Customer View Product
                 </h1>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <label className="relative block w-full sm:max-w-sm">
+                        <Search
+                            size={17}
+                            aria-hidden="true"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#81786b]"
+                        />
+                        <input
+                            type="search"
+                            value={search}
+                            onChange={(event) => {
+                                setSearch(event.target.value);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Search your products..."
+                            aria-label="Search your products"
+                            className="w-full rounded-xl border border-[#e8dfd1] bg-white py-3 pl-10 pr-4 text-sm text-[#30271b] outline-none transition focus:border-[#174a38] focus:ring-2 focus:ring-[#174a38]/10"
+                        />
+                    </label>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                         <button
                             type="button"
                             onClick={() => setFiltersVisible((visible) => !visible)}
@@ -246,24 +264,6 @@ const CustomerViewProducts = () => {
                             </select>
                         </label>
                     </div>
-                    <label className="relative block w-full sm:max-w-sm">
-                            <Search
-                                size={17}
-                                aria-hidden="true"
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#81786b]"
-                            />
-                            <input
-                                type="search"
-                                value={search}
-                                onChange={(event) => {
-                                    setSearch(event.target.value);
-                                    setCurrentPage(1);
-                                }}
-                                placeholder="Search your products..."
-                                aria-label="Search your products"
-                                className="w-full rounded-xl border border-[#e8dfd1] bg-white py-3 pl-10 pr-4 text-sm text-[#30271b] outline-none transition focus:border-[#174a38] focus:ring-2 focus:ring-[#174a38]/10"
-                            />
-                    </label>
                 </div>
             </header>
 
