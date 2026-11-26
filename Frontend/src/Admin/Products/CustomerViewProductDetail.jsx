@@ -105,7 +105,10 @@ const CustomerViewProductDetail = () => {
                 setProduct(null);
                 setError(requestError.response?.data?.message || "Could not load product details.");
             } finally {
-                if (isActive && !controller.signal.aborted) setLoadedProductId(id);
+                if (isActive && !controller.signal.aborted) {
+                    setLoadedProductId(id);
+                    setLoading(false);
+                }
             }
         };
 

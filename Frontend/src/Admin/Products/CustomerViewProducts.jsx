@@ -48,7 +48,7 @@ const CustomerViewProducts = () => {
     const [minimumPrice, setMinimumPrice] = useState("");
     const [maximumPrice, setMaximumPrice] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const [filtersVisible, setFiltersVisible] = useState(true);
+    const [filtersVisible, setFiltersVisible] = useState(false);
     const [openFilters, setOpenFilters] = useState({
         category: true,
         metal: true,
@@ -240,11 +240,8 @@ const CustomerViewProducts = () => {
 
     return (
         <section className="space-y-5 pb-10">
-            <header className="rounded-2xl border border-[#eadfce] bg-gradient-to-r from-[#fffaf0] via-white to-[#f6f1e7] p-5 shadow-sm sm:p-7">
-                <h1 className="mb-3 font-serif text-base font-bold text-[#201a13]">
-                    Customer View Product
-                </h1>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <header className="rounded-xl border border-[#eadfce] bg-gradient-to-r from-[#fffaf0] via-white to-[#f6f1e7] p-3 shadow-sm sm:p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <label className="relative block w-full sm:max-w-sm">
                         <Search
                             size={17}
@@ -260,7 +257,7 @@ const CustomerViewProducts = () => {
                             }}
                             placeholder="Search your products..."
                             aria-label="Search your products"
-                            className="w-full rounded-xl border border-[#e8dfd1] bg-white py-3 pl-10 pr-4 text-sm text-[#30271b] outline-none transition focus:border-[#174a38] focus:ring-2 focus:ring-[#174a38]/10"
+                            className="w-full rounded-lg border border-[#e8dfd1] bg-white py-2 pl-10 pr-4 text-sm text-[#30271b] outline-none transition focus:border-[#174a38] focus:ring-2 focus:ring-[#174a38]/10"
                         />
                     </label>
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -272,7 +269,7 @@ const CustomerViewProducts = () => {
                                     setCurrentPage(1);
                                     setSortBy(event.target.value);
                                 }}
-                                className="rounded-md border border-[#e8dfd1] bg-white px-2.5 py-2 text-xs text-[#30271b] outline-none focus:border-[#174a38]"
+                                className="rounded-md border border-[#e8dfd1] bg-white px-2.5 py-1.5 text-xs text-[#30271b] outline-none focus:border-[#174a38]"
                             >
                                 <option value="newest">Newest First</option>
                                 <option value="oldest">Oldest First</option>
@@ -286,7 +283,7 @@ const CustomerViewProducts = () => {
                             onClick={() => setFiltersVisible((visible) => !visible)}
                             aria-expanded={filtersVisible}
                             aria-controls="customer-product-filters"
-                            className="flex shrink-0 items-center gap-2 rounded-lg border border-[#e8dfd1] bg-white px-3 py-2 text-xs font-semibold text-[#174a38] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
+                            className="flex shrink-0 items-center gap-2 rounded-lg border border-[#e8dfd1] bg-white px-3 py-1.5 text-xs font-semibold text-[#174a38] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
                         >
                             <SlidersHorizontal size={14} aria-hidden="true" />
                             {filtersVisible ? "Hide Filters" : "Show Filters"}
@@ -479,7 +476,7 @@ const CustomerViewProducts = () => {
                         </div>
                     ) : visibleProducts.length ? (
                         <>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
+                            <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 ${filtersVisible ? "xl:grid-cols-4 2xl:grid-cols-4" : "xl:grid-cols-5 2xl:grid-cols-5"}`}>
                                 {visibleProducts.map((product) => {
                                     const image = getProductImageUrl(product);
                                     const productId = product.id ?? product.product_id;
@@ -545,7 +542,7 @@ const CustomerViewProducts = () => {
                     ) : (
                         <div className="rounded-xl border border-[#eee7dc] bg-white py-16 text-center">
                             <p className="font-serif text-lg font-semibold text-[#29231c]">
-                                {search || selectedCategories.length || selectedMetals.length || offerThreshold || minimumPrice || maximumPrice
+                                {search || selectedCategories.length || selectedMetals.length || offerThreshold || minimumRating || availability || minimumPrice || maximumPrice
                                     ? "No matching products found"
                                     : "No products yet"}
                             </p>
