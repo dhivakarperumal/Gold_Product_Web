@@ -636,8 +636,8 @@ export default function AllGoldsShop() {
                   </div>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                  <div className="col-span-2"><dt className="text-slate-400">Owner</dt><dd className="mt-1 font-semibold text-slate-700">{shop.owner_name || "—"}</dd></div>
-                  <div className="col-span-2"><dt className="text-slate-400">Mobile</dt><dd className="mt-1 font-semibold text-slate-700">{shop.mobile || "—"}</dd></div>
+                  <div className="col-span-2"><dt className="text-slate-400">Owner</dt><dd className="mt-1 font-semibold text-slate-700">{shop.owner_name || "—"} </dd></div>
+                  <div className="col-span-2"><dt className="text-slate-400">Mobile</dt><dd className="mt-1 font-semibold text-slate-700"></dd></div>
                   <div><dt className="text-slate-400">City</dt><dd className="mt-1 font-semibold text-slate-700">{shop.city || "—"}</dd></div>
                   <div><dt className="text-slate-400">Plan</dt><dd className="mt-1 font-semibold text-slate-700">{shop.plan_name || "No plan"}</dd></div>
                   <div><dt className="text-slate-400">Account type</dt><dd className="mt-1 font-semibold capitalize text-slate-700">{accountPlanTypeLabel(shop)}</dd></div>
