@@ -44,6 +44,15 @@ function mobileLoginPassword(value) {
   return String(value || "").replace(/[\s()-]/g, "").trim();
 }
 
+function usernameFromOwnerName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9._@+-]/g, "")
+    .slice(0, 150);
+}
+
 function validateField(name, value, { required = false, otherValue = "" } = {}) {
   const trimmed = String(value || "").trim();
   if (name === "ownerName" || name === "shopName") {
@@ -303,6 +312,15 @@ export default function AddGoldShop({
       ? event.target.value.replace(/\D/g, "").slice(0, 10)
       : event.target.value;
     setForm((current) => {
+      if (name === "ownerName") {
+        const autoUsername = usernameFromOwnerName(current.ownerName);
+        const shouldUpdateUsername = !current.loginUsername || current.loginUsername === autoUsername;
+        return {
+          ...current,
+          ownerName: value,
+          loginUsername: shouldUpdateUsername ? usernameFromOwnerName(value) : current.loginUsername
+        };
+      }
       if (name !== "mobile") return { ...current, [name]: value };
 
       const currentMobilePassword = mobileLoginPassword(current.mobile);
@@ -455,10 +473,9 @@ export default function AddGoldShop({
 
   const validateTabs = (tabs) => {
     const fieldsByTab = {
-      personal: [["ownerName", true], ["mobile", true], ["aadhaarNumber", false]],
+      personal: [["ownerName", true], ["mobile", true], ["email", !isEditing], ["aadhaarNumber", false]],
       shop: [["shopName", true], ["gstNumber", false], ["pincode", false]],
       login: [
-        ["email", !isEditing],
         ["loginUsername", !isEditing],
         ["loginPassword", !isEditing],
         ["confirmPassword", !isEditing]
@@ -630,6 +647,7 @@ export default function AddGoldShop({
               <div className="grid gap-2 sm:grid-cols-2">
                 <Field label="Owner name" name="ownerName" value={form.ownerName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.ownerName} required maxLength={150} placeholder="Full name" />
                 <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.mobile} required type="text" inputMode="numeric" maxLength={10} placeholder="9876543210" />
+                <Field label="Email ID" name="email" value={form.email} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.email} required={!isEditing} type="email" maxLength={255} placeholder="owner@example.com" />
                 <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." registrationMode={registrationMode} />
                 <Field label="Aadhaar number" name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.aadhaarNumber} type="text" inputMode="numeric" maxLength={12} placeholder="12-digit Aadhaar number" />
               </div>
@@ -754,14 +772,17 @@ export default function AddGoldShop({
                 </div>
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <Field label="Email ID" name="email" value={form.email} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.email} required={!isEditing} type="email" maxLength={255} placeholder="owner@example.com" />
+                  <label className={labelClass}>
+                    Email ID
+                    <input className={inputClass} type="email" value={form.email} readOnly aria-readonly="true" />
+                  </label>
                   <Field label="Username" name="loginUsername" value={form.loginUsername} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.loginUsername} required maxLength={150} placeholder="e.g. sri-golds-admin" />
                   <PasswordField label="Password" name="loginPassword" value={form.loginPassword} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.loginPassword} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} placeholder="At least 8 characters" />
                   <PasswordField label="Confirm password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.confirmPassword} visible={showConfirmPassword} onToggle={() => setShowConfirmPassword((visible) => !visible)} placeholder="Re-enter the password" />
                   <p className="text-xs text-stone-500 sm:col-span-2">
                     {registrationMode
-                      ? "Your login account will be created only after Super Admin approval. Passwords are stored as secure hashes."
-                      : "The mobile number is used as the default password and updates automatically when the number changes. You can enter a different password. Using a phone number as a password is less secure. The login account is created only after approval; passwords are stored as secure hashes."}
+                      ? "Email is filled from Personal Details, and the username is filled from the owner name. Your login account will be created only after Super Admin approval."
+                      : "Email is filled from Personal Details, and the username is filled from the owner name. The mobile number is used as the default password and updates automatically when the number changes. You can enter a different password. Using a phone number as a password is less secure."}
                   </p>
                 </div>
               )}
