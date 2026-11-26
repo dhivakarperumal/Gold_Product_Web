@@ -480,6 +480,14 @@ const CustomerViewProducts = () => {
                                 {visibleProducts.map((product) => {
                                     const image = getProductImageUrl(product);
                                     const productId = product.id ?? product.product_id;
+                                    const offerPrice = getProductPrice(product);
+                                    const mrp = Number(product.mrp || 0);
+                                    const discount = getDiscount(product);
+                                    const grossWeight = Number(product.gross_weight);
+                                    const weight = grossWeight > 0 ? product.gross_weight : product.net_gold_weight;
+                                    const weightText = weight != null && Number.isFinite(Number(weight)) && Number(weight) > 0
+                                        ? `${Number(weight).toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`
+                                        : "";
                                     return (
                                         <Link
                                             key={productId}
@@ -502,14 +510,29 @@ const CustomerViewProducts = () => {
                                                 <span className="absolute left-2 top-2 max-w-[85%] truncate rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#765323] shadow-sm">
                                                     {product.category || "Jewelry"}
                                                 </span>
+                                                {discount > 0 && (
+                                                    <span className="absolute right-2 top-2 rounded-full bg-[#fff0ee] px-2.5 py-1 text-[10px] font-bold text-[#d33627] shadow-sm">
+                                                        {discount}% OFF
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="p-3">
                                                 <h3 className="line-clamp-2 min-h-10 text-sm font-semibold text-[#292018]" title={product.name}>
                                                     {product.name || "Unnamed product"}
                                                 </h3>
-                                                <p className="mt-1 text-base font-bold text-[#c51e18]">
-                                                    {formatCurrency(getProductPrice(product))}
+                                                <p className="mt-1 truncate text-[10px] text-[#81786b]">
+                                                    {[product.metal_type, weightText].filter(Boolean).join(" · ")}
                                                 </p>
+                                                <div className="mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+                                                    <span className="text-sm font-bold text-[#c51e18]">
+                                                        {formatCurrency(offerPrice)}
+                                                    </span>
+                                                    {mrp > offerPrice && (
+                                                        <span className="text-[10px] text-[#858b87] line-through">
+                                                            {formatCurrency(mrp)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </Link>
                                     );
