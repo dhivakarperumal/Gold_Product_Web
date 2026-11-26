@@ -1,12 +1,9 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
-  Bell,
   CreditCard,
   LayoutDashboard,
-  LogOut,
   Package,
-  Settings,
   UserRound,
   X,
   ChevronLeft,
@@ -86,50 +83,55 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
       <aside
         className={`
         fixed top-0 left-0 z-50 h-full
-        bg-gradient-to-b from-[#07564B] via-[#064A41] to-[#043D37]
+        bg-gradient-to-b from-[#07564B] via-[#064A41] to-[#033B35]
         border-r border-white/10 shadow-[12px_0_40px_rgba(2,28,25,0.18)]
         font-sans
         
         flex flex-col transition-all duration-300
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0
-        ${collapsed ? "lg:w-20 w-full" : "w-full lg:w-72"}
+        ${collapsed ? "lg:w-20 w-full" : "w-full lg:w-80"}
       `}
       >
         {/* ========== LOGO ========== */}
-        <div className="relative overflow-hidden border-b border-white/10 bg-white/[0.025] px-4 py-5">
+        <div className={`relative flex h-24 shrink-0 items-center border-b border-white/10 bg-white/[0.025] ${collapsed ? "lg:justify-center px-5 lg:px-3" : "px-5"}`}>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-emerald-300/10 via-transparent to-amber-300/10" />
-          <div className={`relative flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-black/15 ring-1 ring-white/30">
+          <div className={`relative flex min-w-0 items-center ${collapsed ? "lg:justify-center gap-3 lg:gap-0" : "gap-3"}`}>
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-black/15 ring-1 ring-white/30 transition-transform duration-200 hover:scale-[1.03]">
               <img
                 src="/images/logo.png"
                 alt="Sri Golds"
-                className="w-11 h-11 object-contain"
+                className="h-12 w-12 object-contain"
               />
             </div>
-            {!collapsed && (
-              <div className="min-w-0 overflow-hidden">
-                <p className="mb-1 truncate font-serif text-lg font-bold leading-none tracking-wide text-[#F5C45E]">
-                  Sri Golds
-                </p>
-                <p className="text-xs font-medium tracking-wide text-emerald-50/75">
-                  Super Admin Panel
-                </p>
+            <div className={`min-w-0 overflow-hidden ${collapsed ? "lg:hidden" : ""}`}>
+              <p className="mb-1 truncate font-serif text-xl font-bold leading-none tracking-wide text-[#F5C45E]">
+                Sri Golds
+              </p>
+              <p className="truncate text-sm font-medium tracking-wide text-emerald-50/75">
+                Super Admin Panel
+              </p>
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.8)]" />
+                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-100/55">Control Center</span>
               </div>
-            )}
+            </div>
           </div>
 
           <button
             onClick={onClose}
             aria-label="Close navigation menu"
-            className="ml-auto rounded-xl border border-transparent p-2 text-white/60 transition-all hover:border-white/10 hover:bg-white/10 hover:text-white lg:hidden"
+            className="absolute right-3 rounded-xl border border-transparent p-2 text-white/60 transition-all hover:border-white/10 hover:bg-white/10 hover:text-white lg:hidden"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* ========== NAVIGATION ========== */}
-        <nav aria-label="Super Admin navigation" className="hide-scrollbar flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
+        <nav aria-label="Super Admin navigation" className="hide-scrollbar flex-1 space-y-2 overflow-y-auto px-4 py-5">
+          <p className={`mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-100/45 ${collapsed ? "lg:hidden" : ""}`}>
+            Navigation
+          </p>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = isActiveRoute(item);
@@ -144,34 +146,39 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                   if (isOpen) onClose();
                 }}
                 className={`
-                  group flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-200
+                  group relative flex min-h-14 items-center gap-3 rounded-2xl border transition-all duration-200
+                  ${collapsed ? "lg:justify-center lg:px-1 px-4" : "px-4"}
                   ${isActive
-                    ? "border-amber-200/30 bg-[#A87908] text-white shadow-md shadow-black/10"
-                    : "border-transparent text-emerald-50/75 hover:border-white/[0.08] hover:bg-white/[0.07] hover:text-white"
+                    ? "border-amber-200/50 bg-gradient-to-r from-[#D5A319] via-[#C18A09] to-[#A87908] text-[#123B32] shadow-[0_8px_20px_rgba(168,121,8,0.22)]"
+                    : "border-transparent text-emerald-50/75 hover:translate-x-0.5 hover:border-white/[0.08] hover:bg-white/[0.07] hover:text-white"
                   }
                 `}
               >
-                <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-[#FFE08A]" : "text-emerald-100/75 group-hover:text-white"}`} />
-                {!collapsed && <span className="min-w-0 flex-1 text-sm font-semibold leading-snug tracking-wide">{item.label}</span>}
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${isActive ? "bg-white/20" : "bg-white/[0.045] group-hover:bg-white/[0.09]"}`}>
+                  <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-[#123B32]" : "text-emerald-100/75 group-hover:text-white"}`} />
+                </span>
+                <span className={`min-w-0 flex-1 text-sm font-semibold leading-snug tracking-wide ${collapsed ? "lg:hidden" : ""}`}>{item.label}</span>
+                {isActive && (
+                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFF2B8] shadow-[0_0_8px_rgba(255,242,184,0.9)] ${collapsed ? "lg:hidden" : ""}`} />
+                )}
               </NavLink>
             );
           })}
         </nav>
 
-        <div className={`border-t border-white/10 ${collapsed ? "px-3 py-4" : "px-4 py-4"}`}>
+        <div className={`shrink-0 border-t border-white/10 ${collapsed ? "px-3 py-4 lg:px-2" : "px-4 py-4"}`}>
           <div
             title={collapsed ? `${displayName} - ${roleLabel}` : undefined}
-            className={`flex items-center rounded-2xl border border-white/10 px-3 py-3 ${collapsed ? "justify-center" : "gap-3"}`}
+            className={`flex h-20 items-center rounded-2xl border border-white/[0.09] bg-gradient-to-br from-white/[0.07] to-white/[0.025] px-3 shadow-inner shadow-white/[0.02] ${collapsed ? "lg:justify-center lg:px-0 gap-3 lg:gap-0" : "gap-3"}`}
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-200 to-amber-500 text-base font-black text-[#123b32] shadow-md shadow-black/15">
-              {avatarInitial}
+            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-base font-black text-[#123b32] shadow-md shadow-black/15 ring-1 ring-white/30">
+              <span>{avatarInitial}</span>
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#064A41] bg-emerald-300" />
             </span>
-            {!collapsed && (
-              <span className="min-w-0 flex-1">
+            <span className={`min-w-0 flex-1 ${collapsed ? "lg:hidden" : ""}`}>
                 <span className="block truncate text-sm font-bold text-white">{displayName}</span>
-                <span className="mt-0.5 block truncate text-[11px] font-semibold text-emerald-100/65">{roleLabel}</span>
-              </span>
-            )}
+                <span className="mt-1 inline-flex max-w-full items-center truncate rounded-full border border-amber-200/15 bg-amber-200/[0.08] px-2 py-0.5 text-[10px] font-semibold text-amber-100/80">{roleLabel}</span>
+            </span>
           </div>
          
         </div>
@@ -179,13 +186,15 @@ const SuperSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         {/* ========== COLLAPSE BUTTON ========== */}
         <button
           onClick={onToggleCollapse}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="
             hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2
-            w-6 h-6 rounded-full
-            bg-white border border-slate-200
-            shadow-[0_4px_10px_rgba(0,0,0,0.1)]
+            h-7 w-7 rounded-full
+            border border-emerald-100/70 bg-white
+            shadow-[0_4px_12px_rgba(0,0,0,0.16)]
             items-center justify-center
-            text-emerald-800 transition-all hover:scale-110 hover:text-emerald-950 z-50
+            text-emerald-800 transition-all hover:scale-110 hover:bg-amber-50 hover:text-emerald-950 z-50
           "
         >
           <ChevronLeft
