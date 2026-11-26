@@ -364,30 +364,63 @@ async function initializeSuperAdminGoldShopModule() {
       transaction_id VARCHAR(120) NULL,
       amount DECIMAL(10, 2) NOT NULL,
       payment_method VARCHAR(50) NULL,
-      payment_status ENUM('paid', 'pending', 'unpaid') NOT NULL DEFAULT 'pending',
+      payment_status ENUM('paid', 'pending', 'unpaid', 'failed', 'refunded', 'cancelled') NOT NULL DEFAULT 'pending',
       payment_date DATETIME NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       created_by INT UNSIGNED NULL,
       updated_by INT UNSIGNED NULL,
+      verified_by INT UNSIGNED NULL,
+      verified_at DATETIME NULL,
+      verification_remarks TEXT NULL,
       PRIMARY KEY (id),
       UNIQUE KEY uq_payments_transaction_id (transaction_id),
       UNIQUE KEY uq_payments_razorpay_order_id (razorpay_order_id),
       KEY idx_payments_shop (gold_shop_id, created_at),
       KEY idx_payments_subscription (subscription_id),
+      KEY idx_payments_verified_by (verified_by),
       CONSTRAINT fk_payments_shop FOREIGN KEY (gold_shop_id) REFERENCES gold_shops(id) ON DELETE RESTRICT,
       CONSTRAINT fk_payments_subscription FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE RESTRICT,
       CONSTRAINT fk_payments_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-      CONSTRAINT fk_payments_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+      CONSTRAINT fk_payments_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
+      CONSTRAINT fk_payments_verified_by FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
   const [paymentColumns] = await pool.execute(
     `SELECT COLUMN_NAME FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payments'
-       AND COLUMN_NAME = 'razorpay_order_id'`
+       AND COLUMN_NAME IN ('razorpay_order_id', 'verified_by', 'verified_at', 'verification_remarks')`
   );
-  if (!paymentColumns.length) {
-    await pool.query('ALTER TABLE payments ADD COLUMN razorpay_order_id VARCHAR(64) NULL');
+  const existingPaymentColumns = new Set(paymentColumns.map((column) => column.COLUMN_NAME));
+  for (const [column, definition] of [
+    ['razorpay_order_id', 'VARCHAR(64) NULL'],
+    ['verified_by', 'INT UNSIGNED NULL'],
+    ['verified_at', 'DATETIME NULL'],
+    ['verification_remarks', 'TEXT NULL']
+  ]) {
+    if (!existingPaymentColumns.has(column)) {
+      await pool.query(`ALTER TABLE payments ADD COLUMN ${column} ${definition}`);
+    }
+  }
+  const [paymentStatusColumns] = await pool.execute(
+    `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payments'
+       AND COLUMN_NAME = 'payment_status'`
+  );
+  if (!String(paymentStatusColumns[0]?.COLUMN_TYPE || '').includes('cancelled')) {
+    await pool.query(
+      "ALTER TABLE payments MODIFY COLUMN payment_status ENUM('paid','pending','unpaid','failed','refunded','cancelled') NOT NULL DEFAULT 'pending'"
+    );
+  }
+  const [verifiedByConstraints] = await pool.execute(
+    `SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payments'
+       AND COLUMN_NAME = 'verified_by' AND REFERENCED_TABLE_NAME = 'users'`
+  );
+  if (!verifiedByConstraints.length) {
+    await pool.query(
+      'ALTER TABLE payments ADD CONSTRAINT fk_payments_verified_by FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL'
+    );
   }
   const [razorpayOrderIndexes] = await pool.execute(
     `SELECT INDEX_NAME FROM information_schema.STATISTICS
@@ -616,17 +649,16 @@ async function listGoldShops({ search, status, planId, page, pageSize }) {
             sub.trial_days, sub.trial_start_date, sub.trial_end_date,
             DATE_FORMAT(CURRENT_DATE(), '%Y-%m-%d') AS database_date,
             sub.payment_status, sub.subscription_status, sub.plan_id, sp.plan_name,
-            (SELECT p.id
-             FROM payments p
-             WHERE p.gold_shop_id = gs.id
-               AND p.subscription_id = sub.id
-               AND p.payment_status IN ('pending', 'unpaid')
-               AND sub.payment_status IN ('pending', 'unpaid')
-             ORDER BY p.id DESC
-             LIMIT 1) AS pending_payment_id,
+            current_payment.id AS current_payment_id,
+            current_payment.payment_status AS current_payment_status,
             (sub.start_date <= CURRENT_DATE() AND sub.end_date > CURRENT_DATE()) AS subscription_is_current
      FROM gold_shops gs
      ${latestSubscriptionJoin()}
+     LEFT JOIN payments current_payment
+       ON current_payment.id = (
+         SELECT MAX(p2.id) FROM payments p2
+         WHERE p2.gold_shop_id = gs.id AND p2.subscription_id = sub.id
+       )
      WHERE ${where}
      ORDER BY gs.created_at DESC, gs.id DESC
      LIMIT ? OFFSET ?`,
@@ -719,10 +751,13 @@ async function getGoldShopDetails(id) {
     [id]
   );
   const [payments] = await pool.execute(
-    `SELECT p.id, p.subscription_id, p.transaction_id, p.amount, p.payment_method,
-            p.payment_status, p.payment_date, p.created_at, creator.username AS created_by_name
+    `SELECT p.id, p.subscription_id, p.transaction_id, p.razorpay_order_id,
+            p.amount, p.payment_method, p.payment_status, p.payment_date, p.created_at,
+            p.verified_by, p.verified_at, p.verification_remarks,
+            creator.username AS created_by_name, verifier.username AS verified_by_name
      FROM payments p
      LEFT JOIN users creator ON creator.id = p.created_by
+     LEFT JOIN users verifier ON verifier.id = p.verified_by
      WHERE p.gold_shop_id = ? ORDER BY p.id DESC`,
     [id]
   );
@@ -1213,16 +1248,19 @@ async function confirmGoldShopPayment(shopId, paymentId, input, actorId) {
     if (!payment || Number(payment.subscription_id) !== Number(subscription.id)) {
       throw new GoldShopError(409, 'Only the latest subscription payment can be confirmed');
     }
-    if (payment.payment_status === 'paid' || subscription.payment_status === 'paid') {
-      throw new GoldShopError(409, 'This subscription payment is already confirmed');
+    if (!['pending', 'unpaid'].includes(payment.payment_status)
+      || !['pending', 'unpaid'].includes(subscription.payment_status)) {
+      throw new GoldShopError(409, 'Only a pending subscription payment can be verified');
     }
 
     await connection.execute(
       `UPDATE payments
        SET transaction_id = ?, payment_method = ?, payment_status = 'paid',
-           payment_date = CURRENT_TIMESTAMP, updated_by = ?
+           payment_date = COALESCE(payment_date, CURRENT_TIMESTAMP), updated_by = ?,
+           verified_by = ?, verified_at = CURRENT_TIMESTAMP, verification_remarks = ?
        WHERE id = ?`,
-      [input.transactionId, input.paymentMethod, actorId, payment.id]
+      [input.transactionId, input.paymentMethod, actorId, actorId,
+        input.verificationRemarks || null, payment.id]
     );
     await connection.execute(
       "UPDATE subscriptions SET payment_status = 'paid', updated_by = ? WHERE id = ?",
@@ -1233,7 +1271,8 @@ async function confirmGoldShopPayment(shopId, paymentId, input, actorId) {
       payment_id: payment.id,
       amount: payment.amount,
       transaction_id: input.transactionId,
-      payment_method: input.paymentMethod
+      payment_method: input.paymentMethod,
+      verification_remarks: input.verificationRemarks || null
     });
     await connection.commit();
   } catch (error) {
@@ -1250,9 +1289,13 @@ async function confirmGoldShopPayment(shopId, paymentId, input, actorId) {
 
 async function listShopPayments(shopId) {
   const [payments] = await pool.execute(
-    `SELECT id, subscription_id, transaction_id, amount, payment_method,
-            payment_status, payment_date, created_at
-     FROM payments WHERE gold_shop_id = ? ORDER BY id DESC`,
+    `SELECT p.id, p.subscription_id, p.transaction_id, p.razorpay_order_id,
+            p.amount, p.payment_method, p.payment_status, p.payment_date, p.created_at,
+            p.verified_by, p.verified_at, p.verification_remarks,
+            verifier.username AS verified_by_name
+     FROM payments p
+     LEFT JOIN users verifier ON verifier.id = p.verified_by
+     WHERE p.gold_shop_id = ? ORDER BY p.id DESC`,
     [shopId]
   );
   return payments;

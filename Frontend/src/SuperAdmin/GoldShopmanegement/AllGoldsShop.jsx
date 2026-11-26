@@ -39,7 +39,8 @@ const STATUS_STYLES = {
   suspended: "bg-rose-50 text-rose-800 ring-rose-200",
   expired: "bg-orange-50 text-orange-800 ring-orange-200",
   paid: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  unpaid: "bg-rose-50 text-rose-800 ring-rose-200"
+  unpaid: "bg-rose-50 text-rose-800 ring-rose-200",
+  failed: "bg-rose-50 text-rose-800 ring-rose-200"
 };
 
 const formatDate = (value) => {
@@ -59,6 +60,16 @@ const accountPlanTypeLabel = (shop) => shop.account_plan_type === "expired"
 
 const formatAmount = (value) =>
   Number.isFinite(Number(value)) ? `₹${Number(value).toLocaleString("en-IN")}` : "—";
+
+const paymentMethodValue = (value) => {
+  const method = String(value || "").trim().toLowerCase();
+  return method === "bank transfer" ? "bank_transfer" : method;
+};
+
+const isVerifiablePayment = (shop, payment) => Boolean(payment)
+  && ["pending", "unpaid"].includes(String(payment.payment_status || "").toLowerCase())
+  && ["pending", "unpaid"].includes(String(shop.payment_status || "").toLowerCase())
+  && Number(payment.subscription_id) === Number(shop.current_subscription_id);
 
 function StatusBadge({ value }) {
   const status = String(value || "pending").toLowerCase();
@@ -310,9 +321,10 @@ export default function AllGoldsShop() {
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
   const [rejectingShopId, setRejectingShopId] = useState(null);
   const [approvalCredentials, setApprovalCredentials] = useState(null);
-  const [paymentToConfirm, setPaymentToConfirm] = useState(null);
+  const [paymentVerification, setPaymentVerification] = useState(null);
+  const [paymentDetailsLoadingShopId, setPaymentDetailsLoadingShopId] = useState(null);
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
-  const [paymentForm, setPaymentForm] = useState({ transactionId: "", paymentMethod: "upi" });
+  const [paymentForm, setPaymentForm] = useState({ transactionId: "", paymentMethod: "", verificationRemarks: "" });
   const [subscriptionForm, setSubscriptionForm] = useState(() => ({ planId: "", duration: "monthly", startDate: today() }));
 
   useEffect(() => {
@@ -451,23 +463,49 @@ export default function AllGoldsShop() {
     navigate(`/superadmin/goldshop/${shop.id}`);
   };
 
-  const openPaymentConfirmation = (payment) => {
-    setPaymentForm({ transactionId: "", paymentMethod: "upi" });
-    setPaymentToConfirm(payment);
+  const openPaymentConfirmation = () => {
+    if (selectedShop) openShopPaymentConfirmation(selectedShop);
+  };
+
+  const openShopPaymentConfirmation = async (shopRow) => {
+    setPaymentDetailsLoadingShopId(shopRow.id);
+    try {
+      const { data } = await api.get(`/super-admin/gold-shops/${shopRow.id}/payment`);
+      const shop = data?.shop;
+      if (!data || !shop || !Array.isArray(shop.payments)
+        || !Object.prototype.hasOwnProperty.call(data, "payment")) {
+        throw new TypeError("Gold shop payment details response is invalid");
+      }
+      const payment = data.payment;
+      setPaymentVerification({ shop, payment });
+      setPaymentForm({
+        transactionId: payment?.transaction_id || "",
+        paymentMethod: paymentMethodValue(payment?.payment_method),
+        verificationRemarks: ""
+      });
+    } catch (error) {
+      console.error("Failed to load gold shop payment details:", error);
+      toast.error(error.response?.data?.message || "Could not load this shop's payment details.");
+    } finally {
+      setPaymentDetailsLoadingShopId(null);
+    }
   };
 
   const confirmSubscriptionPayment = async (event) => {
     event.preventDefault();
-    if (!selectedShop || !paymentToConfirm || paymentSubmitting) return;
+    if (!paymentVerification?.shop || !paymentVerification.payment || paymentSubmitting) return;
+    const { shop, payment } = paymentVerification;
+    if (!isVerifiablePayment(shop, payment)) return;
+    if (!window.confirm(`Confirm the ${formatAmount(payment.amount)} payment for ${shop.shop_name}? Only continue after independently verifying the transaction.`)) return;
     setPaymentSubmitting(true);
     try {
-      const { data } = await api.post(
-        `/super-admin/gold-shops/${selectedShop.id}/payments/${paymentToConfirm.id}/confirm`,
+      const { data } = await api.put(
+        `/super-admin/gold-shops/${shop.id}/payment/verify`,
         paymentForm
       );
       if (!data?.shop) throw new TypeError("Payment confirmation response is invalid");
       setSelectedShop(data.shop);
-      setPaymentToConfirm(null);
+      setPaymentVerification(null);
       toast.success(data.message || "Subscription payment confirmed.");
       refreshList();
     } catch (error) {
@@ -705,7 +743,7 @@ export default function AllGoldsShop() {
             <table className="w-full min-w-[1220px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
               <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
                 <tr>
-                  <th className="whitespace-nowrap rounded-tl-2xl px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Approval status</th><th className="px-4 py-4">Review</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
+                  <th className="whitespace-nowrap rounded-tl-2xl px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Payment Confirmation</th><th className="px-4 py-4">Approval status</th><th className="px-4 py-4">Review</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -716,13 +754,33 @@ export default function AllGoldsShop() {
                   const isPendingApproval = approvalStatus(shop) === "pending";
                   const canActivate = Boolean(shop.approved_at) && hasPaidCurrentSubscription;
                   const action = shop.status === "active" ? "Suspend Shop" : "Activate Shop";
+                  const currentPaymentStatus = String(shop.current_payment_status || shop.payment_status || "unpaid").toLowerCase();
+                  const canVerifyPayment = Boolean(shop.subscription_id)
+                    && ["pending", "unpaid"].includes(currentPaymentStatus);
                   return (
                     <tr key={shop.id} className="transition hover:bg-amber-50/30">
                       <td className="whitespace-nowrap px-4 py-4 font-mono text-xs font-bold text-amber-800">{shop.shop_code}</td>
                       <td className="px-4 py-4"><p className="font-semibold text-stone-800">{shop.shop_name}</p><p className="mt-0.5 text-xs text-stone-500">{shop.email || "No email"}</p></td>
                       <td className="px-4 py-4"><p className="whitespace-nowrap font-medium text-stone-800">{shop.owner_name || "—"}</p><p className="mt-0.5 whitespace-nowrap text-xs text-stone-500">{shop.mobile || "—"}</p></td>
                       <td className="px-4 py-4"><p className="whitespace-nowrap font-medium text-stone-800">{shop.plan_name || "No plan"}</p><p className="mt-0.5 whitespace-nowrap text-xs text-stone-500">Start Date: {formatDate(shop.account_start_date)}</p><p className="whitespace-nowrap text-xs text-stone-500">Expiry: {formatDate(shop.account_end_date)}</p></td>
-                      <td className="px-4 py-4"><StatusBadge value={shop.payment_status || "unpaid"} /></td>
+                      <td className="px-4 py-4">
+                        {canVerifyPayment ? (
+                          <button
+                            type="button"
+                            disabled={paymentDetailsLoadingShopId !== null}
+                            onClick={() => openShopPaymentConfirmation(shop)}
+                            className="whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-50"
+                          >
+                            {paymentDetailsLoadingShopId === shop.id ? "Loading…" : "Verify Payment"}
+                          </button>
+                        ) : currentPaymentStatus === "paid" ? (
+                          <StatusBadge value="paid" />
+                        ) : currentPaymentStatus === "failed" ? (
+                          <span className="inline-flex whitespace-nowrap rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-800 ring-1 ring-inset ring-rose-200">Payment Failed</span>
+                        ) : (
+                          <StatusBadge value={currentPaymentStatus} />
+                        )}
+                      </td>
                       <td className="px-4 py-4"><StatusBadge value={approvalStatus(shop)} /></td>
                       <td className="px-4 py-4">
                         {isPendingApproval ? (
@@ -774,55 +832,118 @@ export default function AllGoldsShop() {
           <ShopDetails shop={selectedShop} loading={detailLoading} onConfirmPayment={openPaymentConfirmation} />
         </Modal>
       )}
-      {paymentToConfirm && selectedShop && (
+      {paymentVerification && (
         <Modal
-          title="Confirm subscription payment"
+          title="Verify subscription payment"
+          wide
           footer={(
             <>
-              <button type="button" disabled={paymentSubmitting} onClick={() => setPaymentToConfirm(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:opacity-50">Cancel</button>
-              <button type="submit" form="subscription-payment-form" disabled={paymentSubmitting} className="inline-flex items-center gap-2 rounded-xl bg-[#00796B] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60">
+              <button type="button" disabled={paymentSubmitting} onClick={() => setPaymentVerification(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:opacity-50">Cancel</button>
+              <button type="submit" form="subscription-payment-form" disabled={paymentSubmitting || !isVerifiablePayment(paymentVerification.shop, paymentVerification.payment)} className="inline-flex items-center gap-2 rounded-xl bg-[#00796B] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60">
                 {paymentSubmitting && <LoaderCircle size={16} className="animate-spin" />}
-                {paymentSubmitting ? "Confirming…" : "Confirm payment received"}
+                {paymentSubmitting ? "Verifying…" : "Confirm Payment"}
               </button>
             </>
           )}
           onClose={() => {
-            if (!paymentSubmitting) setPaymentToConfirm(null);
+            if (!paymentSubmitting) setPaymentVerification(null);
           }}
         >
           <form id="subscription-payment-form" onSubmit={confirmSubscriptionPayment} className="space-y-4">
-            <p className="text-sm text-slate-600">Confirm only after you have verified that the payment was received. This marks the current subscription as paid and records your reference.</p>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-              <p className="text-xs font-semibold text-slate-500">Amount received</p>
-              <p className="mt-1 font-bold text-slate-800">{formatAmount(paymentToConfirm.amount)}</p>
-            </div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Transaction / reference ID
-              <input
-                autoFocus
-                required
-                maxLength={120}
-                value={paymentForm.transactionId}
-                onChange={(event) => setPaymentForm((current) => ({ ...current, transactionId: event.target.value }))}
-                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
-                placeholder="Enter bank, UPI, or receipt reference"
-              />
-            </label>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Payment method
-              <select
-                required
-                value={paymentForm.paymentMethod}
-                onChange={(event) => setPaymentForm((current) => ({ ...current, paymentMethod: event.target.value }))}
-                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
-              >
-                <option value="upi">UPI</option>
-                <option value="bank_transfer">Bank transfer</option>
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
+            {(() => {
+              const { shop, payment } = paymentVerification;
+              const status = String(payment?.payment_status || shop.payment_status || "unpaid").toLowerCase();
+              const canConfirm = isVerifiablePayment(shop, payment);
+              const missingDetails = payment && (!payment.transaction_id || !payment.payment_method);
+              return (
+                <>
+                  {!payment ? (
+                    <div role="alert" className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                      <ShieldAlert size={18} className="mt-0.5 shrink-0" />
+                      <p>No payment record exists for this shop’s current subscription. Payment cannot be verified without a database payment record.</p>
+                    </div>
+                  ) : !canConfirm ? (
+                    <div role="alert" className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                      <ShieldAlert size={18} className="mt-0.5 shrink-0" />
+                      <p>Only a pending payment for the current subscription can be verified. This payment has not been changed.</p>
+                    </div>
+                  ) : missingDetails ? (
+                    <div role="alert" className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                      <ShieldAlert size={18} className="mt-0.5 shrink-0" />
+                      <p>Some transaction details are not recorded yet. Enter the actual details after checking the payment independently. An uploaded screenshot alone is not proof of payment.</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-600">Review the stored transaction details and confirm only after independently verifying that the payment was received.</p>
+                  )}
+                  <dl className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm sm:grid-cols-2">
+                    <div><dt className="text-xs font-semibold text-slate-500">Shop Name</dt><dd className="mt-1 font-semibold text-slate-900">{shop.shop_name || "—"}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Shop ID</dt><dd className="mt-1 font-semibold text-slate-900">{shop.shop_code || shop.id} (ID: {shop.id})</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Owner Name</dt><dd className="mt-1 font-semibold text-slate-900">{shop.owner_name || "—"}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Owner Mobile Number</dt><dd className="mt-1 font-semibold text-slate-900">{shop.mobile || "—"}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Subscription Plan</dt><dd className="mt-1 font-semibold text-slate-900">{shop.plan_name || "—"}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Plan Duration</dt><dd className="mt-1 font-semibold capitalize text-slate-900">{shop.duration || "—"}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Plan Start Date</dt><dd className="mt-1 font-semibold text-slate-900">{formatDate(shop.start_date)}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Plan End Date</dt><dd className="mt-1 font-semibold text-slate-900">{formatDate(shop.end_date)}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Payment Amount</dt><dd className="mt-1 font-semibold text-slate-900">{payment ? formatAmount(payment.amount) : "—"}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Payment Method</dt><dd className="mt-1 font-semibold text-slate-900">{payment?.payment_method || (payment ? "Not recorded" : "—")}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Transaction ID / UTR Number</dt><dd className="mt-1 break-all font-semibold text-slate-900">{payment?.transaction_id || "Not recorded"}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Payment Date</dt><dd className="mt-1 font-semibold text-slate-900">{formatDate(payment?.payment_date)}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Payment Reference Number</dt><dd className="mt-1 break-all font-semibold text-slate-900">{payment?.razorpay_order_id || "—"}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Payment Screenshot / Receipt</dt><dd className="mt-1 font-semibold text-slate-900">No payment receipt attached</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500">Current Payment Status</dt><dd className="mt-1"><StatusBadge value={status} /></dd></div>
+                    {payment?.verified_at && <div><dt className="text-xs font-semibold text-slate-500">Verified By / At</dt><dd className="mt-1 font-semibold text-slate-900">{payment.verified_by_name || payment.verified_by || "—"} · {formatDate(payment.verified_at)}</dd></div>}
+                    {payment?.verification_remarks && <div className="sm:col-span-2"><dt className="text-xs font-semibold text-slate-500">Previous Verification Remarks</dt><dd className="mt-1 whitespace-pre-wrap text-slate-900">{payment.verification_remarks}</dd></div>}
+                  </dl>
+                  {canConfirm && (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      {!payment.transaction_id && (
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          Transaction / UTR Number
+                          <input
+                            autoFocus
+                            required
+                            maxLength={120}
+                            value={paymentForm.transactionId}
+                            onChange={(event) => setPaymentForm((current) => ({ ...current, transactionId: event.target.value }))}
+                            className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
+                            placeholder="Enter the actual bank or UPI reference"
+                          />
+                        </label>
+                      )}
+                      {!payment.payment_method && (
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          Payment method
+                          <select
+                            required
+                            value={paymentForm.paymentMethod}
+                            onChange={(event) => setPaymentForm((current) => ({ ...current, paymentMethod: event.target.value }))}
+                            className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
+                          >
+                            <option value="">Select payment method</option>
+                            <option value="upi">UPI</option>
+                            <option value="bank_transfer">Bank transfer</option>
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </label>
+                      )}
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600 sm:col-span-2">
+                        Verification remarks (optional)
+                        <textarea
+                          maxLength={1000}
+                          rows={3}
+                          value={paymentForm.verificationRemarks}
+                          onChange={(event) => setPaymentForm((current) => ({ ...current, verificationRemarks: event.target.value }))}
+                          className="mt-1.5 w-full resize-y rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
+                          placeholder="Add notes about how this transaction was verified"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </form>
         </Modal>
       )}

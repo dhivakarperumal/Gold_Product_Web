@@ -129,11 +129,15 @@ function validateSubscription(body) {
 function validatePaymentConfirmation(body) {
   const transactionId = String(body?.transactionId || '').trim();
   const paymentMethod = PAYMENT_METHODS.get(String(body?.paymentMethod || '').trim().toLowerCase());
+  const verificationRemarks = String(body?.verificationRemarks || '').trim();
   if (!transactionId || transactionId.length > 120 || /[\u0000-\u001f\u007f]/.test(transactionId)) {
     return { error: 'Enter a valid transaction/reference ID (up to 120 characters)' };
   }
   if (!paymentMethod) return { error: 'Select a valid payment method' };
-  return { confirmation: { transactionId, paymentMethod } };
+  if (verificationRemarks.length > 1000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(verificationRemarks)) {
+    return { error: 'Verification remarks must be 1000 characters or fewer' };
+  }
+  return { confirmation: { transactionId, paymentMethod, verificationRemarks: verificationRemarks || null } };
 }
 
 function validateShop(body, { creating = false } = {}) {
@@ -513,6 +517,44 @@ async function postConfirmShopPayment(req, res, next) {
   }
 }
 
+async function getGoldShopPayment(req, res, next) {
+  if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
+  try {
+    const shop = await getGoldShopDetails(Number(req.params.id));
+    if (!shop) return res.status(404).json({ message: 'Gold shop not found' });
+    const payment = shop.payments.find(
+      (item) => Number(item.subscription_id) === Number(shop.current_subscription_id)
+    ) || null;
+    return res.json({ shop, payment });
+  } catch (error) {
+    return handleError(error, res, next);
+  }
+}
+
+async function putVerifyGoldShopPayment(req, res, next) {
+  if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
+  const { confirmation, error } = validatePaymentConfirmation(req.body || {});
+  if (error) return res.status(400).json({ message: error });
+  try {
+    const shop = await getGoldShopDetails(Number(req.params.id));
+    if (!shop) return res.status(404).json({ message: 'Gold shop not found' });
+    const payment = shop.payments.find(
+      (item) => Number(item.subscription_id) === Number(shop.current_subscription_id)
+    );
+    if (!payment) return res.status(409).json({ message: 'No payment record exists for the current subscription' });
+    const updatedShop = await confirmGoldShopPayment(
+      Number(req.params.id),
+      payment.id,
+      confirmation,
+      req.adminUser.id
+    );
+    if (!updatedShop) return res.status(404).json({ message: 'Gold shop not found' });
+    return res.json({ message: 'Subscription payment verified', shop: updatedShop });
+  } catch (error) {
+    return handleError(error, res, next);
+  }
+}
+
 async function getGoldShopPayments(req, res, next) {
   if (!positiveId(req.params.id)) return res.status(400).json({ message: 'Gold shop ID is invalid' });
   try {
@@ -539,6 +581,8 @@ module.exports = {
   rejectShop,
   postSubscription,
   postConfirmShopPayment,
+  getGoldShopPayment,
+  putVerifyGoldShopPayment,
   validatePaymentConfirmation,
   putGoldShop,
   validateShop,
