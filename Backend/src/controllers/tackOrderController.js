@@ -1,7 +1,9 @@
 const {
   createTackOrder,
   getTackOrderProductsByIds,
-  listTackOrders
+  listTackOrders,
+  MANUAL_ORDER_STATUSES,
+  updateTackOrderStatus
 } = require('../modules/tackOrderModule');
 const { calculateProductPricing } = require('../services/productPricing');
 
@@ -213,4 +215,30 @@ async function getTackOrders(req, res, next) {
   }
 }
 
-module.exports = { getTackOrders, normalizeTackOrder, postTackOrder };
+async function patchTackOrderStatus(req, res, next) {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) {
+    return res.status(400).json({ message: 'Tack order ID is invalid' });
+  }
+  if (!MANUAL_ORDER_STATUSES.includes(req.body?.order_status)) {
+    return res.status(400).json({ message: 'Select a valid tack order status' });
+  }
+
+  try {
+    const order = await updateTackOrderStatus(id, req.body.order_status, req.adminUser.user_id);
+    if (!order) return res.status(404).json({ message: 'Tack order not found' });
+    return res.json(order);
+  } catch (error) {
+    if (error.code === 'TACK_ORDER_ALREADY_COMPLETED') {
+      return res.status(409).json({ message: error.message });
+    }
+    return next(error);
+  }
+}
+
+module.exports = {
+  getTackOrders,
+  normalizeTackOrder,
+  patchTackOrderStatus,
+  postTackOrder
+};

@@ -46,6 +46,8 @@ const SUMMARY_CARDS = [
   }
 ];
 
+const MANUAL_ORDER_STATUSES = ["Order Placed", "Confirmed", "Ready", "Billing Pending"];
+
 function parseCustomer(value) {
   const customer = typeof value === "string" ? JSON.parse(value) : value;
   if (!customer || typeof customer !== "object" || Array.isArray(customer)) {
@@ -108,6 +110,23 @@ export default function AllTackOrders() {
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [viewMode, setViewMode] = useState("list");
   const [retryCount, setRetryCount] = useState(0);
+  const [updatingOrderId, setUpdatingOrderId] = useState(null);
+
+  const updateOrderStatus = async (orderId, orderStatus) => {
+    setUpdatingOrderId(orderId);
+    try {
+      const { data } = await api.patch(`/tack-orders/${orderId}/status`, { order_status: orderStatus });
+      setOrders((currentOrders) => currentOrders.map((order) => (
+        order.id === orderId ? { ...order, order_status: data.order_status } : order
+      )));
+      toast.success(`Order status changed to ${data.order_status}.`);
+    } catch (statusError) {
+      console.error("Failed to update tack order status:", statusError);
+      toast.error(statusError.response?.data?.message || statusError.message || "Could not update order status.");
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -353,9 +372,27 @@ export default function AllTackOrders() {
                       <h2 className="mt-0.5 text-lg font-black text-slate-800">{order.order_no}</h2>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
-                        {orderStatus}
-                      </span>
+                      <select
+                        aria-label={`Order status for ${order.order_no}`}
+                        value={orderStatus}
+                        onChange={(event) => void updateOrderStatus(order.id, event.target.value)}
+                        disabled={orderStatus === "Bill Completed" || updatingOrderId === order.id}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 ${
+                          orderStatus === "Bill Completed"
+                            ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-white text-slate-700"
+                        }`}
+                      >
+                        {!MANUAL_ORDER_STATUSES.includes(orderStatus) && orderStatus !== "Bill Completed" && (
+                          <option value={orderStatus}>{orderStatus}</option>
+                        )}
+                        {MANUAL_ORDER_STATUSES.map((status) => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                        <option value="Bill Completed" disabled={orderStatus !== "Bill Completed"}>
+                          Bill Completed
+                        </option>
+                      </select>
                       <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
                         paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                       }`}>

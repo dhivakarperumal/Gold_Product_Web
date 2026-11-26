@@ -1,6 +1,13 @@
 const { randomUUID } = require('node:crypto');
 const { pool } = require('../config/db');
 
+const MANUAL_ORDER_STATUSES = Object.freeze([
+  'Order Placed',
+  'Confirmed',
+  'Ready',
+  'Billing Pending'
+]);
+
 async function initializeTackOrderModule() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tack_orders (
@@ -45,7 +52,8 @@ async function initializeTackOrderModule() {
     UPDATE tack_orders t
     JOIN billings b ON b.source_tack_order_id = t.id AND b.user_id = t.user_id
     SET t.payment_status = CASE WHEN b.balance_due <= 0 THEN 'Paid' ELSE 'Pending' END,
-        t.balance_due = b.balance_due
+        t.balance_due = b.balance_due,
+        t.order_status = CASE WHEN b.balance_due <= 0 THEN 'Bill Completed' ELSE 'Billing Pending' END
   `);
 }
 
@@ -124,10 +132,33 @@ async function getTackOrderById(id, userId) {
   return rows[0] || null;
 }
 
+async function updateTackOrderStatus(id, status, userId) {
+  await pool.execute(
+    `UPDATE tack_orders
+     SET order_status = ?
+     WHERE id = ? AND user_id = ? AND order_status <> 'Bill Completed'`,
+    [status, id, userId]
+  );
+  const order = await getTackOrderById(id, userId);
+  if (!order) return null;
+  if (order.order_status === 'Bill Completed') {
+    const error = new Error('Bill Completed status is set automatically when the linked bill is fully paid');
+    error.code = 'TACK_ORDER_ALREADY_COMPLETED';
+    throw error;
+  }
+  return {
+    id: order.id,
+    order_status: order.order_status,
+    payment_status: order.payment_status
+  };
+}
+
 module.exports = {
   createTackOrder,
   getTackOrderById,
   getTackOrderProductsByIds,
   initializeTackOrderModule,
-  listTackOrders
+  listTackOrders,
+  MANUAL_ORDER_STATUSES,
+  updateTackOrderStatus
 };

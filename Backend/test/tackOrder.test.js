@@ -1,7 +1,15 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { normalizeTackOrder } = require('../src/controllers/tackOrderController');
-const { createTackOrder, getTackOrderProductsByIds, listTackOrders } = require('../src/modules/tackOrderModule');
+const {
+  normalizeTackOrder,
+  patchTackOrderStatus
+} = require('../src/controllers/tackOrderController');
+const {
+  createTackOrder,
+  getTackOrderProductsByIds,
+  listTackOrders,
+  updateTackOrderStatus
+} = require('../src/modules/tackOrderModule');
 const { pool } = require('../src/config/db');
 
 const product = {
@@ -244,4 +252,61 @@ test('lists only tack orders owned by the authenticated shop', async () => {
   assert.match(capturedQuery.query, /payment_status/);
   assert.match(capturedQuery.query, /ORDER BY created_at DESC, id DESC/);
   assert.deepEqual(capturedQuery.values, ['shop-user-1']);
+});
+
+test('updates a tack-order status only for an order owned by the authenticated shop', async () => {
+  const originalExecute = pool.execute;
+  const executions = [];
+  pool.execute = async (query, values) => {
+    executions.push({ query, values });
+    if (query.startsWith('UPDATE tack_orders')) return [{ affectedRows: 1 }, []];
+    return [[{ id: 42, order_status: 'Confirmed', payment_status: 'Pending' }], []];
+  };
+  try {
+    assert.deepEqual(await updateTackOrderStatus(42, 'Confirmed', 'shop-user-1'), {
+      id: 42,
+      order_status: 'Confirmed',
+      payment_status: 'Pending'
+    });
+  } finally {
+    pool.execute = originalExecute;
+  }
+  assert.match(executions[0].query, /WHERE id = \? AND user_id = \? AND order_status <> 'Bill Completed'/);
+  assert.deepEqual(executions[0].values, ['Confirmed', 42, 'shop-user-1']);
+});
+
+test('does not allow manually setting Bill Completed or changing a completed order', async () => {
+  const originalExecute = pool.execute;
+  const response = {
+    statusCode: 200,
+    body: null,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return this;
+    }
+  };
+  await patchTackOrderStatus({
+    params: { id: '42' },
+    body: { order_status: 'Bill Completed' },
+    adminUser: { user_id: 'shop-user-1' }
+  }, response, (error) => { throw error; });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body.message, /valid tack order status/i);
+
+  pool.execute = async (query) => {
+    if (query.startsWith('UPDATE tack_orders')) return [{ affectedRows: 0 }, []];
+    return [[{ id: 42, order_status: 'Bill Completed', payment_status: 'Paid' }], []];
+  };
+  try {
+    await assert.rejects(
+      updateTackOrderStatus(42, 'Ready', 'shop-user-1'),
+      { code: 'TACK_ORDER_ALREADY_COMPLETED' }
+    );
+  } finally {
+    pool.execute = originalExecute;
+  }
 });

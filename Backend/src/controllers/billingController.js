@@ -418,6 +418,9 @@ async function postBilling(req, res, next) {
     if (error.code === 'FUND_ADMIN_NOT_FOUND') {
       return res.status(403).json({ message: 'A valid admin account is required to record the tack order advance' });
     }
+    if (error.code === 'FUND_IDEMPOTENCY_CONFLICT') {
+      return res.status(409).json({ message: 'The existing tack-order advance fund entry does not match this bill' });
+    }
     return next(error);
   }
 }

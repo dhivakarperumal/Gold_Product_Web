@@ -2,6 +2,35 @@ const { pool } = require('../config/db');
 const { getFundBalance, insertFundRecord } = require('./fundsModule');
 const { addDateRangeCondition } = require('../utils/dateRange');
 
+async function insertFundRecordOnce(connection, entry) {
+  try {
+    await insertFundRecord(connection, entry);
+  } catch (error) {
+    if (error.code !== 'ER_DUP_ENTRY' || !entry.idempotency_key) throw error;
+
+    const [existingRecords] = await connection.execute(
+      `SELECT created_by, transaction_type, amount, payment_method
+       FROM funds WHERE idempotency_key = ? FOR UPDATE`,
+      [entry.idempotency_key]
+    );
+    const existing = existingRecords[0];
+    if (!existing) throw error;
+
+    const existingAmountCents = Math.round(Number(existing.amount) * 100);
+    const requestedAmountCents = Math.round(Number(entry.amount) * 100);
+    if (
+      String(existing.created_by) !== String(entry.created_by)
+      || existing.transaction_type !== entry.transaction_type
+      || existingAmountCents !== requestedAmountCents
+      || existing.payment_method !== entry.payment_method
+    ) {
+      const conflictError = new Error('An existing fund record conflicts with this tack-order advance');
+      conflictError.code = 'FUND_IDEMPOTENCY_CONFLICT';
+      throw conflictError;
+    }
+  }
+}
+
 async function initializeBillingModule() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS billings (
@@ -164,7 +193,7 @@ async function createBilling(billing, userId, initialPayment = null) {
      source_tack_order_id, updated_at)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
 
-  if (!initialPayment) {
+  if (!initialPayment && billing.source_tack_order_id == null) {
     const [result] = await pool.execute(insertQuery, values);
     return getBillingById(result.insertId, userId);
   }
@@ -172,49 +201,61 @@ async function createBilling(billing, userId, initialPayment = null) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    await getFundBalance(connection, initialPayment.created_by_user_id, true);
-    const [result] = await connection.execute(insertQuery, values);
-    try {
-      await connection.execute(
-        `INSERT INTO billing_payments
-          (billing_id, payment_kind, amount, payment_method, reference_number,
-           payment_date, idempotency_key, created_by)
-         VALUES (?, 'PAYMENT', ?, ?, ?, ?, ?, ?)`,
-        [
-          result.insertId,
-          paidAmount.toFixed(2),
-          initialPayment.payment_method,
-          initialPayment.reference_number || null,
-          initialPayment.payment_date,
-          initialPayment.idempotency_key,
-          initialPayment.created_by || null
-        ]
-      );
-    } catch (error) {
-      if (error.code === 'ER_DUP_ENTRY') {
-        const duplicateError = new Error('This tack order advance has already been transferred to a bill');
-        duplicateError.code = 'TACK_ORDER_ADVANCE_ALREADY_TRANSFERRED';
-        throw duplicateError;
-      }
-      throw error;
+    if (initialPayment) {
+      await getFundBalance(connection, initialPayment.created_by_user_id, true);
     }
-    const customerName = billing.customers.map((customer) => customer.name).filter(Boolean).join(', ');
-    await insertFundRecord(connection, {
-      transaction_type: 'CREDIT',
-      transaction_date: initialPayment.payment_date,
-      amount: paidAmount.toFixed(2),
-      payment_method: initialPayment.payment_method,
-      description: `Billing collection ${billing.invoice_no}${customerName ? ` · ${customerName}` : ''}`,
-      admin_name: initialPayment.admin_name,
-      related_reference: billing.invoice_no,
-      idempotency_key: initialPayment.idempotency_key,
-      created_by: initialPayment.created_by_user_id,
-      updated_by: initialPayment.created_by_user_id
-    });
+    const [result] = await connection.execute(insertQuery, values);
+    if (initialPayment) {
+      try {
+        await connection.execute(
+          `INSERT INTO billing_payments
+            (billing_id, payment_kind, amount, payment_method, reference_number,
+             payment_date, idempotency_key, created_by)
+           VALUES (?, 'PAYMENT', ?, ?, ?, ?, ?, ?)`,
+          [
+            result.insertId,
+            paidAmount.toFixed(2),
+            initialPayment.payment_method,
+            initialPayment.reference_number || null,
+            initialPayment.payment_date,
+            initialPayment.idempotency_key,
+            initialPayment.created_by || null
+          ]
+        );
+      } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+          const duplicateError = new Error('This tack order advance has already been transferred to a bill');
+          duplicateError.code = 'TACK_ORDER_ADVANCE_ALREADY_TRANSFERRED';
+          throw duplicateError;
+        }
+        throw error;
+      }
+      const customerName = billing.customers.map((customer) => customer.name).filter(Boolean).join(', ');
+      await insertFundRecordOnce(connection, {
+        transaction_type: 'CREDIT',
+        transaction_date: initialPayment.payment_date,
+        amount: paidAmount.toFixed(2),
+        payment_method: initialPayment.payment_method,
+        description: `Billing collection ${billing.invoice_no}${customerName ? ` · ${customerName}` : ''}`,
+        admin_name: initialPayment.admin_name,
+        related_reference: billing.invoice_no,
+        idempotency_key: initialPayment.idempotency_key,
+        created_by: initialPayment.created_by_user_id,
+        updated_by: initialPayment.created_by_user_id
+      });
+    }
     if (billing.source_tack_order_id != null) {
       await connection.execute(
-        'UPDATE tack_orders SET payment_status = ?, balance_due = ? WHERE id = ? AND user_id = ?',
-        [balanceDue <= 0 ? 'Paid' : 'Pending', balanceDue.toFixed(2), billing.source_tack_order_id, userId]
+        `UPDATE tack_orders
+         SET payment_status = ?, balance_due = ?, order_status = ?
+         WHERE id = ? AND user_id = ?`,
+        [
+          balanceDue <= 0 ? 'Paid' : 'Pending',
+          balanceDue.toFixed(2),
+          balanceDue <= 0 ? 'Bill Completed' : 'Billing Pending',
+          billing.source_tack_order_id,
+          userId
+        ]
       );
     }
     await connection.commit();
@@ -228,30 +269,65 @@ async function createBilling(billing, userId, initialPayment = null) {
 }
 
 async function updateBilling(id, billing, userId) {
-  await pool.execute(
-    `UPDATE billings
-     SET customers = ?, products = ?, exchanges = ?, payment_type = ?,
-       sub_total = ?, discount_amount = ?, gst_amount = ?, gst_rate = ?, tax_mode = ?, total_amount = ?,
-       balance_due = GREATEST(? - paid_amount, 0), updated_by = ?
-     WHERE id = ? AND user_id = ?`,
-    [
-      JSON.stringify(billing.customers),
-      JSON.stringify(billing.products),
-      JSON.stringify(billing.exchanges),
-      billing.payment_type,
-      billing.sub_total,
-      billing.discount_amount,
-      billing.gst_amount,
-      billing.gst_rate,
-      billing.tax_mode,
-      billing.total_amount,
-      billing.total_amount,
-      userId,
-      id,
-      userId
-    ]
-  );
-  return getBillingById(id, userId);
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [bills] = await connection.execute(
+      'SELECT paid_amount, source_tack_order_id FROM billings WHERE id = ? AND user_id = ? FOR UPDATE',
+      [id, userId]
+    );
+    if (!bills.length) {
+      await connection.rollback();
+      return null;
+    }
+
+    const bill = bills[0];
+    const balanceDue = Math.max(0, Number(billing.total_amount) - Number(bill.paid_amount));
+    await connection.execute(
+      `UPDATE billings
+       SET customers = ?, products = ?, exchanges = ?, payment_type = ?,
+         sub_total = ?, discount_amount = ?, gst_amount = ?, gst_rate = ?, tax_mode = ?, total_amount = ?,
+         balance_due = ?, updated_by = ?
+       WHERE id = ? AND user_id = ?`,
+      [
+        JSON.stringify(billing.customers),
+        JSON.stringify(billing.products),
+        JSON.stringify(billing.exchanges),
+        billing.payment_type,
+        billing.sub_total,
+        billing.discount_amount,
+        billing.gst_amount,
+        billing.gst_rate,
+        billing.tax_mode,
+        billing.total_amount,
+        balanceDue.toFixed(2),
+        userId,
+        id,
+        userId
+      ]
+    );
+    if (bill.source_tack_order_id != null) {
+      await connection.execute(
+        `UPDATE tack_orders
+         SET payment_status = ?, balance_due = ?, order_status = ?
+         WHERE id = ? AND user_id = ?`,
+        [
+          balanceDue <= 0 ? 'Paid' : 'Pending',
+          balanceDue.toFixed(2),
+          balanceDue <= 0 ? 'Bill Completed' : 'Billing Pending',
+          bill.source_tack_order_id,
+          userId
+        ]
+      );
+    }
+    await connection.commit();
+    return await getBillingById(id, userId);
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function recordBillingPayment(id, payment, userId) {
@@ -315,8 +391,16 @@ async function recordBillingPayment(id, payment, userId) {
     );
     if (bill.source_tack_order_id != null) {
       await connection.execute(
-        'UPDATE tack_orders SET payment_status = ?, balance_due = ? WHERE id = ? AND user_id = ?',
-        [balanceDue <= 0 ? 'Paid' : 'Pending', balanceDue.toFixed(2), bill.source_tack_order_id, userId]
+        `UPDATE tack_orders
+         SET payment_status = ?, balance_due = ?, order_status = ?
+         WHERE id = ? AND user_id = ?`,
+        [
+          balanceDue <= 0 ? 'Paid' : 'Pending',
+          balanceDue.toFixed(2),
+          balanceDue <= 0 ? 'Bill Completed' : 'Billing Pending',
+          bill.source_tack_order_id,
+          userId
+        ]
       );
     }
     await connection.commit();
