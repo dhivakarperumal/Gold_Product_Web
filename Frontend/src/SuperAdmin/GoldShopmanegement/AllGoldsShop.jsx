@@ -685,7 +685,7 @@ export default function AllGoldsShop() {
             <table className="w-full min-w-[1220px] table-auto overflow-hidden rounded-t-2xl text-left text-sm">
               <thead className="bg-[#075C51] text-[11px] font-bold uppercase tracking-wide text-white">
                 <tr>
-                  <th className="w-16 whitespace-nowrap rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Start Date</th><th className="px-4 py-4">Expiry</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Approval status</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
+                  <th className="w-16 whitespace-nowrap rounded-tl-2xl px-4 py-4">S No</th><th className="px-4 py-4">Shop ID</th><th className="px-4 py-4">Shop name</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Plan</th><th className="px-4 py-4">Payment</th><th className="px-4 py-4">Approval status</th><th className="rounded-tr-2xl px-4 py-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -702,9 +702,7 @@ export default function AllGoldsShop() {
                       <td className="whitespace-nowrap px-4 py-4 font-mono text-xs font-bold text-amber-800">{shop.shop_code}</td>
                       <td className="px-4 py-4"><p className="font-semibold text-stone-800">{shop.shop_name}</p><p className="mt-0.5 text-xs text-stone-500">{shop.email || "No email"}</p></td>
                       <td className="px-4 py-4"><p className="whitespace-nowrap font-medium text-stone-800">{shop.owner_name || "—"}</p><p className="mt-0.5 whitespace-nowrap text-xs text-stone-500">{shop.mobile || "—"}</p></td>
-                      <td className="whitespace-nowrap px-4 py-4">{shop.plan_name || "No plan"}</td>
-                      <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.account_start_date)}</td>
-                      <td className="whitespace-nowrap px-4 py-4">{formatDate(shop.account_end_date)}</td>
+                      <td className="px-4 py-4"><p className="whitespace-nowrap font-medium text-stone-800">{shop.plan_name || "No plan"}</p><p className="mt-0.5 whitespace-nowrap text-xs text-stone-500">Start Date: {formatDate(shop.account_start_date)}</p><p className="whitespace-nowrap text-xs text-stone-500">Expiry: {formatDate(shop.account_end_date)}</p></td>
                       <td className="px-4 py-4"><StatusBadge value={shop.payment_status || "unpaid"} /></td>
                       <td className="px-4 py-4"><StatusBadge value={approvalStatus(shop)} /></td>
                       <td className="px-4 py-4">
