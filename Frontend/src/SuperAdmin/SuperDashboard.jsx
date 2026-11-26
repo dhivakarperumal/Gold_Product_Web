@@ -74,57 +74,57 @@ function formatPercentage(value) {
 
 const metricTones = {
   forest: {
-    card: "border-[#2F6B59] border-l-emerald-400 bg-[#123B32]",
-    icon: "bg-[#08745D] text-white",
+    card: "border-[#2F6B59] border-l-emerald-400 bg-gradient-to-br from-[#17483D] via-[#123B32] to-[#0B2D28]",
+    icon: "bg-gradient-to-br from-[#0C9475] to-[#08745D] text-white",
     label: "text-emerald-50/90",
     detail: "text-emerald-300",
     bars: "bg-emerald-300"
   },
   gold: {
-    card: "border-[#8A702E] border-l-amber-400 bg-[#443719]",
-    icon: "bg-[#C58B11] text-white",
+    card: "border-[#8A702E] border-l-amber-400 bg-gradient-to-br from-[#59451C] via-[#443719] to-[#34290F]",
+    icon: "bg-gradient-to-br from-[#E2A91A] to-[#B97808] text-white",
     label: "text-amber-50/90",
     detail: "text-amber-300",
     bars: "bg-amber-300"
   },
   blue: {
-    card: "border-[#3B7897] border-l-sky-400 bg-[#17364D]",
-    icon: "bg-[#007A61] text-white",
+    card: "border-[#3B7897] border-l-sky-400 bg-gradient-to-br from-[#1E4965] via-[#17364D] to-[#102A3D]",
+    icon: "bg-gradient-to-br from-[#0A9B82] to-[#007A61] text-white",
     label: "text-sky-50/90",
     detail: "text-sky-300",
     bars: "bg-sky-300"
   },
   rust: {
-    card: "border-[#905342] border-l-orange-300 bg-[#4A2B25]",
-    icon: "bg-[#C58B11] text-white",
+    card: "border-[#905342] border-l-orange-300 bg-gradient-to-br from-[#60362D] via-[#4A2B25] to-[#38201C]",
+    icon: "bg-gradient-to-br from-[#E2A91A] to-[#B97808] text-white",
     label: "text-orange-50/90",
     detail: "text-orange-200",
     bars: "bg-orange-200"
   },
   slate: {
-    card: "border-[#526D76] border-l-cyan-300 bg-[#29363B]",
-    icon: "bg-[#008B99] text-white",
+    card: "border-[#526D76] border-l-cyan-300 bg-gradient-to-br from-[#35474E] via-[#29363B] to-[#1D292E]",
+    icon: "bg-gradient-to-br from-[#0CA6B4] to-[#008B99] text-white",
     label: "text-cyan-50/90",
     detail: "text-cyan-200",
     bars: "bg-cyan-200"
   },
   indigo: {
-    card: "border-[#555E9C] border-l-violet-300 bg-[#292B50]",
-    icon: "bg-[#7138E8] text-white",
+    card: "border-[#555E9C] border-l-violet-300 bg-gradient-to-br from-[#393B68] via-[#292B50] to-[#1D1F3C]",
+    icon: "bg-gradient-to-br from-[#8953FA] to-[#7138E8] text-white",
     label: "text-violet-50/90",
     detail: "text-violet-200",
     bars: "bg-violet-300"
   },
   teal: {
-    card: "border-[#34766D] border-l-teal-300 bg-[#153E3A]",
-    icon: "bg-[#087D70] text-white",
+    card: "border-[#34766D] border-l-teal-300 bg-gradient-to-br from-[#1B514A] via-[#153E3A] to-[#0F302D]",
+    icon: "bg-gradient-to-br from-[#0A9D8B] to-[#087D70] text-white",
     label: "text-teal-50/90",
     detail: "text-teal-200",
     bars: "bg-teal-300"
   },
   burgundy: {
-    card: "border-[#94475B] border-l-rose-300 bg-[#4A2635]",
-    icon: "bg-[#C8103E] text-white",
+    card: "border-[#94475B] border-l-rose-300 bg-gradient-to-br from-[#603044] via-[#4A2635] to-[#351B27]",
+    icon: "bg-gradient-to-br from-[#E51A50] to-[#C8103E] text-white",
     label: "text-rose-50/90",
     detail: "text-rose-200",
     bars: "bg-rose-300"
@@ -136,39 +136,39 @@ function MetricCard({ label, value, icon: Icon, change, note, loading, tone = "f
   const colors = metricTones[tone] || metricTones.forest;
 
   return (
-    <article className={`relative flex min-h-[176px] min-w-0 items-center gap-4 overflow-hidden rounded-xl border border-l-4 p-4 shadow-md transition-shadow hover:shadow-lg sm:p-5 ${colors.card}`}>
-      <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-inner ${colors.icon}`}>
+    <article className={`group relative flex min-h-[184px] min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-l-4 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-inset ring-white/10 transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_30px_rgba(15,23,42,0.2)] sm:p-5 ${colors.card}`}>
+      <span aria-hidden="true" className="pointer-events-none absolute -right-7 -top-8 h-28 w-28 rounded-full border border-white/10 transition-transform duration-500 group-hover:scale-125" />
+      <span aria-hidden="true" className="pointer-events-none absolute -right-2 -top-2 h-20 w-20 rounded-full bg-white/[0.035] blur-2xl" />
+      <span className={`relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-inner ring-1 ring-inset ring-white/10 ${colors.icon}`}>
         <Icon size={25} strokeWidth={1.9} />
       </span>
-      <div className="min-w-0 flex-1 pb-1">
+      <div className="relative z-10 min-w-0 flex-1 pb-1">
         <p className={`truncate text-sm font-semibold ${colors.label}`}>{label}</p>
         {loading
           ? <div className="mt-2 h-8 w-28 animate-pulse rounded bg-white/15" />
           : <p className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-[28px]">{value}</p>}
-        <div className={`mt-2 flex min-h-5 items-center gap-1.5 text-xs ${colors.detail}`}>
+        <div className={`relative z-10 mt-2 flex min-h-5 flex-wrap items-center gap-1.5 text-xs ${colors.detail}`}>
         {loading
           ? <div className="h-3 w-24 animate-pulse rounded bg-white/15" />
           : change !== undefined
             ? (
               <>
-                {isPositive
-                  ? <ArrowUpRight size={14} className={isPositive ? "text-emerald-300" : "text-rose-300"} />
-                  : <ArrowDownRight size={14} className="text-rose-300" />}
-                <span className={`font-semibold ${isPositive ? "text-emerald-300" : "text-rose-300"}`}>
+                <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-1 font-semibold ${isPositive ? "bg-emerald-300/10 text-emerald-300" : "bg-rose-300/10 text-rose-300"}`}>
+                  {isPositive ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
                   {formatPercentage(change)}
                 </span>
-                <span className="text-white/60">vs. last month</span>
+                <span className="text-[11px] text-white/60">vs. last month</span>
               </>
             )
             : (
-              <>
-                <span className={`h-2 w-2 rounded-full ${colors.bars}`} />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-2 py-1">
+                <span className={`h-1.5 w-1.5 rounded-full ${colors.bars}`} />
                 <span className="font-semibold">{note}</span>
-              </>
+              </span>
             )}
         </div>
       </div>
-      <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-8 items-end gap-1 opacity-90 ${colors.detail}`}>
+      <div aria-hidden="true" className={`absolute bottom-3 right-3 flex h-8 items-end gap-1 opacity-90 transition-transform duration-300 group-hover:scale-110 ${colors.detail}`}>
         <span className="h-3 w-1.5 rounded-t-sm bg-current" />
         <span className="h-5 w-1.5 rounded-t-sm bg-current" />
         <span className="h-4 w-1.5 rounded-t-sm bg-current" />
@@ -180,11 +180,14 @@ function MetricCard({ label, value, icon: Icon, change, note, loading, tone = "f
 
 function Panel({ title, subtitle, action, children, className = "" }) {
   return (
-    <section className={`min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 ${className}`}>
+    <section className={`min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] transition-shadow duration-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.08)] sm:p-5 ${className}`}>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-[#1F2937]">{title}</h2>
+        <div className="flex items-start gap-3">
+          <span aria-hidden="true" className="mt-0.5 h-8 w-1 shrink-0 rounded-full bg-gradient-to-b from-[#D4A017] to-[#07564B]" />
+          <div>
+            <h2 className="text-base font-semibold tracking-tight text-[#1F2937]">{title}</h2>
           {subtitle && <p className="mt-1 text-xs text-slate-500">{subtitle}</p>}
+          </div>
         </div>
         {action}
       </div>
@@ -238,9 +241,19 @@ function StatusBadge({ status }) {
     failed: "border-rose-200 bg-rose-50 text-rose-800",
     unpaid: "border-amber-200 bg-amber-50 text-amber-800"
   };
+  const dotClasses = {
+    approved: "bg-emerald-500",
+    pending: "bg-amber-500",
+    rejected: "bg-rose-500",
+    paid: "bg-emerald-500",
+    refunded: "bg-slate-500",
+    failed: "bg-rose-500",
+    unpaid: "bg-amber-500"
+  };
 
   return (
-    <span className={`inline-flex border px-2 py-1 text-[11px] font-semibold capitalize ${classes[value] || "border-slate-200 bg-slate-50 text-slate-700"}`}>
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold capitalize ${classes[value] || "border-slate-200 bg-slate-50 text-slate-700"}`}>
+      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dotClasses[value] || "bg-slate-400"}`} />
       {value}
     </span>
   );
@@ -413,7 +426,7 @@ export default function SuperDashboard() {
     <div className="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
       <section
         aria-labelledby="dashboard-welcome-title"
-        className="relative flex min-h-[170px] items-center overflow-hidden rounded-xl border border-[#A87908]/70 bg-[#003B32] shadow-sm sm:min-h-[184px]"
+        className="relative flex min-h-[176px] items-center overflow-hidden rounded-2xl border border-[#A87908]/70 bg-[#003B32] shadow-[0_12px_30px_rgba(4,61,55,0.16)] ring-1 ring-inset ring-white/15 sm:min-h-[188px] lg:min-h-[196px]"
       >
         <img
           src="/images/registerbanner1.png"
@@ -435,7 +448,7 @@ export default function SuperDashboard() {
               void fetchDashboard();
             }}
             disabled={refreshing}
-            className="inline-flex h-9 items-center gap-2 border border-white/40 bg-[#003B32]/75 px-2.5 text-xs font-semibold text-white transition hover:bg-[#003B32] disabled:cursor-wait disabled:opacity-60 sm:px-3"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/40 bg-[#003B32]/75 px-2.5 text-xs font-semibold text-white shadow-sm backdrop-blur transition hover:border-white/70 hover:bg-[#003B32] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFE39A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#003B32] disabled:cursor-wait disabled:opacity-60 sm:px-3"
           >
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
             <span className="hidden sm:inline">Refresh</span>
@@ -443,7 +456,10 @@ export default function SuperDashboard() {
         </div>
         <div className="relative z-10 flex min-h-[170px] w-full items-center px-5 sm:min-h-[184px] sm:px-9">
           <div className="max-w-[82%] sm:max-w-[64%]">
-            <p className="text-xs font-semibold tracking-wide text-[#FFE39A] sm:text-base">Welcome to</p>
+            <p className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#FFE39A] sm:text-xs">
+              <span aria-hidden="true" className="h-px w-5 bg-[#FFE39A]/80" />
+              Welcome to
+            </p>
             <h2
               id="dashboard-welcome-title"
               className="mt-0.5 font-serif text-2xl font-bold leading-tight text-[#FFD15C] sm:text-4xl lg:text-5xl"
@@ -485,7 +501,7 @@ export default function SuperDashboard() {
         </div>
       )}
 
-      <section aria-label="Platform statistics" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Platform statistics" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
           <MetricCard
             key={card.label}
@@ -498,7 +514,7 @@ export default function SuperDashboard() {
         ))}
       </section>
 
-      <section aria-labelledby="quick-access-title" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <section aria-labelledby="quick-access-title" className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 id="quick-access-title" className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Quick Actions &amp; Shortcuts</h2>
@@ -518,8 +534,11 @@ export default function SuperDashboard() {
             <Link
               key={label}
               to={to}
-              className="group flex min-h-[132px] flex-col items-center justify-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-4 text-center transition duration-200 hover:-translate-y-0.5 hover:border-[#D4A017]/60 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4A017]"
+              className="group relative flex min-h-[140px] flex-col items-center justify-center gap-2.5 rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50/90 to-white px-3 py-4 text-center transition duration-200 hover:-translate-y-1 hover:border-[#D4A017]/60 hover:from-white hover:to-[#FFFCF4] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4A017]"
             >
+              <span aria-hidden="true" className="absolute right-3 top-3 text-slate-300 transition-colors group-hover:text-[#A87908]">
+                <ArrowUpRight size={15} />
+              </span>
               <span className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${color} text-white shadow-sm transition-transform group-hover:scale-105`}>
                 <Icon size={19} strokeWidth={1.8} />
               </span>
@@ -534,7 +553,7 @@ export default function SuperDashboard() {
         <Panel title="Monthly Revenue" subtitle="Collected subscription payments · last 12 months">
           {loading && !analytics
             ? <ChartSkeleton />
-            : <div className="h-64"><Bar data={revenueChartData} options={{
+            : <div className="h-64 rounded-xl border border-slate-100 bg-gradient-to-b from-slate-50/80 to-white p-2"><Bar data={revenueChartData} options={{
               ...chartOptions,
               plugins: {
                 ...chartOptions.plugins,
@@ -559,13 +578,13 @@ export default function SuperDashboard() {
         <Panel title="Gold Shop Registrations" subtitle="New shop registrations · last 12 months">
           {loading && !analytics
             ? <ChartSkeleton />
-            : <div className="h-64"><Line data={registrationChartData} options={chartOptions} /></div>}
+            : <div className="h-64 rounded-xl border border-slate-100 bg-gradient-to-b from-slate-50/80 to-white p-2"><Line data={registrationChartData} options={chartOptions} /></div>}
         </Panel>
 
         <Panel title="Subscription Growth" subtitle="Subscriptions created · last 12 months">
           {loading && !analytics
             ? <ChartSkeleton />
-            : <div className="h-64"><Line data={subscriptionChartData} options={chartOptions} /></div>}
+            : <div className="h-64 rounded-xl border border-slate-100 bg-gradient-to-b from-slate-50/80 to-white p-2"><Line data={subscriptionChartData} options={chartOptions} /></div>}
         </Panel>
 
         <Panel title="Active vs Expired Shops" subtitle="Latest subscription status for approved shops">
@@ -602,23 +621,23 @@ export default function SuperDashboard() {
           title="Recent Shop Registrations"
           subtitle="Latest onboarding activity and approval decisions"
           action={(
-            <Link to="/superadmin/goldshop" className="inline-flex items-center gap-1 text-xs font-semibold text-[#805B05] hover:underline">
+            <Link to="/superadmin/goldshop" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-[#805B05] transition hover:bg-[#FBF8F0] hover:text-[#5F4300] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4A017]">
               Manage shops <ExternalLink size={13} />
             </Link>
           )}
         >
-        <div className="overflow-x-auto rounded-t-xl">
-          <table className="w-full min-w-[1050px] border-collapse text-left text-xs">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200/80 shadow-sm">
+            <table aria-label="Recent shop registrations" className="w-full min-w-[1050px] border-collapse text-left text-xs">
             <thead>
               <tr className="border-y border-[#043D37] bg-[#07564B] text-[11px] uppercase tracking-wide text-white/90">
-                <th className="px-4 py-4 font-semibold">Shop ID</th>
-                <th className="px-4 py-4 font-semibold">Shop name</th>
-                <th className="px-4 py-4 font-semibold">Owner</th>
-                <th className="px-4 py-4 font-semibold">Email / Mobile</th>
-                <th className="px-4 py-4 font-semibold">Plan</th>
-                <th className="px-4 py-4 font-semibold">Registered</th>
-                <th className="px-4 py-4 font-semibold">Approval</th>
-                <th className="px-4 py-4 font-semibold">Actions</th>
+                  <th className="bg-gradient-to-r from-[#064A41] to-[#07564B] px-4 py-4 font-semibold first:rounded-tl-xl">Shop ID</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Shop name</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Owner</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Email / Mobile</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Plan</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Registered</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Approval</th>
+                  <th className="bg-gradient-to-l from-[#064A41] to-[#07564B] px-4 py-4 font-semibold last:rounded-tr-xl">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -629,24 +648,39 @@ export default function SuperDashboard() {
                     const approvalStatus = String(shop.approval_status || "pending").toLowerCase();
                     const isActing = actingOnShop === shop.id;
                     return (
-                      <tr key={shop.id} className="border-b border-slate-100 text-slate-700 hover:bg-[#FCFAF4]">
-                        <td className="whitespace-nowrap px-3 py-3.5 font-semibold">{shop.shop_code || shop.id}</td>
-                        <td className="max-w-[190px] truncate px-3 py-3.5 font-semibold text-slate-900">{shop.shop_name}</td>
-                        <td className="whitespace-nowrap px-3 py-3.5">{shop.owner_name || "—"}</td>
-                        <td className="px-3 py-3.5">
-                          <span className="block max-w-[190px] truncate">{shop.email || "—"}</span>
-                          <span className="mt-1 block text-slate-400">{shop.mobile || "—"}</span>
+                      <tr key={shop.id} className="border-b border-slate-100 text-slate-700 transition-colors odd:bg-white even:bg-slate-50/55 hover:bg-[#FCFAF4]">
+                        <td className="whitespace-nowrap px-4 py-4">
+                          <span className="inline-flex rounded-lg border border-[#07564B]/10 bg-[#07564B]/[0.06] px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide text-[#07564B]">
+                            {shop.shop_code || shop.id}
+                          </span>
                         </td>
-                        <td className="px-3 py-3.5">{shop.plan_name || "No plan"}</td>
-                        <td className="whitespace-nowrap px-3 py-3.5">{formatDate(shop.created_at)}</td>
-                        <td className="px-3 py-3.5"><StatusBadge status={approvalStatus} /></td>
-                        <td className="px-3 py-3.5">
+                        <td className="max-w-[210px] px-4 py-4">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#FBF8F0] text-[#A87908]">
+                              <Store size={15} strokeWidth={2} />
+                            </span>
+                            <span className="truncate font-semibold text-slate-900">{shop.shop_name}</span>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-700">{shop.owner_name || "—"}</td>
+                        <td className="px-4 py-4">
+                          <span className="block max-w-[190px] truncate font-medium text-slate-800">{shop.email || "—"}</span>
+                          <span className="mt-1 block text-[11px] text-slate-400">{shop.mobile || "—"}</span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="inline-flex whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                            {shop.plan_name || "No plan"}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-4 text-slate-500">{formatDate(shop.created_at)}</td>
+                        <td className="px-4 py-4"><StatusBadge status={approvalStatus} /></td>
+                        <td className="px-4 py-4">
                           <div className="flex items-center gap-2">
                             <Link
                               to={`/superadmin/goldshop/${shop.id}`}
                               aria-label={`View ${shop.shop_name}`}
                               title="View details"
-                              className="inline-flex h-8 w-8 items-center justify-center border border-slate-200 text-slate-600 hover:border-[#D4A017] hover:text-[#805B05]"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-[#D4A017]/70 hover:bg-[#FBF8F0] hover:text-[#805B05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4A017]"
                             >
                               <ExternalLink size={14} />
                             </Link>
@@ -658,7 +692,7 @@ export default function SuperDashboard() {
                                   disabled={isActing}
                                   aria-label={`Approve ${shop.shop_name}`}
                                   title="Approve"
-                                  className="inline-flex h-8 w-8 items-center justify-center border border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-200 bg-white text-emerald-700 shadow-sm transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-50"
                                 >
                                   {isActing ? <LoaderCircle size={14} className="animate-spin" /> : <Check size={15} />}
                                 </button>
@@ -668,7 +702,7 @@ export default function SuperDashboard() {
                                   disabled={isActing}
                                   aria-label={`Reject ${shop.shop_name}`}
                                   title="Reject"
-                                  className="inline-flex h-8 w-8 items-center justify-center border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-700 shadow-sm transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:opacity-50"
                                 >
                                   <X size={15} />
                                 </button>
@@ -681,7 +715,7 @@ export default function SuperDashboard() {
                   })
                   : (
                     <tr>
-                      <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
+                      <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
                         No recent shop registrations are available.
                       </td>
                     </tr>
@@ -695,22 +729,22 @@ export default function SuperDashboard() {
           title="Recent Payments"
           subtitle="Latest subscription transactions across gold shops"
           action={(
-            <Link to="/superadmin/payments" className="inline-flex items-center gap-1 text-xs font-semibold text-[#805B05] hover:underline">
+            <Link to="/superadmin/payments" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-[#805B05] transition hover:bg-[#FBF8F0] hover:text-[#5F4300] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4A017]">
               Payment management <ExternalLink size={13} />
             </Link>
           )}
         >
-        <div className="overflow-x-auto rounded-t-xl">
-          <table className="w-full min-w-[760px] border-collapse text-left text-xs">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200/80 shadow-sm">
+            <table aria-label="Recent payments" className="w-full min-w-[760px] border-collapse text-left text-xs">
             <thead>
               <tr className="border-y border-[#043D37] bg-[#07564B] text-[11px] uppercase tracking-wide text-white/90">
-                <th className="px-4 py-4 font-semibold">Payment ID</th>
-                <th className="px-4 py-4 font-semibold">Gold shop</th>
-                <th className="px-4 py-4 font-semibold">Plan</th>
-                <th className="px-4 py-4 font-semibold">Amount</th>
-                <th className="px-4 py-4 font-semibold">Payment date</th>
-                <th className="px-4 py-4 font-semibold">Method</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                  <th className="bg-gradient-to-r from-[#064A41] to-[#07564B] px-4 py-4 font-semibold first:rounded-tl-xl">Payment ID</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Gold shop</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Plan</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Amount</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Payment date</th>
+                  <th className="bg-[#07564B] px-4 py-4 font-semibold">Method</th>
+                  <th className="bg-gradient-to-l from-[#064A41] to-[#07564B] px-4 py-4 font-semibold last:rounded-tr-xl">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -718,19 +752,25 @@ export default function SuperDashboard() {
                 ? <TableLoadingRows columns={7} />
                 : analytics?.recentPayments?.length
                   ? analytics.recentPayments.map((payment) => (
-                    <tr key={payment.id} className="border-b border-slate-100 text-slate-700 hover:bg-[#FCFAF4]">
-                      <td className="whitespace-nowrap px-3 py-3.5 font-semibold">{payment.paymentId}</td>
-                      <td className="px-3 py-3.5 font-medium text-slate-900">{payment.shop_name}</td>
-                      <td className="px-3 py-3.5">{payment.plan_name}</td>
-                      <td className="whitespace-nowrap px-3 py-3.5 font-semibold">{formatCurrency(payment.amount)}</td>
-                      <td className="whitespace-nowrap px-3 py-3.5">{formatDate(payment.payment_date)}</td>
-                      <td className="px-3 py-3.5">{payment.payment_method || "—"}</td>
-                      <td className="px-3 py-3.5"><StatusBadge status={payment.payment_status} /></td>
+                    <tr key={payment.id} className="border-b border-slate-100 text-slate-700 transition-colors odd:bg-white even:bg-slate-50/55 hover:bg-[#FCFAF4]">
+                      <td className="whitespace-nowrap px-4 py-4 font-mono text-[11px] font-semibold text-slate-600">{payment.paymentId}</td>
+                      <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">{payment.shop_name}</td>
+                      <td className="px-4 py-4">
+                        <span className="inline-flex whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                          {payment.plan_name}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <span className="inline-flex rounded-lg bg-[#FBF8F0] px-2.5 py-1 font-bold text-[#805B05]">{formatCurrency(payment.amount)}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-slate-500">{formatDate(payment.payment_date)}</td>
+                      <td className="px-4 py-4 text-slate-600">{payment.payment_method || "—"}</td>
+                      <td className="px-4 py-4"><StatusBadge status={payment.payment_status} /></td>
                     </tr>
                   ))
                   : (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-500">
+                      <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
                         No payment records are available.
                       </td>
                     </tr>
