@@ -553,11 +553,11 @@ export default function AddGoldShop({
   };
 
   const sectionClass = registrationMode
-    ? "rounded-2xl border-0 bg-transparent p-4 sm:p-6"
+    ? "min-h-0 flex-1 rounded-2xl border-0 bg-transparent overflow-y-auto p-4 sm:p-6"
     : "rounded-2xl border border-stone-200 bg-white p-4 sm:p-5";
   const activeTabIndex = TABS.findIndex((tab) => tab.id === activeTab);
   const tabNavigation = (
-    <div className={registrationMode ? "grid grid-cols-4 border-b border-stone-200" : "grid grid-cols-4 gap-1 rounded-2xl bg-stone-100 p-1"} role="tablist" aria-label="Gold shop form sections">
+    <div className={registrationMode ? "grid grid-cols-4 gap-1 rounded-xl bg-emerald-900 p-1" : "grid grid-cols-4 gap-1 rounded-2xl bg-stone-100 p-1"} role="tablist" aria-label="Gold shop form sections">
       {TABS.map(({ id, label, icon: Icon }) => {
         const isActive = activeTab === id;
         return (
@@ -570,7 +570,7 @@ export default function AddGoldShop({
             aria-controls={`gold-shop-panel-${id}`}
             onClick={() => { setActiveTab(id); setFormError(""); }}
             className={registrationMode
-              ? `inline-flex min-w-0 items-center justify-center gap-0.5 whitespace-nowrap rounded-t-lg border-b-2 px-0.5 py-2 text-center text-[8px] font-semibold transition sm:gap-2 sm:px-2 sm:py-3 sm:text-xs ${isActive ? "border-emerald-900 bg-emerald-900 text-white" : "border-transparent text-stone-500 hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800"}`
+              ? `inline-flex min-w-0 items-center justify-center gap-0.5 whitespace-nowrap rounded-lg px-0.5 py-2 text-center text-[8px] font-semibold transition sm:gap-2 sm:px-2 sm:py-3 sm:text-xs ${isActive ? "bg-white text-emerald-900 shadow-sm" : "text-white/90 hover:bg-emerald-800 hover:text-white"}`
               : `inline-flex min-h-9 whitespace-normal items-center justify-center gap-0 rounded-xl px-0 py-1 text-[8px] font-bold transition sm:whitespace-nowrap sm:gap-1 sm:px-1 sm:text-[10px] lg:text-xs ${isActive ? "bg-white text-amber-900 shadow-sm" : "text-stone-600 hover:bg-white/70"}`}
           >
             {registrationMode ? (
@@ -613,16 +613,18 @@ export default function AddGoldShop({
         )}
 
         <form noValidate onSubmit={(event) => submit(event)} className={`flex flex-1 flex-col ${registrationMode ? "lg:min-h-0 lg:overflow-hidden" : "min-h-0 overflow-hidden"}`}>
-          {registrationMode && <div className="shrink-0 px-1 pb-1 pt-2 sm:px-2">{tabNavigation}</div>}
-          <div className={`space-y-3 ${registrationMode ? "px-1 py-1 sm:px-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"}`}>
+          {registrationMode && <div className="shrink-0 px-1 pb-2 pt-2 sm:px-2">{tabNavigation}</div>}
+          <div className={`space-y-3 ${registrationMode ? "px-1 pt-1 sm:px-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"}`}>
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
           {!registrationMode && tabNavigation}
 
-          <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
+          {(!registrationMode || formError) && (
+            <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
+          )}
 
-          <div className={registrationMode ? "overflow-hidden rounded-2xl border border-b-0 border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)]" : "contents"}>
+          <div className={registrationMode ? "flex h-[600px] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)] sm:h-[520px] lg:h-full lg:min-h-0 lg:flex-1" : "contents"}>
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
               {!registrationMode && <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>}
               <div className="grid gap-2 sm:grid-cols-2">
@@ -633,7 +635,7 @@ export default function AddGoldShop({
               </div>
             </section>
 
-            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className={registrationMode ? "" : "space-y-2"}>
+            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className={registrationMode ? "flex min-h-0 flex-1 flex-col" : "space-y-2"}>
               <div className={sectionClass}>
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
@@ -764,27 +766,46 @@ export default function AddGoldShop({
                 </div>
               )}
             </section>
+            {registrationMode && (
+              <div className="flex shrink-0 justify-between gap-3 px-4 pb-4 pt-2 sm:px-6">
+                <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="inline-flex min-h-12 min-w-[132px] items-center justify-center gap-2 rounded-full border border-emerald-800 bg-transparent px-5 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[150px]">
+                  <ArrowLeft size={16} /> Previous
+                </button>
+                {activeTabIndex === TABS.length - 1 ? (
+                  <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex min-h-12 min-w-[160px] items-center justify-center gap-2 rounded-full bg-[#064A41] px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#043D37] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[184px]">
+                    {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                    {isEditing ? "Save Changes" : "Save Gold Shop"}
+                    {!submitting && <ArrowRight size={17} />}
+                  </button>
+                ) : (
+                  <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="inline-flex min-h-12 min-w-[160px] items-center justify-center gap-2 rounded-full bg-[#064A41] px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#043D37] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[184px]">
+                    Save &amp; Next <ArrowRight size={17} />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           </fieldset>
           </div>
 
-          <footer className={`flex shrink-0 justify-between gap-3 border-t border-stone-200 ${registrationMode ? "mx-1 rounded-b-2xl border-x border-b bg-white px-4 py-3 shadow-sm sm:mx-2 sm:px-6 sm:py-4" : "bg-[#fbfaf7] px-4 py-4 sm:px-6"}`}>
-            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-40 ${registrationMode ? "border border-emerald-600 text-emerald-950" : "border border-stone-300 text-stone-700"}`}>
-              {registrationMode && <ArrowLeft size={16} />}
-              Previous
-            </button>
-            {activeTabIndex === TABS.length - 1 ? (
-              <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-lg transition disabled:cursor-not-allowed disabled:opacity-60 ${registrationMode ? "bg-gradient-to-r from-[#064A41] to-[#008577] shadow-emerald-900/10 hover:from-[#043D37] hover:to-[#00695C]" : "bg-gradient-to-r from-amber-600 to-amber-500 shadow-amber-900/10 hover:from-amber-700 hover:to-amber-600"}`}>
-                {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                {isEditing ? "Save Changes" : "Save Gold Shop"}
-                {!submitting && <ArrowRight size={17} />}
+          {!registrationMode && (
+            <footer className="flex shrink-0 justify-between gap-3 border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6">
+              <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 disabled:opacity-40">
+                Previous
               </button>
-            ) : (
-              <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 ${registrationMode ? "bg-gradient-to-r from-[#064A41] to-[#008577] shadow-md shadow-emerald-900/10" : "bg-stone-800"}`}>
-                Save &amp; Next <ArrowRight size={17} />
-              </button>
-            )}
-          </footer>
+              {activeTabIndex === TABS.length - 1 ? (
+                <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
+                  {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                  {isEditing ? "Save Changes" : "Save Gold Shop"}
+                  {!submitting && <ArrowRight size={17} />}
+                </button>
+              ) : (
+                <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-800 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                  Save &amp; Next <ArrowRight size={17} />
+                </button>
+              )}
+            </footer>
+          )}
         </form>
       </section>
     </div>

@@ -11,6 +11,8 @@ export default function AuthLayout({
   contentClassName = "",
   fixedHeight = false,
   hideHeader = false,
+  hideFooter = false,
+  minimalHeader = false,
   splitLayout = false,
   wideFormPanel = false,
   children
@@ -19,7 +21,7 @@ export default function AuthLayout({
     return (
       <main className="min-h-screen bg-white lg:h-screen lg:overflow-hidden">
         <div className="flex min-h-screen w-full bg-white lg:h-full lg:min-h-0 lg:overflow-hidden">
-          <aside className={`relative hidden min-h-full flex-none flex-col justify-between overflow-hidden bg-[#063d2c] p-10 text-white lg:flex xl:p-14 ${wideFormPanel ? "lg:w-[39%]" : "lg:w-[62%]"}`}>
+          <aside className={`relative hidden min-h-full flex-none flex-col justify-between overflow-hidden bg-[#063d2c] p-10 text-white lg:flex xl:p-14 ${wideFormPanel ? "lg:w-1/2" : "lg:w-[62%]"}`}>
             <img
               src="/images/loginbanner.png"
               alt=""
@@ -73,7 +75,7 @@ export default function AuthLayout({
             </div>
           </aside>
 
-          <section className={`flex w-full min-w-0 flex-col bg-white lg:-ml-[4%] lg:h-full lg:min-h-0 lg:flex-none lg:rounded-l-[5rem] ${wideFormPanel ? "px-6 py-4 sm:px-12 sm:py-5 lg:px-14 lg:py-5 xl:px-16 lg:w-[65%]" : "px-5 py-5 sm:px-8 sm:py-7 lg:px-10 lg:py-8 xl:px-14 lg:w-[42%]"}`}>
+          <section className={`flex w-full min-w-0 flex-col lg:h-full lg:min-h-0 lg:flex-none lg:rounded-l-[5rem] ${wideFormPanel ? "bg-gradient-to-br from-[#fffdf7] via-[#fffaf0] to-[#f5ecd8] px-2 py-4 sm:px-3 sm:py-5 lg:ml-0 lg:px-4 lg:py-5 xl:px-5 lg:w-1/2" : "bg-white px-5 py-5 sm:px-8 sm:py-7 lg:ml-0 lg:px-10 lg:py-8 xl:px-14 lg:w-[38%]"}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 lg:hidden">
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#063d2c] text-amber-300">
@@ -94,21 +96,23 @@ export default function AuthLayout({
             </div>
 
             {!hideHeader && (
-              <header className={`shrink-0 text-center ${wideFormPanel ? "mb-3 mt-2" : "mb-5 mt-3"}`}>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-800">{eyebrow}</p>
-                <h1 className={`mt-2 font-bold tracking-tight text-[#172a23] ${wideFormPanel ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"}`}>{title}</h1>
-                <p className={`mx-auto max-w-md text-sm text-stone-600 ${wideFormPanel ? "mt-1 leading-5" : "mt-2 leading-6"}`}>{subtitle}</p>
+              <header className={`shrink-0 text-center ${minimalHeader ? "mb-1 mt-1" : wideFormPanel ? "mb-3 mt-2" : "mb-5 mt-3"}`}>
+                {!minimalHeader && <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-800">{eyebrow}</p>}
+                <h1 className={`font-bold tracking-tight text-[#172a23] ${minimalHeader ? "mt-0 text-xl sm:text-2xl" : `mt-2 ${wideFormPanel ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"}`}`}>{title}</h1>
+                {!minimalHeader && <p className={`mx-auto max-w-md text-sm text-stone-600 ${wideFormPanel ? "mt-1 leading-5" : "mt-2 leading-6"}`}>{subtitle}</p>}
               </header>
             )}
 
             <div className={`w-full flex-1 lg:min-h-0 lg:overflow-hidden ${contentClassName}`}>{children}</div>
 
-            <footer className="flex shrink-0 items-center justify-center gap-2 pt-5 text-center text-[11px] text-stone-500">
-              <ShieldCheck size={17} className="shrink-0 text-emerald-800" />
-              <span>Your data is safe with us</span>
-              <span className="mx-1 h-4 w-px bg-emerald-300" />
-              <span>Trusted by Gold Retailers Across India</span>
-            </footer>
+            {!hideFooter && (
+              <footer className="flex shrink-0 items-center justify-center gap-2 pt-5 text-center text-[11px] text-stone-500">
+                <ShieldCheck size={17} className="shrink-0 text-emerald-800" />
+                <span>Your data is safe with us</span>
+                <span className="mx-1 h-4 w-px bg-emerald-300" />
+                <span>Trusted by Gold Retailers Across India</span>
+              </footer>
+            )}
           </section>
         </div>
       </main>
