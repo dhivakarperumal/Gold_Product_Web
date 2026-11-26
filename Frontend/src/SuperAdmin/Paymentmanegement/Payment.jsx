@@ -594,7 +594,6 @@ export default function PaymentManagement() {
                 <th className="py-3 px-4">Owner Name</th>
                 <th className="py-3 px-4">Subscription Plan</th>
                 <th className="py-3 px-4 text-right">Payment Amount</th>
-                <th className="py-3 px-4 text-center">Payment Method</th>
                 <th className="py-3 px-4">Payment Date</th>
                 <th className="py-3 px-4 text-center">Payment Status</th>
                 <th className="py-3 px-4 text-center">Action</th>
@@ -604,14 +603,14 @@ export default function PaymentManagement() {
               {loadingList ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={11} className="py-4 px-4">
+                    <td colSpan={10} className="py-4 px-4">
                       <div className="h-4 bg-slate-100 rounded w-full" />
                     </td>
                   </tr>
                 ))
               ) : payments.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-slate-400">
+                  <td colSpan={10} className="py-12 text-center text-slate-400">
                     <Wallet className="h-10 w-10 mx-auto mb-2 text-slate-300 stroke-[1.5]" />
                     <p className="text-sm font-semibold text-slate-600">No payment records found</p>
                     <p className="text-xs text-slate-400 mt-1">Try modifying search filters</p>
@@ -681,13 +680,6 @@ export default function PaymentManagement() {
                           Refunded: {formatCurrency(p.refundAmount)}
                         </div>
                       )}
-                    </td>
-
-                    {/* Payment Method */}
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 font-semibold text-slate-700 text-[11px]">
-                        {p.paymentMethod || "N/A"}
-                      </span>
                     </td>
 
                     {/* Payment Date */}
