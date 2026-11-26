@@ -47,9 +47,8 @@ function mobileLoginPassword(value) {
 function usernameFromOwnerName(value) {
   return String(value || "")
     .trim()
-    .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9._@+-]/g, "")
+    .replace(/[^A-Za-z0-9._@+-]/g, "")
     .slice(0, 150);
 }
 
@@ -172,10 +171,10 @@ function Field({
   );
 }
 
-function FileField({ label, name, accept, multiple = false, files, onChange, hint, registrationMode = false }) {
+function FileField({ label, name, accept, multiple = false, files, onChange, hint, registrationMode = false, className = "" }) {
   const selectedFiles = Array.isArray(files) ? files : files ? [files] : [];
   return (
-    <label className="block text-xs font-semibold text-stone-700">
+    <label className={`block text-xs font-semibold text-stone-700 ${className}`}>
       {label}
       {registrationMode ? (
         <span className="relative mt-1.5 flex min-h-[76px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 px-3 py-2 text-center text-emerald-900 transition hover:bg-emerald-50">
@@ -645,10 +644,10 @@ export default function AddGoldShop({
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
               {!registrationMode && <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>}
               <div className="grid gap-2 sm:grid-cols-2">
-                <Field label="Owner name" name="ownerName" value={form.ownerName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.ownerName} required maxLength={150} placeholder="Full name" />
+                <Field label="Name" name="ownerName" value={form.ownerName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.ownerName} required maxLength={150} placeholder="Full name" />
                 <Field label="Mobile number" name="mobile" value={form.mobile} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.mobile} required type="text" inputMode="numeric" maxLength={10} placeholder="9876543210" />
+                <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." registrationMode={registrationMode} className="sm:col-span-2" />
                 <Field label="Email ID" name="email" value={form.email} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.email} required={!isEditing} type="email" maxLength={255} placeholder="owner@example.com" />
-                <FileField label="Profile photo" name="profilePhoto" accept="image/png,image/jpeg,.png,.jpg,.jpeg" files={files.profilePhoto} onChange={(event) => handleFileChange("profilePhoto", event)} hint="JPG or PNG, up to 5 MB." registrationMode={registrationMode} />
                 <Field label="Aadhaar number" name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.aadhaarNumber} type="text" inputMode="numeric" maxLength={12} placeholder="12-digit Aadhaar number" />
               </div>
             </section>
