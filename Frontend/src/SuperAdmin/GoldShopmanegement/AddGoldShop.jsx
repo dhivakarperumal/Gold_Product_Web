@@ -620,7 +620,9 @@ export default function AddGoldShop({
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
           {!registrationMode && tabNavigation}
 
-          <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
+          {(!registrationMode || formError) && (
+            <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
+          )}
 
           <div className={registrationMode ? "overflow-hidden rounded-2xl border border-b-0 border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)]" : "contents"}>
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
@@ -768,7 +770,7 @@ export default function AddGoldShop({
           </fieldset>
           </div>
 
-          <footer className={`flex shrink-0 justify-between gap-3 border-t border-stone-200 ${registrationMode ? "mx-1 rounded-b-2xl border-x border-b bg-white px-4 py-3 shadow-sm sm:mx-2 sm:px-6 sm:py-4" : "bg-[#fbfaf7] px-4 py-4 sm:px-6"}`}>
+          <footer className={`flex shrink-0 justify-between gap-3 ${registrationMode ? "px-1 pt-2 sm:px-2" : "border-t border-stone-200 bg-[#fbfaf7] px-4 py-4 sm:px-6"}`}>
             <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-40 ${registrationMode ? "border border-emerald-600 text-emerald-950" : "border border-stone-300 text-stone-700"}`}>
               {registrationMode && <ArrowLeft size={16} />}
               Previous
