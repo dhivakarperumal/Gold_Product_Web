@@ -192,14 +192,11 @@ test('preserves tack-order quantity and custom net weight in billing totals', ()
   assert.equal(result.billing.sub_total, 110.38);
 });
 
-test('supports precise effective GST rates when converting discounted tack orders', () => {
-  const taxableSubtotal = 499.4 - 49.94;
-  const effectiveRate = Math.round((59.93 / taxableSubtotal) * 1000000) / 10000;
+test('preserves tack-order GST and discount amounts when converting to a bill', () => {
   const result = normalizeBilling(billingInput({
     products: [{ product_name: 'Tack item', category: 'Chain', purity: '22K', price: 499.4 }],
     discount_amount: 49.94,
-    gst_rate: effectiveRate
-  }));
+  }), null, enabledTaxSettings(12), 59.93);
   assert.equal(result.error, undefined);
   assert.equal(result.billing.gst_amount, 59.93);
   assert.equal(result.billing.total_amount, 509.39);

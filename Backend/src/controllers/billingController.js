@@ -195,7 +195,7 @@ function normalizeExchangeItems(value, currentRateSet) {
   return { value: entries };
 }
 
-function normalizeBilling(body, currentRateSet = null, taxSettings = DEFAULT_TAX_SETTINGS) {
+function normalizeBilling(body, currentRateSet = null, taxSettings = DEFAULT_TAX_SETTINGS, gstAmountOverride = null) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'Billing details are required' };
   }
@@ -239,11 +239,15 @@ function normalizeBilling(body, currentRateSet = null, taxSettings = DEFAULT_TAX
     return { error: 'The saved tax calculation mode is invalid' };
   }
   const netSubtotal = subTotal - discount.value - exchangeCredit;
-  const gstAmount = gstRate === 0
+  const calculatedGstAmount = gstRate === 0
     ? 0
     : taxMode === 'Tax Inclusive'
       ? Math.round((netSubtotal * gstRate / (100 + gstRate)) * 100) / 100
       : Math.round(netSubtotal * gstRate) / 100;
+  const gstAmount = gstAmountOverride == null ? calculatedGstAmount : Number(gstAmountOverride);
+  if (!Number.isFinite(gstAmount) || gstAmount < 0 || gstAmount > 9999999999.99) {
+    return { error: 'GST amount is invalid' };
+  }
   const totalAmount = taxMode === 'Tax Inclusive'
     ? netSubtotal
     : Math.round((netSubtotal + gstAmount) * 100) / 100;
@@ -371,8 +375,19 @@ async function postBilling(req, res, next) {
     const currentRateSet = req.body?.payment_type === 'EXCHANGE_GOLD'
       ? await getCurrentGoldRates(req.adminUser.user_id)
       : null;
-    const taxSettings = await getTaxSettings(req.adminUser.user_id);
-    const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet, taxSettings);
+    const taxSettings = tackOrder
+      ? {
+        gst_enabled: Boolean(tackOrder.gst_included),
+        gst_rate: Number(tackOrder.gst_rate),
+        tax_mode: 'Tax Exclusive'
+      }
+      : await getTaxSettings(req.adminUser.user_id);
+    const { billing, error } = normalizeBilling(
+      { ...req.body, products },
+      currentRateSet,
+      taxSettings,
+      tackOrder ? tackOrder.gst_amount : null
+    );
     if (error) return res.status(400).json({ message: error });
     let initialPayment = null;
     if (tackOrder && Number(tackOrder.advance_amount) > 0) {

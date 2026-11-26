@@ -418,6 +418,12 @@ export default function AllTackOrders() {
                           <span>Subtotal</span><span>{formatCurrency(order.sub_total)}</span>
                         </div>
                         <div className="flex justify-between gap-2 text-white/65">
+                          <span>GST amount</span><span>{formatCurrency(order.gst_amount)}</span>
+                        </div>
+                        <div className="flex justify-between gap-2 text-white/65">
+                          <span>Discount</span><span>-{formatCurrency(order.discount_amount)}</span>
+                        </div>
+                        <div className="flex justify-between gap-2 text-white/65">
                           <span>Advance</span><span>{formatCurrency(order.advance_amount)}</span>
                         </div>
                         <div className="flex justify-between gap-2 border-t border-white/15 pt-2 font-extrabold text-orange-200">

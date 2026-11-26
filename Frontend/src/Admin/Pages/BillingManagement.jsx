@@ -109,14 +109,12 @@ function getTackOrderPrefill(order) {
     (part) => !addressText.toLowerCase().includes(String(part).toLowerCase())
   );
   const address = [addressText, missingLocationParts.join(", ")].filter(Boolean).join(", ");
-  const taxableSubtotal = Math.max(0, Number(order.sub_total || 0) - Number(order.discount_amount || 0));
-  const gstRate = order.gst_included && taxableSubtotal > 0
-    ? Math.round((Number(order.gst_amount || 0) / taxableSubtotal) * 1000000) / 10000
-    : 0;
-
   return {
     sourceId: String(order.id),
     sourceNo: order.order_no || "",
+    gstEnabled: Boolean(order.gst_included),
+    gstRate: Number(order.gst_rate) || 0,
+    gstAmount: Number(order.gst_amount) || 0,
     customers: [{
       name: customer.name || "",
       phone: customer.phone || "",
@@ -133,7 +131,6 @@ function getTackOrderPrefill(order) {
       quantity: Number(item.quantity) || 1,
       price: String(item.price ?? 0)
     })),
-    gstRate: String(gstRate),
     discount: Number(order.discount_amount) > 0 ? String(order.discount_amount) : "",
     advanceAmount: String(Number(order.advance_amount) || 0)
   };
@@ -499,7 +496,13 @@ export default function BillingManagement() {
   const [products, setProducts] = useState(() => tackOrderPrefill?.products || []);
   const [productToAdd, setProductToAdd] = useState({ ...EMPTY_PRODUCT });
   const [taxSettings, setTaxSettings] = useState({ ...DEFAULT_TAX_SETTINGS });
-  const [taxSettingsLoading, setTaxSettingsLoading] = useState(tackOrderPrefill?.gstRate || true);
+  const [tackOrderTaxSettings] = useState(() => tackOrderPrefill ? {
+    gst_enabled: tackOrderPrefill.gstEnabled,
+    gst_rate: tackOrderPrefill.gstRate,
+    gst_amount: tackOrderPrefill.gstAmount,
+    tax_mode: "Tax Exclusive"
+  } : null);
+  const [taxSettingsLoading, setTaxSettingsLoading] = useState(true);
   const [discountInput, setDiscountInput] = useState(tackOrderPrefill?.discount || "");
   const [exchanges, setExchanges] = useState([]);
   const [paymentType, setPaymentType] = useState("FULL_PAYMENT");
@@ -642,15 +645,20 @@ export default function BillingManagement() {
     && discountAmount >= 0
     && discountAmount <= subtotal
     && discountAmount + exchangeCredit <= subtotal;
-  const gstRate = taxSettings.gst_enabled ? Number(taxSettings.gst_rate) : 0;
-  const validGst = !taxSettingsLoading && Number.isFinite(gstRate) && gstRate >= 0 && gstRate <= 100;
+  const activeTaxSettings = tackOrderSourceId && tackOrderTaxSettings ? tackOrderTaxSettings : taxSettings;
+  const gstRate = activeTaxSettings.gst_enabled ? Number(activeTaxSettings.gst_rate) : 0;
+  const validGst = (!taxSettingsLoading || Boolean(tackOrderSourceId && tackOrderTaxSettings))
+    && Number.isFinite(gstRate) && gstRate >= 0 && gstRate <= 100;
   const taxableSubtotal = Math.max(0, subtotal - discountAmount - exchangeCredit);
-  const gst = validGst && validDiscount && gstRate > 0
-    ? taxSettings.tax_mode === "Tax Inclusive"
+  const calculatedGst = validGst && validDiscount && gstRate > 0
+    ? activeTaxSettings.tax_mode === "Tax Inclusive"
       ? Math.round((taxableSubtotal * gstRate / (100 + gstRate)) * 100) / 100
       : Math.round(taxableSubtotal * gstRate) / 100
     : 0;
-  const total = taxSettings.tax_mode === "Tax Inclusive"
+  const gst = tackOrderSourceId && tackOrderTaxSettings
+    ? tackOrderTaxSettings.gst_amount
+    : calculatedGst;
+  const total = activeTaxSettings.tax_mode === "Tax Inclusive"
     ? taxableSubtotal
     : Math.round((taxableSubtotal + gst) * 100) / 100;
   const totalBilled = bills.reduce((sum, bill) => sum + (Number(bill.total_amount) || 0), 0);
@@ -1498,12 +1506,16 @@ export default function BillingManagement() {
                 aria-invalid={!validDiscount}
               />
             </label>
+            <div className="flex justify-between text-sm text-emerald-700">
+              <span>Discount applied</span>
+              <span>{validDiscount ? `−${currency(discountAmount)}` : "—"}</span>
+            </div>
             {!validDiscount && <p className="text-xs font-semibold text-rose-600">Discount and exchange credit cannot exceed the products subtotal.</p>}
             {paymentType === "EXCHANGE_GOLD" && <div className="flex justify-between text-sm text-amber-700"><span>Exchange Amount</span><span>−{currency(exchangeCredit)}</span></div>}
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
               <span>
-                {taxSettings.gst_enabled
-                  ? `GST (${gstRate}%, ${taxSettings.tax_mode})`
+                {activeTaxSettings.gst_enabled
+                  ? `GST (${gstRate}%, ${activeTaxSettings.tax_mode})`
                   : "GST disabled"}
               </span>
               <Link to="/admin/settings/tax" className="font-semibold text-[#00695C] hover:underline">
