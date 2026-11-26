@@ -131,31 +131,87 @@ async function getBillingProductsByIds(productIds, createdByUserId) {
   return rows;
 }
 
-async function createBilling(billing, userId) {
-  const [result] = await pool.execute(
-    `INSERT INTO billings
-      (invoice_no, user_id, customers, products, exchanges, payment_type, sub_total, discount_amount,
-       gst_amount, gst_rate, tax_mode, total_amount, paid_amount, balance_due, created_by, updated_by, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, CURRENT_TIMESTAMP)`,
-    [
-      billing.invoice_no,
-      userId,
-      JSON.stringify(billing.customers),
-      JSON.stringify(billing.products),
-      JSON.stringify(billing.exchanges),
-      billing.payment_type,
-      billing.sub_total,
-      billing.discount_amount,
-      billing.gst_amount,
-      billing.gst_rate,
-      billing.tax_mode,
-      billing.total_amount,
-      billing.total_amount,
-      userId,
-      userId
-    ]
-  );
-  return getBillingById(result.insertId, userId);
+async function createBilling(billing, userId, initialPayment = null) {
+  const paidAmount = initialPayment ? Number(initialPayment.amount) : 0;
+  const balanceDue = Math.max(0, Number(billing.total_amount) - paidAmount);
+  const values = [
+    billing.invoice_no,
+    userId,
+    JSON.stringify(billing.customers),
+    JSON.stringify(billing.products),
+    JSON.stringify(billing.exchanges),
+    billing.payment_type,
+    billing.sub_total,
+    billing.discount_amount,
+    billing.gst_amount,
+    billing.gst_rate,
+    billing.tax_mode,
+    billing.total_amount,
+    paidAmount.toFixed(2),
+    balanceDue.toFixed(2),
+    userId,
+    userId
+  ];
+  const insertQuery = `INSERT INTO billings
+    (invoice_no, user_id, customers, products, exchanges, payment_type, sub_total, discount_amount,
+     gst_amount, gst_rate, tax_mode, total_amount, paid_amount, balance_due, created_by, updated_by, updated_at)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+
+  if (!initialPayment) {
+    const [result] = await pool.execute(insertQuery, values);
+    return getBillingById(result.insertId, userId);
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await getFundBalance(connection, initialPayment.created_by_user_id, true);
+    const [result] = await connection.execute(insertQuery, values);
+    try {
+      await connection.execute(
+        `INSERT INTO billing_payments
+          (billing_id, payment_kind, amount, payment_method, reference_number,
+           payment_date, idempotency_key, created_by)
+         VALUES (?, 'PAYMENT', ?, ?, ?, ?, ?, ?)`,
+        [
+          result.insertId,
+          paidAmount.toFixed(2),
+          initialPayment.payment_method,
+          initialPayment.reference_number || null,
+          initialPayment.payment_date,
+          initialPayment.idempotency_key,
+          initialPayment.created_by || null
+        ]
+      );
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') {
+        const duplicateError = new Error('This tack order advance has already been transferred to a bill');
+        duplicateError.code = 'TACK_ORDER_ADVANCE_ALREADY_TRANSFERRED';
+        throw duplicateError;
+      }
+      throw error;
+    }
+    const customerName = billing.customers.map((customer) => customer.name).filter(Boolean).join(', ');
+    await insertFundRecord(connection, {
+      transaction_type: 'CREDIT',
+      transaction_date: initialPayment.payment_date,
+      amount: paidAmount.toFixed(2),
+      payment_method: initialPayment.payment_method,
+      description: `Billing collection ${billing.invoice_no}${customerName ? ` · ${customerName}` : ''}`,
+      admin_name: initialPayment.admin_name,
+      related_reference: billing.invoice_no,
+      idempotency_key: initialPayment.idempotency_key,
+      created_by: initialPayment.created_by_user_id,
+      updated_by: initialPayment.created_by_user_id
+    });
+    await connection.commit();
+    return getBillingById(result.insertId, userId);
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function updateBilling(id, billing, userId) {

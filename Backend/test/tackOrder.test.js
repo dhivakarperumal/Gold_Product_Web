@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { normalizeTackOrder } = require('../src/controllers/tackOrderController');
-const { getTackOrderProductsByIds, listTackOrders } = require('../src/modules/tackOrderModule');
+const { createTackOrder, getTackOrderProductsByIds, listTackOrders } = require('../src/modules/tackOrderModule');
 const { pool } = require('../src/config/db');
 
 const product = {
@@ -181,12 +181,43 @@ test('only resolves products owned by the authenticated shop', async () => {
   assert.deepEqual(capturedQuery.values, [12, 'shop-user-1']);
 });
 
+test('creates tack orders with a persisted Order Placed status', async () => {
+  const originalExecute = pool.execute;
+  let capturedQuery;
+  pool.execute = async (query, values) => {
+    capturedQuery = { query, values };
+    return [{ insertId: 42 }, []];
+  };
+  let order;
+  try {
+    order = await createTackOrder({
+      customer: { name: 'A Customer' },
+      items: [],
+      sub_total: 0,
+      gst_included: false,
+      gst_rate: 0,
+      gst_amount: 0,
+      discount_type: 'Fixed',
+      discount_value: 0,
+      discount_amount: 0,
+      total_amount: 0,
+      advance_amount: 0,
+      balance_due: 0
+    }, 'shop-user-1');
+  } finally {
+    pool.execute = originalExecute;
+  }
+  assert.equal(order.order_status, 'Order Placed');
+  assert.match(capturedQuery.query, /total_amount, order_status, advance_amount/);
+  assert.equal(capturedQuery.values[12], 'Order Placed');
+});
+
 test('lists only tack orders owned by the authenticated shop', async () => {
   const originalExecute = pool.execute;
   let capturedQuery;
   pool.execute = async (query, values) => {
     capturedQuery = { query, values };
-    return [[{ id: 1, order_no: 'TACK-20261125-AB12CD34' }], []];
+    return [[{ id: 1, order_no: 'TACK-20261125-AB12CD34', order_status: 'Order Placed' }], []];
   };
   try {
     const orders = await listTackOrders('shop-user-1');
@@ -195,6 +226,7 @@ test('lists only tack orders owned by the authenticated shop', async () => {
     pool.execute = originalExecute;
   }
   assert.match(capturedQuery.query, /WHERE user_id = \?/);
+  assert.match(capturedQuery.query, /order_status/);
   assert.match(capturedQuery.query, /ORDER BY created_at DESC, id DESC/);
   assert.deepEqual(capturedQuery.values, ['shop-user-1']);
 });

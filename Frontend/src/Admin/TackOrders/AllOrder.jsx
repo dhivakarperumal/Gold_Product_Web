@@ -339,6 +339,7 @@ export default function AllTackOrders() {
                 .filter(Boolean)
                 .join(", ");
               const itemCount = order.items.reduce((total, item) => total + Number(item.quantity || 0), 0);
+              const orderStatus = order.order_status || "Order Placed";
 
               return (
                 <article key={order.id} className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
@@ -348,6 +349,9 @@ export default function AllTackOrders() {
                       <h2 className="mt-0.5 text-lg font-black text-slate-800">{order.order_no}</h2>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                        {orderStatus}
+                      </span>
                       <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
                         <FiCalendar aria-hidden="true" />
                         {formatOrderDate(order.created_at)}

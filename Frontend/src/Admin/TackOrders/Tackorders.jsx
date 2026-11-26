@@ -500,7 +500,7 @@ const TackOrders = () => {
         return;
       }
 
-      toast.success(`Tack order ${data.order_no} added.`);
+      toast.success(`Tack order ${data.order_no} added. Status: ${data.order_status || "Order Placed"}.`);
       setCustomer({
         name: "",
         phone: "",

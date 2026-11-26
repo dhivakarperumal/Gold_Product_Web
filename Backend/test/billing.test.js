@@ -192,14 +192,16 @@ test('preserves tack-order quantity and custom net weight in billing totals', ()
   assert.equal(result.billing.sub_total, 110.38);
 });
 
-test('preserves tack-order GST and discount amounts when converting to a bill', () => {
+test('preserves tack-order GST and discount totals when converting to a bill', () => {
   const result = normalizeBilling(billingInput({
-    products: [{ product_name: 'Tack item', category: 'Chain', purity: '22K', price: 499.4 }],
-    discount_amount: 49.94,
-  }), null, enabledTaxSettings(12), 59.93);
+    products: [{ product_name: 'Tack item', category: 'Chain', purity: '22K', price: 253 }],
+    discount_amount: 20.24
+  }), null, enabledTaxSettings(2), 5.06);
   assert.equal(result.error, undefined);
-  assert.equal(result.billing.gst_amount, 59.93);
-  assert.equal(result.billing.total_amount, 509.39);
+  assert.equal(result.billing.gst_amount, 5.06);
+  assert.equal(result.billing.discount_amount, 20.24);
+  assert.equal(result.billing.total_amount, 237.82);
+  assert.equal(Math.round((result.billing.total_amount - 37.82) * 100) / 100, 200);
 });
 
 test('rejects invalid billing quantities', () => {
@@ -390,7 +392,7 @@ test('records a transferred tack-order advance with the bill and fund ledger ato
   }
   assert.equal(committed, true);
   const billInsert = executions.find(({ query }) => query.includes('INSERT INTO billings'));
-  assert.deepEqual(billInsert.values.slice(10, 12), ['25.00', '75.00']);
+  assert.deepEqual(billInsert.values.slice(12, 14), ['25.00', '75.00']);
   const paymentInsert = executions.find(({ query }) => query.includes('INSERT INTO billing_payments'));
   assert.equal(paymentInsert.values[1], '25.00');
   const fundInsert = executions.find(({ query }) => query.includes('INSERT INTO funds'));
