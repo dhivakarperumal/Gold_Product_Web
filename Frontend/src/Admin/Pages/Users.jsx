@@ -94,7 +94,7 @@ const Users = () => {
         name: "",
         email: "",
         phone: "",
-        role: "user",
+        role: isSuperAdminUsersPage ? "admin" : "user",
         password: "",
     });
 
@@ -183,7 +183,14 @@ const Users = () => {
     const selectedUser = users.find((user) => String(user.id) === String(selectedUserId)) || null;
 
     const openAddModal = () => {
-        setFormData({ username: "", name: "", email: "", phone: "", role: "user", password: "" });
+        setFormData({
+            username: "",
+            name: "",
+            email: "",
+            phone: "",
+            role: isSuperAdminUsersPage ? "admin" : "user",
+            password: "",
+        });
         setIsEditing(false);
         setEditUserId(null);
         setIsModalOpen(true);
@@ -196,7 +203,7 @@ const Users = () => {
             name: user.name || "",
             email: user.email || "",
             phone: user.phone || "",
-            role: user.role || "user",
+            role: isSuperAdminUsersPage ? "admin" : user.role || "user",
             password: "",
         });
         setEditUserId(user.id);
@@ -625,10 +632,16 @@ const Users = () => {
                             <label className="text-xs font-semibold text-slate-600">
                                 Role
                                 <select name="role" value={formData.role} onChange={(event) => setFormData((current) => ({ ...current, role: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-[#008577]">
-                                    <option value="user">Customer</option>
-                                    <option value="manager">Manager</option>
-                                    <option value="dealer">Dealer</option>
-                                    <option value="admin">Admin</option>
+                                    {isSuperAdminUsersPage ? (
+                                        <option value="admin">Admin</option>
+                                    ) : (
+                                        <>
+                                            <option value="user">Customer</option>
+                                            <option value="manager">Manager</option>
+                                            <option value="dealer">Dealer</option>
+                                            <option value="admin">Admin</option>
+                                        </>
+                                    )}
                                 </select>
                             </label>
                             {!isEditing && (
