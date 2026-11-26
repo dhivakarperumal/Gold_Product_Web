@@ -11,6 +11,7 @@ export default function AuthLayout({
   contentClassName = "",
   fixedHeight = false,
   hideHeader = false,
+  minimalHeader = false,
   splitLayout = false,
   wideFormPanel = false,
   children
@@ -94,10 +95,10 @@ export default function AuthLayout({
             </div>
 
             {!hideHeader && (
-              <header className={`shrink-0 text-center ${wideFormPanel ? "mb-3 mt-2" : "mb-5 mt-3"}`}>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-800">{eyebrow}</p>
-                <h1 className={`mt-2 font-bold tracking-tight text-[#172a23] ${wideFormPanel ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"}`}>{title}</h1>
-                <p className={`mx-auto max-w-md text-sm text-stone-600 ${wideFormPanel ? "mt-1 leading-5" : "mt-2 leading-6"}`}>{subtitle}</p>
+              <header className={`shrink-0 text-center ${minimalHeader ? "mb-1 mt-1" : wideFormPanel ? "mb-3 mt-2" : "mb-5 mt-3"}`}>
+                {!minimalHeader && <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-800">{eyebrow}</p>}
+                <h1 className={`font-bold tracking-tight text-[#172a23] ${minimalHeader ? "mt-0 text-xl sm:text-2xl" : `mt-2 ${wideFormPanel ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"}`}`}>{title}</h1>
+                {!minimalHeader && <p className={`mx-auto max-w-md text-sm text-stone-600 ${wideFormPanel ? "mt-1 leading-5" : "mt-2 leading-6"}`}>{subtitle}</p>}
               </header>
             )}
 
