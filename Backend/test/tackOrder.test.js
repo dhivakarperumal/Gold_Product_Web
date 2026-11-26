@@ -68,8 +68,15 @@ test('normalizes tack-order items and calculates total, advance, and balance fro
   assert.equal(result.tackOrder.gst_amount, 20);
   assert.equal(result.tackOrder.discount_amount, 10);
   assert.equal(result.tackOrder.total_amount, 210);
+  assert.equal(result.tackOrder.payment_status, 'Pending');
   assert.equal(result.tackOrder.advance_amount, 50);
   assert.equal(result.tackOrder.balance_due, 160);
+});
+
+test('marks a tack order Paid when its full total is paid in advance', () => {
+  const result = normalizeTackOrder(orderInput({ advance_amount: 210 }), [product]);
+  assert.equal(result.error, undefined);
+  assert.equal(result.tackOrder.payment_status, 'Paid');
 });
 
 test('recalculates the unit price and stores the entered net weight', () => {
@@ -201,6 +208,7 @@ test('creates tack orders with a persisted Order Placed status', async () => {
       discount_value: 0,
       discount_amount: 0,
       total_amount: 0,
+      payment_status: 'Pending',
       advance_amount: 0,
       balance_due: 0
     }, 'shop-user-1');
@@ -208,8 +216,9 @@ test('creates tack orders with a persisted Order Placed status', async () => {
     pool.execute = originalExecute;
   }
   assert.equal(order.order_status, 'Order Placed');
-  assert.match(capturedQuery.query, /total_amount, order_status, advance_amount/);
+  assert.match(capturedQuery.query, /total_amount, order_status,\s*payment_status,\s*advance_amount/);
   assert.equal(capturedQuery.values[12], 'Order Placed');
+  assert.equal(capturedQuery.values[13], 'Pending');
 });
 
 test('lists only tack orders owned by the authenticated shop', async () => {
@@ -217,7 +226,12 @@ test('lists only tack orders owned by the authenticated shop', async () => {
   let capturedQuery;
   pool.execute = async (query, values) => {
     capturedQuery = { query, values };
-    return [[{ id: 1, order_no: 'TACK-20261125-AB12CD34', order_status: 'Order Placed' }], []];
+    return [[{
+      id: 1,
+      order_no: 'TACK-20261125-AB12CD34',
+      order_status: 'Order Placed',
+      payment_status: 'Pending'
+    }], []];
   };
   try {
     const orders = await listTackOrders('shop-user-1');
@@ -227,6 +241,7 @@ test('lists only tack orders owned by the authenticated shop', async () => {
   }
   assert.match(capturedQuery.query, /WHERE user_id = \?/);
   assert.match(capturedQuery.query, /order_status/);
+  assert.match(capturedQuery.query, /payment_status/);
   assert.match(capturedQuery.query, /ORDER BY created_at DESC, id DESC/);
   assert.deepEqual(capturedQuery.values, ['shop-user-1']);
 });

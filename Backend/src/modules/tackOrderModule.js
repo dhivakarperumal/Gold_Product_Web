@@ -18,6 +18,7 @@ async function initializeTackOrderModule() {
       discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
       total_amount DECIMAL(12,2) NOT NULL,
       order_status VARCHAR(30) NOT NULL DEFAULT 'Order Placed',
+      payment_status VARCHAR(20) NOT NULL DEFAULT 'Pending',
       advance_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
       balance_due DECIMAL(12,2) NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -28,6 +29,24 @@ async function initializeTackOrderModule() {
   if (orderStatusColumns.length === 0) {
     await pool.query("ALTER TABLE tack_orders ADD COLUMN order_status VARCHAR(30) NOT NULL DEFAULT 'Order Placed' AFTER total_amount");
   }
+  const [paymentStatusColumns] = await pool.query("SHOW COLUMNS FROM tack_orders LIKE 'payment_status'");
+  if (paymentStatusColumns.length === 0) {
+    await pool.query("ALTER TABLE tack_orders ADD COLUMN payment_status VARCHAR(20) NOT NULL DEFAULT 'Pending' AFTER order_status");
+  }
+  await pool.query(`
+    UPDATE billings b
+    JOIN billing_payments p ON p.billing_id = b.id AND p.payment_kind = 'PAYMENT'
+    JOIN tack_orders t ON t.order_no = p.reference_number AND t.user_id = b.user_id
+    SET b.source_tack_order_id = t.id
+    WHERE b.source_tack_order_id IS NULL
+      AND p.idempotency_key = CONCAT('tack-order-advance:', t.user_id, ':', t.id)
+  `);
+  await pool.query(`
+    UPDATE tack_orders t
+    JOIN billings b ON b.source_tack_order_id = t.id AND b.user_id = t.user_id
+    SET t.payment_status = CASE WHEN b.balance_due <= 0 THEN 'Paid' ELSE 'Pending' END,
+        t.balance_due = b.balance_due
+  `);
 }
 
 async function getTackOrderProductsByIds(productIds, userId) {
@@ -50,8 +69,9 @@ async function createTackOrder(tackOrder, userId) {
   const [result] = await pool.execute(
     `INSERT INTO tack_orders
       (order_no, user_id, customer, items, sub_total, gst_included, gst_rate, gst_amount,
-       discount_type, discount_value, discount_amount, total_amount, order_status, advance_amount, balance_due)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       discount_type, discount_value, discount_amount, total_amount, order_status, payment_status,
+       advance_amount, balance_due)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       orderNo,
       userId,
@@ -66,17 +86,24 @@ async function createTackOrder(tackOrder, userId) {
       tackOrder.discount_amount,
       tackOrder.total_amount,
       'Order Placed',
+      tackOrder.payment_status,
       tackOrder.advance_amount,
       tackOrder.balance_due
     ]
   );
-  return { ...tackOrder, id: result.insertId, order_no: orderNo, order_status: 'Order Placed' };
+  return {
+    ...tackOrder,
+    id: result.insertId,
+    order_no: orderNo,
+    order_status: 'Order Placed',
+    payment_status: tackOrder.payment_status
+  };
 }
 
 async function listTackOrders(userId) {
   const [rows] = await pool.execute(
     `SELECT id, order_no, customer, items, sub_total, gst_included, gst_rate, gst_amount,
-       discount_type, discount_value, discount_amount, total_amount, order_status, advance_amount,
+       discount_type, discount_value, discount_amount, total_amount, order_status, payment_status, advance_amount,
        balance_due, created_at
      FROM tack_orders
      WHERE user_id = ?
@@ -89,7 +116,7 @@ async function listTackOrders(userId) {
 async function getTackOrderById(id, userId) {
   const [rows] = await pool.execute(
     `SELECT id, order_no, customer, items, sub_total, gst_included, gst_rate, gst_amount,
-       discount_amount, total_amount, order_status, advance_amount
+       discount_amount, total_amount, order_status, payment_status, advance_amount
      FROM tack_orders
      WHERE id = ? AND user_id = ?`,
     [id, userId]

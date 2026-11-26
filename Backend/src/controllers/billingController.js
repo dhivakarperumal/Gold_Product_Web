@@ -389,6 +389,7 @@ async function postBilling(req, res, next) {
       tackOrder ? tackOrder.gst_amount : null
     );
     if (error) return res.status(400).json({ message: error });
+    billing.source_tack_order_id = tackOrder?.id ?? null;
     let initialPayment = null;
     if (tackOrder && Number(tackOrder.advance_amount) > 0) {
       if (Number(tackOrder.advance_amount) > billing.total_amount) {

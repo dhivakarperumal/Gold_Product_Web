@@ -8,6 +8,7 @@ async function initializeBillingModule() {
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
       invoice_no VARCHAR(50) NOT NULL UNIQUE,
       user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
+      source_tack_order_id BIGINT UNSIGNED NULL,
       customers JSON NOT NULL,
       products JSON NOT NULL,
       exchanges JSON NOT NULL,
@@ -27,6 +28,10 @@ async function initializeBillingModule() {
   const [userIdColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'user_id'");
   if (userIdColumns.length === 0) {
     await pool.query('ALTER TABLE billings ADD COLUMN user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER invoice_no');
+  }
+  const [sourceTackOrderColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'source_tack_order_id'");
+  if (sourceTackOrderColumns.length === 0) {
+    await pool.query('ALTER TABLE billings ADD COLUMN source_tack_order_id BIGINT UNSIGNED NULL AFTER user_id');
   }
   const [gstRateColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'gst_rate'");
   if (gstRateColumns.length === 0) {
@@ -150,12 +155,14 @@ async function createBilling(billing, userId, initialPayment = null) {
     paidAmount.toFixed(2),
     balanceDue.toFixed(2),
     userId,
-    userId
+    userId,
+    billing.source_tack_order_id || null
   ];
   const insertQuery = `INSERT INTO billings
     (invoice_no, user_id, customers, products, exchanges, payment_type, sub_total, discount_amount,
-     gst_amount, gst_rate, tax_mode, total_amount, paid_amount, balance_due, created_by, updated_by, updated_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+     gst_amount, gst_rate, tax_mode, total_amount, paid_amount, balance_due, created_by, updated_by,
+     source_tack_order_id, updated_at)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
 
   if (!initialPayment) {
     const [result] = await pool.execute(insertQuery, values);
@@ -204,6 +211,12 @@ async function createBilling(billing, userId, initialPayment = null) {
       created_by: initialPayment.created_by_user_id,
       updated_by: initialPayment.created_by_user_id
     });
+    if (billing.source_tack_order_id != null) {
+      await connection.execute(
+        'UPDATE tack_orders SET payment_status = ?, balance_due = ? WHERE id = ? AND user_id = ?',
+        [balanceDue <= 0 ? 'Paid' : 'Pending', balanceDue.toFixed(2), billing.source_tack_order_id, userId]
+      );
+    }
     await connection.commit();
     return getBillingById(result.insertId, userId);
   } catch (error) {
@@ -246,7 +259,7 @@ async function recordBillingPayment(id, payment, userId) {
   try {
     await connection.beginTransaction();
     const [bills] = await connection.execute(
-      'SELECT id, invoice_no, customers, total_amount, paid_amount FROM billings WHERE id = ? AND user_id = ? FOR UPDATE',
+      'SELECT id, invoice_no, customers, total_amount, paid_amount, source_tack_order_id FROM billings WHERE id = ? AND user_id = ? FOR UPDATE',
       [id, userId]
     );
     if (!bills.length) {
@@ -295,10 +308,17 @@ async function recordBillingPayment(id, payment, userId) {
       admin_name: payment.admin_name
     });
     const paidAmount = currentPaid + (payment.payment_kind === 'PAYMENT' ? Number(payment.amount) : -Number(payment.amount));
+    const balanceDue = Math.max(0, Number(bill.total_amount) - paidAmount);
     await connection.execute(
       'UPDATE billings SET paid_amount = ?, balance_due = GREATEST(total_amount - ?, 0), updated_by = ? WHERE id = ? AND user_id = ?',
       [paidAmount.toFixed(2), paidAmount.toFixed(2), payment.updated_by || null, id, userId]
     );
+    if (bill.source_tack_order_id != null) {
+      await connection.execute(
+        'UPDATE tack_orders SET payment_status = ?, balance_due = ? WHERE id = ? AND user_id = ?',
+        [balanceDue <= 0 ? 'Paid' : 'Pending', balanceDue.toFixed(2), bill.source_tack_order_id, userId]
+      );
+    }
     await connection.commit();
     return getBillingById(id, userId);
   } catch (error) {

@@ -2,7 +2,12 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { mapSelectedProducts, normalizeBilling } = require('../src/controllers/billingController');
 const { pool } = require('../src/config/db');
-const { createBilling, getBillingById, listBillings } = require('../src/modules/billingModule');
+const {
+  createBilling,
+  getBillingById,
+  listBillings,
+  recordBillingPayment
+} = require('../src/modules/billingModule');
 const { getTackOrderById } = require('../src/modules/tackOrderModule');
 
 const billingInput = (overrides = {}) => ({
@@ -373,7 +378,8 @@ test('records a transferred tack-order advance with the bill and fund ledger ato
       sub_total: 100,
       discount_amount: 0,
       gst_amount: 0,
-      total_amount: 100
+      total_amount: 100,
+      source_tack_order_id: 42
     }, 'shop-user-1', {
       amount: 25,
       payment_method: 'Other',
@@ -393,9 +399,70 @@ test('records a transferred tack-order advance with the bill and fund ledger ato
   assert.equal(committed, true);
   const billInsert = executions.find(({ query }) => query.includes('INSERT INTO billings'));
   assert.deepEqual(billInsert.values.slice(12, 14), ['25.00', '75.00']);
+  assert.equal(billInsert.values[16], 42);
   const paymentInsert = executions.find(({ query }) => query.includes('INSERT INTO billing_payments'));
   assert.equal(paymentInsert.values[1], '25.00');
   const fundInsert = executions.find(({ query }) => query.includes('INSERT INTO funds'));
   assert.equal(fundInsert.values[2], 'CREDIT');
   assert.equal(fundInsert.values[4], '25.00');
+  const statusUpdate = executions.find(({ query }) => query.includes('UPDATE tack_orders SET payment_status'));
+  assert.deepEqual(statusUpdate.values, ['Pending', '75.00', 42, 'shop-user-1']);
+});
+
+test('updates linked tack-order payment status when a bill is paid or refunded', async () => {
+  const originalExecute = pool.execute;
+  const originalGetConnection = pool.getConnection;
+
+  const recordPaymentAndGetStatus = async (paymentKind, amount, currentPaid, expectedStatus) => {
+    const executions = [];
+    let committed = false;
+    const connection = {
+      beginTransaction: async () => {},
+      commit: async () => { committed = true; },
+      rollback: async () => {},
+      release: () => {},
+      execute: async (query, values) => {
+        executions.push({ query, values });
+        if (query.includes('FROM billings WHERE id')) {
+          return [[{
+            id: 84,
+            invoice_no: 'BILL-TEST',
+            customers: JSON.stringify([{ name: 'A Customer' }]),
+            total_amount: 100,
+            paid_amount: currentPaid,
+            source_tack_order_id: 42
+          }], []];
+        }
+        if (query.includes('SELECT user_id FROM users')) return [[{ user_id: 'shop-user-1' }], []];
+        if (query.includes('AS balance')) return [[{ balance: 1000 }], []];
+        return [{ insertId: 1 }, []];
+      }
+    };
+    pool.getConnection = async () => connection;
+    pool.execute = async () => [[{ id: 84, paid_amount: 100, balance_due: 0 }], []];
+    try {
+      await recordBillingPayment(84, {
+        payment_kind: paymentKind,
+        amount: amount.toFixed(2),
+        payment_method: 'Cash',
+        payment_date: '2026-01-01 12:00:00',
+        idempotency_key: `billing-payment:${paymentKind}`,
+        created_by: 7,
+        updated_by: 'shop-user-1',
+        created_by_user_id: 'shop-user-1',
+        admin_name: 'Shop Admin'
+      }, 'shop-user-1');
+    } finally {
+      pool.execute = originalExecute;
+      pool.getConnection = originalGetConnection;
+    }
+
+    assert.equal(committed, true);
+    const statusUpdate = executions.find(({ query }) => query.includes('UPDATE tack_orders SET payment_status'));
+    const expectedBalance = paymentKind === 'PAYMENT' ? '0.00' : '10.00';
+    assert.deepEqual(statusUpdate.values, [expectedStatus, expectedBalance, 42, 'shop-user-1']);
+  };
+
+  await recordPaymentAndGetStatus('PAYMENT', 50, 50, 'Paid');
+  await recordPaymentAndGetStatus('REFUND', 10, 100, 'Pending');
 });

@@ -175,6 +175,7 @@ function normalizeTackOrder(body, catalogProducts) {
       discount_value: roundMoney(discountValue),
       discount_amount: discountAmount,
       total_amount: totalAmount,
+      payment_status: normalizedAdvance >= totalAmount ? 'Paid' : 'Pending',
       advance_amount: normalizedAdvance,
       balance_due: roundMoney(totalAmount - normalizedAdvance)
     }

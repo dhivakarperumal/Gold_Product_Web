@@ -87,8 +87,11 @@ function getOrderDateKey(value) {
 }
 
 function getPaymentStatus(order) {
+  if (order.payment_status === "Paid") return "PAID";
   const balance = Number(order.balance_due);
   if (Number.isFinite(balance) && balance <= 0) return "PAID";
+  const total = Number(order.total_amount);
+  if (Number.isFinite(balance) && Number.isFinite(total) && balance < total) return "PARTIAL";
   return Number(order.advance_amount) > 0 ? "PARTIAL" : "UNPAID";
 }
 
@@ -340,6 +343,7 @@ export default function AllTackOrders() {
                 .join(", ");
               const itemCount = order.items.reduce((total, item) => total + Number(item.quantity || 0), 0);
               const orderStatus = order.order_status || "Order Placed";
+              const paymentStatus = order.payment_status || "Pending";
 
               return (
                 <article key={order.id} className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
@@ -351,6 +355,11 @@ export default function AllTackOrders() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
                         {orderStatus}
+                      </span>
+                      <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                        paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                      }`}>
+                        Payment: {paymentStatus}
                       </span>
                       <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
                         <FiCalendar aria-hidden="true" />
