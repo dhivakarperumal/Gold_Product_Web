@@ -160,8 +160,6 @@ const CustomerViewProducts = () => {
         (activePage - 1) * PRODUCTS_PER_PAGE,
         activePage * PRODUCTS_PER_PAGE
     );
-    const topSearchProducts = products.filter((product) => product.name).slice(0, 8);
-
     const clearFilters = () => {
         setSearch("");
         setSortBy("newest");
@@ -215,35 +213,56 @@ const CustomerViewProducts = () => {
     return (
         <section className="space-y-5 pb-10">
             <header className="rounded-2xl border border-[#eadfce] bg-gradient-to-r from-[#fffaf0] via-white to-[#f6f1e7] p-5 shadow-sm sm:p-7">
-                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#a67b2e]">
-                    Storefront preview
-                </p>
-                <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h1 className="font-serif text-2xl font-bold text-[#201a13] sm:text-3xl">
-                            Customer View Product
-                        </h1>
-                        <p className="mt-1 text-sm text-[#81786b]">
-                            Browse your products in the same card style customers see.
-                        </p>
+                <h1 className="mb-3 font-serif text-base font-bold text-[#201a13]">
+                    Customer View Product
+                </h1>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setFiltersVisible((visible) => !visible)}
+                            aria-expanded={filtersVisible}
+                            aria-controls="customer-product-filters"
+                            className="flex shrink-0 items-center gap-2 rounded-lg border border-[#e8dfd1] bg-white px-3 py-2 text-xs font-semibold text-[#174a38] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
+                        >
+                            <SlidersHorizontal size={14} aria-hidden="true" />
+                            {filtersVisible ? "Hide Filters" : "Show Filters"}
+                        </button>
+                        <label className="flex items-center gap-2 text-xs text-[#62594d]">
+                            Sort by:
+                            <select
+                                value={sortBy}
+                                onChange={(event) => {
+                                    setCurrentPage(1);
+                                    setSortBy(event.target.value);
+                                }}
+                                className="rounded-md border border-[#e8dfd1] bg-white px-2.5 py-2 text-xs text-[#30271b] outline-none focus:border-[#174a38]"
+                            >
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                                <option value="price-low">Price: Low to High</option>
+                                <option value="price-high">Price: High to Low</option>
+                                <option value="name">Name: A to Z</option>
+                            </select>
+                        </label>
                     </div>
                     <label className="relative block w-full sm:max-w-sm">
-                        <Search
-                            size={17}
-                            aria-hidden="true"
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#81786b]"
-                        />
-                        <input
-                            type="search"
-                            value={search}
-                            onChange={(event) => {
-                                setSearch(event.target.value);
-                                setCurrentPage(1);
-                            }}
-                            placeholder="Search your products..."
-                            aria-label="Search your products"
-                            className="w-full rounded-xl border border-[#e8dfd1] bg-white py-3 pl-10 pr-4 text-sm text-[#30271b] outline-none transition focus:border-[#174a38] focus:ring-2 focus:ring-[#174a38]/10"
-                        />
+                            <Search
+                                size={17}
+                                aria-hidden="true"
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#81786b]"
+                            />
+                            <input
+                                type="search"
+                                value={search}
+                                onChange={(event) => {
+                                    setSearch(event.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                placeholder="Search your products..."
+                                aria-label="Search your products"
+                                className="w-full rounded-xl border border-[#e8dfd1] bg-white py-3 pl-10 pr-4 text-sm text-[#30271b] outline-none transition focus:border-[#174a38] focus:ring-2 focus:ring-[#174a38]/10"
+                            />
                     </label>
                 </div>
             </header>
@@ -361,65 +380,10 @@ const CustomerViewProducts = () => {
                 </aside>
 
                 <main className="min-w-0">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                        <h2 className="font-serif text-base font-bold text-[#29231c]">Top Searches</h2>
-                        <button
-                            type="button"
-                            onClick={() => setFiltersVisible((visible) => !visible)}
-                            aria-expanded={filtersVisible}
-                            aria-controls="customer-product-filters"
-                            className="flex shrink-0 items-center gap-2 rounded-lg border border-[#e8dfd1] bg-white px-3 py-2 text-xs font-semibold text-[#174a38] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
-                        >
-                            <SlidersHorizontal size={14} aria-hidden="true" />
-                            {filtersVisible ? "Hide Filters" : "Show Filters"}
-                        </button>
-                    </div>
-                    {topSearchProducts.length > 0 && (
-                        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
-                            {topSearchProducts.map((product) => {
-                                const image = getProductImageUrl(product);
-                                const productKey = product.id ?? product.product_id ?? product.product_code ?? product.name;
-                                return (
-                                    <button
-                                        key={productKey}
-                                        type="button"
-                                        onClick={() => {
-                                            setSearch(product.name);
-                                            setCurrentPage(1);
-                                        }}
-                                        title={product.name}
-                                        className="flex min-w-0 items-center gap-2 rounded-lg border border-[#eee5d6] bg-white px-2 py-2 text-left text-[11px] font-medium text-[#514638] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
-                                    >
-                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#f8f2e8]">
-                                            {image && <img src={image} alt="" loading="lazy" className="h-full w-full object-contain" />}
-                                        </span>
-                                        <span className="min-w-0 truncate">{product.name}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
                     <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                         <p className="text-xs text-[#81786b]" aria-live="polite">
                             {loading ? "Loading products..." : `Found ${filteredProducts.length} ${filteredProducts.length === 1 ? "product" : "products"}`}
                         </p>
-                        <label className="flex items-center gap-2 text-xs text-[#62594d]">
-                            Sort by:
-                            <select
-                                value={sortBy}
-                                onChange={(event) => {
-                                    setCurrentPage(1);
-                                    setSortBy(event.target.value);
-                                }}
-                                className="rounded-md border border-[#e8dfd1] bg-white px-2.5 py-2 text-xs text-[#30271b] outline-none focus:border-[#174a38]"
-                            >
-                                <option value="newest">Newest First</option>
-                                <option value="oldest">Oldest First</option>
-                                <option value="price-low">Price: Low to High</option>
-                                <option value="price-high">Price: High to Low</option>
-                                <option value="name">Name: A to Z</option>
-                            </select>
-                        </label>
                     </div>
 
                     {loading ? (
