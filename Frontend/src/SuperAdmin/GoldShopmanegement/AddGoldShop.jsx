@@ -614,7 +614,7 @@ export default function AddGoldShop({
 
         <form noValidate onSubmit={(event) => submit(event)} className={`flex flex-1 flex-col ${registrationMode ? "lg:min-h-0 lg:overflow-hidden" : "min-h-0 overflow-hidden"}`}>
           {registrationMode && <div className="shrink-0 px-1 pb-2 pt-2 sm:px-2">{tabNavigation}</div>}
-          <div className={`space-y-3 ${registrationMode ? "px-1 py-1 sm:px-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"}`}>
+          <div className={`space-y-3 ${registrationMode ? "px-1 pt-1 sm:px-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"}`}>
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
@@ -783,6 +783,24 @@ export default function AddGoldShop({
                 </button>
               ) : (
                 <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-800 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                  Save &amp; Next <ArrowRight size={17} />
+                </button>
+              )}
+            </footer>
+          )}
+          {registrationMode && (
+            <footer className="flex shrink-0 justify-between gap-3 px-1 py-4 sm:px-2">
+              <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className="inline-flex min-h-12 min-w-[132px] items-center justify-center gap-2 rounded-full border border-emerald-800 bg-transparent px-5 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[150px]">
+                <ArrowLeft size={16} /> Previous
+              </button>
+              {activeTabIndex === TABS.length - 1 ? (
+                <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex min-h-12 min-w-[160px] items-center justify-center gap-2 rounded-full bg-[#064A41] px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#043D37] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[184px]">
+                  {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                  {isEditing ? "Save Changes" : "Save Gold Shop"}
+                  {!submitting && <ArrowRight size={17} />}
+                </button>
+              ) : (
+                <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="inline-flex min-h-12 min-w-[160px] items-center justify-center gap-2 rounded-full bg-[#064A41] px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#043D37] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[184px]">
                   Save &amp; Next <ArrowRight size={17} />
                 </button>
               )}
