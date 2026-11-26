@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import api from "../../api";
-import ProductCard from "../../Components/Home/ProductCard";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { formatCurrency } from "../../utils/currency";
 
@@ -446,12 +445,41 @@ const CustomerViewProducts = () => {
                     ) : visibleProducts.length ? (
                         <>
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
-                                {visibleProducts.map((product) => (
-                                    <ProductCard
-                                        key={product.id ?? product.product_id ?? product.product_code}
-                                        product={product}
-                                    />
-                                ))}
+                                {visibleProducts.map((product) => {
+                                    const image = getProductImageUrl(product);
+                                    return (
+                                        <article
+                                            key={product.id ?? product.product_id ?? product.product_code}
+                                            className="group overflow-hidden rounded-xl border border-[#eadfce] bg-white shadow-sm transition hover:border-[#d8b46c] hover:shadow-md"
+                                        >
+                                            <div className="relative aspect-square overflow-hidden bg-[#f6efe4]">
+                                                {image ? (
+                                                    <img
+                                                        src={image}
+                                                        alt={product.name || "Product"}
+                                                        loading="lazy"
+                                                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                                    />
+                                                ) : (
+                                                    <div className="flex h-full items-center justify-center text-xs text-[#81786b]">
+                                                        No image
+                                                    </div>
+                                                )}
+                                                <span className="absolute left-2 top-2 max-w-[85%] truncate rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#765323] shadow-sm">
+                                                    {product.category || "Jewelry"}
+                                                </span>
+                                            </div>
+                                            <div className="p-3">
+                                                <h3 className="line-clamp-2 min-h-10 text-sm font-semibold text-[#292018]" title={product.name}>
+                                                    {product.name || "Unnamed product"}
+                                                </h3>
+                                                <p className="mt-1 text-base font-bold text-[#c51e18]">
+                                                    {formatCurrency(getProductPrice(product))}
+                                                </p>
+                                            </div>
+                                        </article>
+                                    );
+                                })}
                             </div>
                             {totalPages > 1 && (
                                 <nav className="mt-6 flex items-center justify-center gap-3" aria-label="Product pages">
