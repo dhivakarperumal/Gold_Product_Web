@@ -261,7 +261,7 @@ const CustomerViewProductDetail = () => {
                 </Link>
             </div>
 
-            <section className="grid items-start gap-5 xl:grid-cols-2">
+            <section className="grid items-start gap-5 xl:grid-cols-2 xl:items-stretch">
                 <div className="rounded-2xl border border-[#eadfce] bg-white p-3 shadow-sm">
                     <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-[#f8f4eb]">
                         {selectedImage ? (
@@ -314,47 +314,70 @@ const CustomerViewProductDetail = () => {
                     )}
                 </div>
 
-                <div className="rounded-2xl border border-[#eadfce] bg-gradient-to-br from-[#fffaf0] via-white to-[#f6f1e7] p-5 shadow-sm sm:p-7">
-                    <div className="flex flex-wrap items-center gap-2">
-                        {product.category && (
-                            <span className="rounded-full bg-[#f5ecd9] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#765323]">
-                                {product.category}
+                <div className="flex min-w-0 flex-col gap-5 xl:h-full xl:min-h-0 xl:gap-4 xl:overflow-hidden">
+                    <div className="rounded-2xl border border-[#eadfce] bg-gradient-to-br from-[#fffaf0] via-white to-[#f6f1e7] p-5 shadow-sm sm:p-7 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {product.category && (
+                                <span className="rounded-full bg-[#f5ecd9] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#765323]">
+                                    {product.category}
+                                </span>
+                            )}
+                            <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${stock > 0 ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-700"}`}>
+                                {stockStatus}
                             </span>
+                        </div>
+                        <h2 className="mt-4 font-serif text-2xl font-bold leading-tight text-[#174a38] sm:text-3xl">
+                            {product.name || "Unnamed product"}
+                        </h2>
+                        <p className="mt-2 text-sm text-[#81786b]">
+                            {[product.brand, product.metal_type, product.purity].filter(Boolean).join(" · ")}
+                        </p>
+                        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-[#514638]">
+                            {Number(product.rating) > 0 ? (
+                                <span className="inline-flex items-center gap-1 font-semibold">
+                                    <Star size={15} className="fill-[#e6a323] text-[#e6a323]" aria-hidden="true" />
+                                    {Number(product.rating).toFixed(1)}
+                                </span>
+                            ) : <span className="text-xs text-[#81786b]">No ratings yet</span>}
+                            {product.total_reviews != null && <span className="text-xs text-[#81786b]">({product.total_reviews} reviews)</span>}
+                            {product.product_code && <span className="text-xs text-[#81786b]">Code: {product.product_code}</span>}
+                        </div>
+                        <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                            <span className="text-3xl font-extrabold text-[#b42318]">{formatCurrency(price)}</span>
+                            {mrp > price && <span className="text-sm text-[#858b87] line-through">{formatCurrency(mrp)}</span>}
+                            {discount > 0 && <span className="rounded-full bg-[#fff0ee] px-3 py-1 text-xs font-bold text-[#d33627]">{discount}% OFF</span>}
+                        </div>
+                        {(product.description || product.full_description) && (
+                            <p className="mt-5 whitespace-pre-line text-sm leading-7 text-[#59645e]">
+                                {product.full_description || product.description}
+                            </p>
                         )}
-                        <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${stock > 0 ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-700"}`}>
-                            {stockStatus}
-                        </span>
+                        {product.gross_weight != null && (
+                            <p className="mt-5 border-t border-[#eadfce] pt-4 text-sm text-[#514638]">
+                                <span className="font-semibold">Gross weight:</span> {product.gross_weight} g
+                            </p>
+                        )}
                     </div>
-                    <h2 className="mt-4 font-serif text-2xl font-bold leading-tight text-[#174a38] sm:text-3xl">
-                        {product.name || "Unnamed product"}
-                    </h2>
-                    <p className="mt-2 text-sm text-[#81786b]">
-                        {[product.brand, product.metal_type, product.purity].filter(Boolean).join(" · ")}
-                    </p>
-                    <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-[#514638]">
-                        {Number(product.rating) > 0 ? (
-                            <span className="inline-flex items-center gap-1 font-semibold">
-                                <Star size={15} className="fill-[#e6a323] text-[#e6a323]" aria-hidden="true" />
-                                {Number(product.rating).toFixed(1)}
-                            </span>
-                        ) : <span className="text-xs text-[#81786b]">No ratings yet</span>}
-                        {product.total_reviews != null && <span className="text-xs text-[#81786b]">({product.total_reviews} reviews)</span>}
-                        {product.product_code && <span className="text-xs text-[#81786b]">Code: {product.product_code}</span>}
-                    </div>
-                    <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                        <span className="text-3xl font-extrabold text-[#b42318]">{formatCurrency(price)}</span>
-                        {mrp > price && <span className="text-sm text-[#858b87] line-through">{formatCurrency(mrp)}</span>}
-                        {discount > 0 && <span className="rounded-full bg-[#fff0ee] px-3 py-1 text-xs font-bold text-[#d33627]">{discount}% OFF</span>}
-                    </div>
-                    {(product.description || product.full_description) && (
-                        <p className="mt-5 whitespace-pre-line text-sm leading-7 text-[#59645e]">
-                            {product.full_description || product.description}
-                        </p>
-                    )}
-                    {product.gross_weight != null && (
-                        <p className="mt-5 border-t border-[#eadfce] pt-4 text-sm text-[#514638]">
-                            <span className="font-semibold">Gross weight:</span> {product.gross_weight} g
-                        </p>
+
+                    {variants.length > 0 && (
+                        <section className="rounded-2xl border border-[#eadfce] bg-white p-5 shadow-sm xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
+                            <h2 className="font-serif text-lg font-bold text-[#174a38]">Available variants</h2>
+                            <div className="mt-4 grid gap-3 2xl:grid-cols-2">
+                                {variants.map((variant, index) => (
+                                    <article key={`${variant.colorName || variant.color || "variant"}-${index}`} className="rounded-xl border border-[#eee7dc] bg-[#fffdf8] p-4">
+                                        <h3 className="font-semibold text-[#352d22]">
+                                            {variant.colorName || variant.color || `Variant ${index + 1}`}
+                                        </h3>
+                                        <dl className="mt-2 space-y-1 text-xs text-[#70685d]">
+                                            {variant.selectedSizes && <div><dt className="inline font-semibold">Sizes: </dt><dd className="inline">{displayValue(parseArray(variant.selectedSizes).length ? parseArray(variant.selectedSizes) : variant.selectedSizes)}</dd></div>}
+                                            {variant.available_sizes && <div><dt className="inline font-semibold">Available sizes: </dt><dd className="inline">{displayValue(parseArray(variant.available_sizes).length ? parseArray(variant.available_sizes) : variant.available_sizes)}</dd></div>}
+                                            {variant.total_stock != null && <div><dt className="inline font-semibold">Stock: </dt><dd className="inline">{displayValue(variant.total_stock)}</dd></div>}
+                                            {variant.sizesStock && <div><dt className="inline font-semibold">Size stock: </dt><dd className="inline">{displayValue(variant.sizesStock)}</dd></div>}
+                                        </dl>
+                                    </article>
+                                ))}
+                            </div>
+                        </section>
                     )}
                 </div>
             </section>
@@ -410,26 +433,6 @@ const CustomerViewProductDetail = () => {
                 </section>
             )}
 
-            {variants.length > 0 && (
-                <section className="rounded-2xl border border-[#eadfce] bg-white p-5 shadow-sm">
-                    <h2 className="font-serif text-lg font-bold text-[#174a38]">Available variants</h2>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {variants.map((variant, index) => (
-                            <article key={`${variant.colorName || variant.color || "variant"}-${index}`} className="rounded-xl border border-[#eee7dc] bg-[#fffdf8] p-4">
-                                <h3 className="font-semibold text-[#352d22]">
-                                    {variant.colorName || variant.color || `Variant ${index + 1}`}
-                                </h3>
-                                <dl className="mt-2 space-y-1 text-xs text-[#70685d]">
-                                    {variant.selectedSizes && <div><dt className="inline font-semibold">Sizes: </dt><dd className="inline">{displayValue(parseArray(variant.selectedSizes).length ? parseArray(variant.selectedSizes) : variant.selectedSizes)}</dd></div>}
-                                    {variant.available_sizes && <div><dt className="inline font-semibold">Available sizes: </dt><dd className="inline">{displayValue(parseArray(variant.available_sizes).length ? parseArray(variant.available_sizes) : variant.available_sizes)}</dd></div>}
-                                    {variant.total_stock != null && <div><dt className="inline font-semibold">Stock: </dt><dd className="inline">{displayValue(variant.total_stock)}</dd></div>}
-                                    {variant.sizesStock && <div><dt className="inline font-semibold">Size stock: </dt><dd className="inline">{displayValue(variant.sizesStock)}</dd></div>}
-                                </dl>
-                            </article>
-                        ))}
-                    </div>
-                </section>
-            )}
         </main>
     );
 };
