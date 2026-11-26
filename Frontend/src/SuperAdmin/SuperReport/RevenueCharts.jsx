@@ -14,7 +14,7 @@ import {
   Filler
 } from "chart.js";
 import { BarChart3, TrendingUp, PieChart, Calendar, RefreshCcw } from "lucide-react";
-import { formatCurrency } from "../../utils/currency";
+import { formatCompactCurrency, formatCurrency } from "../../utils/currency";
 
 ChartJS.register(
   CategoryScale,
@@ -361,8 +361,8 @@ export default function RevenueCharts({
 
           <div className="mt-4 text-center">
             <span className="text-xs font-medium text-slate-500">Total Subscription Income</span>
-            <p className="text-xl font-black text-slate-900">
-              {formatCurrency(subscriptionData.totalAllRevenue || 0)}
+            <p className="text-xl font-black text-slate-900" title={formatCurrency(subscriptionData.totalAllRevenue || 0)}>
+              {formatCompactCurrency(subscriptionData.totalAllRevenue || 0)}
             </p>
           </div>
         </div>

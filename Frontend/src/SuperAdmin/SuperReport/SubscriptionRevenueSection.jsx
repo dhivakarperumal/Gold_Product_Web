@@ -1,5 +1,5 @@
 import { Layers, Users, CheckCircle, XCircle, ArrowUpRight, TrendingUp } from "lucide-react";
-import { formatCurrency } from "../../utils/currency";
+import { formatCompactCurrency, formatCurrency } from "../../utils/currency";
 
 export default function SubscriptionRevenueSection({
   subscriptionData = {},
@@ -49,8 +49,8 @@ export default function SubscriptionRevenueSection({
               <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                 Total Revenue Collected
               </span>
-              <p className="mt-1 font-sans text-2xl font-black tracking-tight text-slate-900">
-                {formatCurrency(plan.totalRevenue)}
+              <p className="mt-1 font-sans text-2xl font-black tracking-tight text-slate-900" title={formatCurrency(plan.totalRevenue)}>
+                {formatCompactCurrency(plan.totalRevenue)}
               </p>
             </div>
 
@@ -103,8 +103,8 @@ export default function SubscriptionRevenueSection({
           </div>
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-2 text-left sm:text-right">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Total Subscription Income</span>
-            <p className="font-sans text-lg font-black text-emerald-900">
-              {formatCurrency(totalAllRevenue)}
+            <p className="font-sans text-lg font-black text-emerald-900" title={formatCurrency(totalAllRevenue)}>
+              {formatCompactCurrency(totalAllRevenue)}
             </p>
           </div>
         </div>

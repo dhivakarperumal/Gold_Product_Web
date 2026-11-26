@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import api from "../../api";
-import { formatCurrency } from "../../utils/currency";
+import { formatCompactCurrency, formatCurrency } from "../../utils/currency";
 import RevenueSummaryCards from "./RevenueSummaryCards";
 import RevenueCharts from "./RevenueCharts";
 import ShopRevenueTable from "./ShopRevenueTable";
@@ -541,16 +541,16 @@ export default function RevenueReports() {
         <div className="flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white p-4 text-xs text-emerald-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-extrabold">Filtered Period Revenue:</span>
-            <span className="font-black text-sm font-sans">
-              {formatCurrency(overview.filteredSummary.filteredRevenue)}
+            <span className="font-black text-sm font-sans" title={formatCurrency(overview.filteredSummary.filteredRevenue)}>
+              {formatCompactCurrency(overview.filteredSummary.filteredRevenue)}
             </span>
             <span className="text-emerald-700">
               ({overview.filteredSummary.filteredPaidCount} Paid / {overview.filteredSummary.filteredTransactions} Total Invoices)
             </span>
           </div>
           {overview.filteredSummary.filteredPending > 0 && (
-            <div className="font-semibold text-amber-800">
-              Filtered Pending: {formatCurrency(overview.filteredSummary.filteredPending)}
+            <div className="font-semibold text-amber-800" title={formatCurrency(overview.filteredSummary.filteredPending)}>
+              Filtered Pending: {formatCompactCurrency(overview.filteredSummary.filteredPending)}
             </div>
           )}
         </div>

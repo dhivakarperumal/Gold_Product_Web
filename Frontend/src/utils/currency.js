@@ -10,6 +10,15 @@ const inrAmountFormatter = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 2
 });
 
+const compactInrCurrencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "INR",
+  notation: "compact",
+  compactDisplay: "short",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1
+});
+
 function numericValue(value) {
   if (value == null || value === "") return null;
   const number = Number(value);
@@ -19,6 +28,11 @@ function numericValue(value) {
 export function formatCurrency(value) {
   const number = numericValue(value);
   return number == null ? "—" : inrCurrencyFormatter.format(number);
+}
+
+export function formatCompactCurrency(value) {
+  const number = numericValue(value);
+  return number == null ? "—" : compactInrCurrencyFormatter.format(number);
 }
 
 export function formatAmount(value) {

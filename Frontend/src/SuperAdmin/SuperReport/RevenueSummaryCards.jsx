@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Clock, AlertCircle, CreditCard } from "lucide-react";
-import { formatCurrency } from "../../utils/currency";
+import { formatCompactCurrency, formatCurrency } from "../../utils/currency";
 
 const metricTones = {
   forest: {
@@ -123,7 +123,7 @@ export default function RevenueSummaryCards({ data = {}, loading = false }) {
               <p className="truncate text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 sm:text-[11px]">{card.title}</p>
               {loading
                 ? <div className="mt-2 h-8 w-32 animate-pulse rounded-lg bg-slate-200/80" />
-                : <p title={formatCurrency(card.amount)} className="mt-2 truncate text-2xl font-black leading-none tracking-tight text-slate-900 sm:text-3xl">{formatCurrency(card.amount)}</p>}
+                : <p title={formatCurrency(card.amount)} className="mt-2 truncate text-2xl font-black leading-none tracking-tight text-slate-900 sm:text-3xl">{formatCompactCurrency(card.amount)}</p>}
               <div className={`mt-3 flex min-h-5 min-w-0 items-center gap-1.5 text-[10px] leading-4 sm:text-[11px] ${colors.detail}`}>
                 {loading
                   ? <div className="h-3 w-28 animate-pulse rounded bg-slate-200/80" />
