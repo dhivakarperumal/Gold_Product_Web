@@ -10,6 +10,7 @@ import { formatCurrency as currency } from "../../utils/currency";
 import { resolveBackendImageUrl } from "../../Components/Home/productDisplay";
 
 const EMPTY_CUSTOMER = { name: "", phone: "", email: "", address: "" };
+const PAYMENT_METHOD_OPTIONS = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"];
 const EMPTY_PRODUCT = {
   product_id: "",
   product_name: "",
@@ -100,10 +101,12 @@ function resolveProductDetails(product, metalRates, activeRateSet) {
 function getTackOrderPrefill(order) {
   if (!order) return null;
   const customer = order.customer || {};
-  const address = [
-    customer.address,
-    [customer.city, customer.district, customer.state, customer.pincode].filter(Boolean).join(", ")
-  ].filter(Boolean).join(", ");
+  const addressText = customer.address || "";
+  const locationParts = [...new Set([customer.city, customer.district, customer.state, customer.pincode].filter(Boolean))];
+  const missingLocationParts = locationParts.filter(
+    (part) => !addressText.toLowerCase().includes(String(part).toLowerCase())
+  );
+  const address = [addressText, missingLocationParts.join(", ")].filter(Boolean).join(", ");
   const taxableSubtotal = Math.max(0, Number(order.sub_total || 0) - Number(order.discount_amount || 0));
   const gstRate = order.gst_included && taxableSubtotal > 0
     ? Math.round((Number(order.gst_amount || 0) / taxableSubtotal) * 1000000) / 10000
@@ -129,7 +132,8 @@ function getTackOrderPrefill(order) {
       price: String(item.price ?? 0)
     })),
     gstRate: String(gstRate),
-    discount: Number(order.discount_amount) > 0 ? String(order.discount_amount) : ""
+    discount: Number(order.discount_amount) > 0 ? String(order.discount_amount) : "",
+    advanceAmount: String(Number(order.advance_amount) || 0)
   };
 }
 
@@ -481,6 +485,8 @@ export default function BillingManagement() {
   const [editingBillId, setEditingBillId] = useState(null);
   const [tackOrderSourceId, setTackOrderSourceId] = useState(tackOrderPrefill?.sourceId || null);
   const [tackOrderSourceNo, setTackOrderSourceNo] = useState(tackOrderPrefill?.sourceNo || "");
+  const [tackOrderAdvanceAmount, setTackOrderAdvanceAmount] = useState(tackOrderPrefill?.advanceAmount || "0");
+  const [advancePaymentMethod, setAdvancePaymentMethod] = useState("Other");
   const [viewingBill, setViewingBill] = useState(null);
   const [billPayment, setBillPayment] = useState(null);
   const [billSearch, setBillSearch] = useState("");
@@ -852,6 +858,8 @@ export default function BillingManagement() {
     setEditingBillId(null);
     setTackOrderSourceId(null);
     setTackOrderSourceNo("");
+    setTackOrderAdvanceAmount("0");
+    setAdvancePaymentMethod("Other");
     setCustomers([{ ...EMPTY_CUSTOMER }]);
     setProducts([]);
     setProductToAdd({ ...EMPTY_PRODUCT });
@@ -882,6 +890,8 @@ export default function BillingManagement() {
     })));
     setTackOrderSourceId(null);
     setTackOrderSourceNo("");
+    setTackOrderAdvanceAmount("0");
+    setAdvancePaymentMethod("Other");
     setProductToAdd({ ...EMPTY_PRODUCT });
     setExchanges(billExchanges.map((exchange) => ({
       ...EMPTY_EXCHANGE,
@@ -1022,6 +1032,10 @@ export default function BillingManagement() {
       toast.error("Exchange amount cannot exceed the purchased products subtotal.");
       return;
     }
+    if (Number(tackOrderAdvanceAmount) > total) {
+      toast.error("Tack order advance cannot exceed the bill total.");
+      return;
+    }
     if (!validDiscount) {
       toast.error("Discount and exchange credit cannot exceed the purchased products subtotal.");
       return;
@@ -1036,6 +1050,9 @@ export default function BillingManagement() {
         customers,
         products: products.map((product) => ({ product_id: Number(product.product_id) })),
         ...(tackOrderSourceId ? { tack_order_id: tackOrderSourceId } : {}),
+        ...(tackOrderSourceId && Number(tackOrderAdvanceAmount) > 0
+          ? { advance_payment_method: advancePaymentMethod || "Other" }
+          : {}),
         exchanges: paymentType === "EXCHANGE_GOLD"
           ? exchanges.map((exchange) => ({
             product_name: `${exchange.metal_type || "Gold"} ${exchange.purity || ""} exchange item`.trim(),
@@ -1276,6 +1293,7 @@ export default function BillingManagement() {
           {tackOrderSourceId && (
             <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
               Prefilled from Tack Order {tackOrderSourceNo}. Review the details before saving.
+              {Number(tackOrderAdvanceAmount) > 0 && ` Its ${currency(tackOrderAdvanceAmount)} advance will be recorded as a payment, using Other unless you choose another method.`}
             </p>
           )}
 
@@ -1398,6 +1416,19 @@ export default function BillingManagement() {
 
           <section className="space-y-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
             <div><h2 className="font-bold text-slate-900">Payment Method</h2><p className="text-xs text-slate-500">GST is calculated using the rate entered below.</p></div>
+            {tackOrderSourceId && Number(tackOrderAdvanceAmount) > 0 && (
+              <label className={labelClass}>
+                Tack Order Advance Payment Method
+                <select
+                  className={inputClass}
+                  value={advancePaymentMethod || "Other"}
+                  onChange={(event) => setAdvancePaymentMethod(event.target.value)}
+                >
+                  {PAYMENT_METHOD_OPTIONS.map((method) => <option key={method} value={method}>{method}</option>)}
+                </select>
+                <span className="mt-1 block text-xs font-normal text-slate-500">The Tack Order doesn’t store a payment method, so this defaults to Other.</span>
+              </label>
+            )}
             <div className="flex flex-wrap gap-3">
               {[["FULL_PAYMENT", "Full Payment"], ["EXCHANGE_GOLD", "Exchange Gold"]].map(([value, label]) => (
                 <label key={value} className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold ${paymentType === value ? "border-[#008577] bg-emerald-50 text-[#00695C]" : "border-slate-200 text-slate-600"}`}>
@@ -1476,10 +1507,16 @@ export default function BillingManagement() {
               <span>{validDiscount && validGst ? currency(gst) : "—"}</span>
             </div>
             <div className="flex justify-between border-t border-slate-100 pt-3 text-lg font-extrabold text-slate-900"><span>Total Bill</span><span>{validDiscount && validGst ? currency(total) : "—"}</span></div>
+            {tackOrderSourceId && Number(tackOrderAdvanceAmount) > 0 && (
+              <>
+                <div className="flex justify-between text-sm text-emerald-700"><span>Advance Paid</span><span>−{currency(tackOrderAdvanceAmount)}</span></div>
+                <div className="flex justify-between text-sm font-bold text-slate-800"><span>Balance Due</span><span>{validDiscount && validGst ? currency(Math.max(0, total - Number(tackOrderAdvanceAmount))) : "—"}</span></div>
+              </>
+            )}
             {paymentType === "EXCHANGE_GOLD" && exchangeCredit > subtotal && <p className="text-xs font-semibold text-rose-600">Exchange amount cannot exceed subtotal.</p>}
           </section>
           <footer className="flex justify-end">
-            <button type="submit" disabled={saving || !validGst || !validDiscount || (paymentType === "EXCHANGE_GOLD" && exchangeCredit > subtotal)} className="inline-flex items-center gap-2 rounded-lg bg-[#00695C] px-5 py-3 text-sm font-bold text-white hover:bg-[#008577] disabled:cursor-not-allowed disabled:opacity-60"><FiSave />{saving ? (editingBillId ? "Updating Bill..." : "Saving Bill...") : (editingBillId ? "Update Bill" : "Save Bill")}</button>
+            <button type="submit" disabled={saving || !validGst || !validDiscount || Number(tackOrderAdvanceAmount) > total || (paymentType === "EXCHANGE_GOLD" && exchangeCredit > subtotal)} className="inline-flex items-center gap-2 rounded-lg bg-[#00695C] px-5 py-3 text-sm font-bold text-white hover:bg-[#008577] disabled:cursor-not-allowed disabled:opacity-60"><FiSave />{saving ? (editingBillId ? "Updating Bill..." : "Saving Bill...") : (editingBillId ? "Update Bill" : "Save Bill")}</button>
           </footer>
         </form>
       )}

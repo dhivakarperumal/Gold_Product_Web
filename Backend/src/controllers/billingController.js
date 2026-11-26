@@ -13,6 +13,7 @@ const { getTackOrderById } = require('../modules/tackOrderModule');
 const { parseDateRange } = require('../utils/dateRange');
 
 const PAYMENT_TYPES = new Set(['FULL_PAYMENT', 'EXCHANGE_GOLD']);
+const PAYMENT_METHODS = new Set(['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque', 'Other']);
 const MAX_ITEMS = 100;
 const GST_RATE = 0;
 
@@ -327,10 +328,11 @@ async function getBillings(req, res, next) {
 async function postBilling(req, res, next) {
   try {
     let products;
+    let tackOrder = null;
     if (req.body?.tack_order_id != null && req.body.tack_order_id !== '') {
       const tackOrderId = validBillingId(req.body.tack_order_id);
       if (!tackOrderId) return res.status(400).json({ message: 'Invalid tack order ID' });
-      const tackOrder = await getTackOrderById(tackOrderId, req.adminUser.user_id);
+      tackOrder = await getTackOrderById(tackOrderId, req.adminUser.user_id);
       if (!tackOrder) return res.status(404).json({ message: 'Tack order not found' });
       const orderItems = typeof tackOrder.items === 'string' ? JSON.parse(tackOrder.items) : tackOrder.items;
       if (!Array.isArray(orderItems) || orderItems.length < 1 || orderItems.length > MAX_ITEMS) {
@@ -358,8 +360,34 @@ async function postBilling(req, res, next) {
       : null;
     const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet);
     if (error) return res.status(400).json({ message: error });
-    return res.status(201).json(await createBilling(billing, req.adminUser.user_id));
+    let initialPayment = null;
+    if (tackOrder && Number(tackOrder.advance_amount) > 0) {
+      if (Number(tackOrder.advance_amount) > billing.total_amount) {
+        return res.status(400).json({ message: 'Tack order advance cannot exceed the bill total' });
+      }
+      if (!PAYMENT_METHODS.has(req.body?.advance_payment_method)) {
+        return res.status(400).json({ message: 'Select a valid payment method for the tack order advance' });
+      }
+      initialPayment = {
+        amount: Number(tackOrder.advance_amount),
+        payment_method: req.body.advance_payment_method,
+        payment_date: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        reference_number: tackOrder.order_no,
+        idempotency_key: `tack-order-advance:${req.adminUser.user_id}:${tackOrder.id}`,
+        created_by: req.adminUser.id,
+        updated_by: req.adminUser.user_id,
+        created_by_user_id: req.adminUser.user_id,
+        admin_name: req.adminUser.name || req.adminUser.username
+      };
+    }
+    return res.status(201).json(await createBilling(billing, req.adminUser.user_id, initialPayment));
   } catch (error) {
+    if (error.code === 'TACK_ORDER_ADVANCE_ALREADY_TRANSFERRED') {
+      return res.status(409).json({ message: 'This tack order advance has already been transferred to a bill' });
+    }
+    if (error.code === 'FUND_ADMIN_NOT_FOUND') {
+      return res.status(403).json({ message: 'A valid admin account is required to record the tack order advance' });
+    }
     return next(error);
   }
 }

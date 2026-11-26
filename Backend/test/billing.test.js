@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { mapSelectedProducts, normalizeBilling } = require('../src/controllers/billingController');
 const { pool } = require('../src/config/db');
-const { getBillingById, listBillings } = require('../src/modules/billingModule');
+const { createBilling, getBillingById, listBillings } = require('../src/modules/billingModule');
 const { getTackOrderById } = require('../src/modules/tackOrderModule');
 
 const billingInput = (overrides = {}) => ({
@@ -319,4 +319,64 @@ test('only returns a tack order when it belongs to the authenticated user', asyn
   }
   assert.match(capturedQuery.query, /WHERE id = \? AND user_id = \?/);
   assert.deepEqual(capturedQuery.values, [42, 'shop-user-1']);
+});
+
+test('records a transferred tack-order advance with the bill and fund ledger atomically', async () => {
+  const originalExecute = pool.execute;
+  const originalGetConnection = pool.getConnection;
+  const executions = [];
+  let committed = false;
+  const connection = {
+    beginTransaction: async () => {},
+    commit: async () => { committed = true; },
+    rollback: async () => {},
+    release: () => {},
+    execute: async (query, values) => {
+      executions.push({ query, values });
+      if (query.includes('INSERT INTO billings')) return [{ insertId: 84 }, []];
+      if (query.includes('SELECT user_id FROM users')) return [[{ user_id: 'shop-user-1' }], []];
+      if (query.includes('AS balance')) return [[{ balance: 0 }], []];
+      return [{ insertId: 1 }, []];
+    }
+  };
+  pool.getConnection = async () => connection;
+  pool.execute = async (query, values) => {
+    executions.push({ query, values });
+    return [[{ id: 84, paid_amount: 25, balance_due: 75 }], []];
+  };
+  try {
+    const bill = await createBilling({
+      invoice_no: 'BILL-TEST',
+      customers: [{ name: 'A Customer' }],
+      products: [],
+      exchanges: [],
+      payment_type: 'FULL_PAYMENT',
+      sub_total: 100,
+      discount_amount: 0,
+      gst_amount: 0,
+      total_amount: 100
+    }, 'shop-user-1', {
+      amount: 25,
+      payment_method: 'Other',
+      payment_date: '2026-01-01 12:00:00',
+      reference_number: 'TACK-TEST',
+      idempotency_key: 'tack-order-advance:shop-user-1:42',
+      created_by: 7,
+      updated_by: 'shop-user-1',
+      created_by_user_id: 'shop-user-1',
+      admin_name: 'Shop Admin'
+    });
+    assert.deepEqual(bill, { id: 84, paid_amount: 25, balance_due: 75 });
+  } finally {
+    pool.execute = originalExecute;
+    pool.getConnection = originalGetConnection;
+  }
+  assert.equal(committed, true);
+  const billInsert = executions.find(({ query }) => query.includes('INSERT INTO billings'));
+  assert.deepEqual(billInsert.values.slice(10, 12), ['25.00', '75.00']);
+  const paymentInsert = executions.find(({ query }) => query.includes('INSERT INTO billing_payments'));
+  assert.equal(paymentInsert.values[1], '25.00');
+  const fundInsert = executions.find(({ query }) => query.includes('INSERT INTO funds'));
+  assert.equal(fundInsert.values[2], 'CREDIT');
+  assert.equal(fundInsert.values[4], '25.00');
 });
