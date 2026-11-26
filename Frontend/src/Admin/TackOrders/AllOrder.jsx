@@ -286,7 +286,12 @@ export default function AllTackOrders() {
             />
           </label>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
-            <DateRangeFilter onApply={setDateRange} initialPreset="today" showActiveRangeDetails={false} />
+            <DateRangeFilter
+              onApply={setDateRange}
+              initialPreset="today"
+              showActiveRangeDetails={false}
+              controlClassName="min-h-[52px] min-w-[170px] px-4"
+            />
             <select
               value={orderStatusFilter}
               onChange={(event) => setOrderStatusFilter(event.target.value)}

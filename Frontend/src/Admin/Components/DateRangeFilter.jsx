@@ -6,7 +6,8 @@ export default function DateRangeFilter({
   onApply,
   className = "",
   initialPreset = "all",
-  showActiveRangeDetails = true
+  showActiveRangeDetails = true,
+  controlClassName = ""
 }) {
   const [preset, setPreset] = useState(initialPreset);
   const [customRange, setCustomRange] = useState({ startDate: "", endDate: "" });
@@ -41,7 +42,7 @@ export default function DateRangeFilter({
   return (
     <div className={` ${className}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <label className="flex min-h-10 min-w-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-semibold text-slate-700 focus-within:border-[#008577] focus-within:ring-2 focus-within:ring-emerald-800/10">
+        <label className={`flex min-h-10 min-w-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-semibold text-slate-700 focus-within:border-[#008577] focus-within:ring-2 focus-within:ring-emerald-800/10 ${controlClassName}`}>
           <CalendarDays size={16} className="shrink-0 text-[#008577]" />
           <span className="sr-only">Filter records by date</span>
           <select value={preset} onChange={(event) => selectPreset(event.target.value)} className="w-full bg-transparent py-2 text-slate-700 outline-none [&_option]:text-slate-900">
