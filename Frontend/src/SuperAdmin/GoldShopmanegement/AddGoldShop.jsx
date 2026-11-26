@@ -585,7 +585,7 @@ export default function AddGoldShop({
   );
 
   return (
-    <div className={registrationMode ? "w-full lg:h-full lg:min-h-0" : "fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"}>
+    <div className={registrationMode ? "w-full lg:h-full lg:min-h-0" : "fixed inset-0 z-[120] flex h-screen items-center justify-center overflow-hidden bg-slate-950/60 backdrop-blur-sm [height:100dvh]"}>
       <section
         role={registrationMode ? "region" : "dialog"}
         aria-modal={registrationMode ? undefined : "true"}
@@ -593,7 +593,7 @@ export default function AddGoldShop({
         aria-labelledby={registrationMode ? undefined : "gold-shop-form-title"}
         className={registrationMode
           ? "mx-auto flex w-full flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
-          : "my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl sm:h-[calc(100vh-3rem)]"}
+          : "flex h-[90vh] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-none bg-[#fbfaf7] shadow-2xl sm:rounded-3xl [height:90dvh]"}
       >
         {!registrationMode && (
           <header className="flex shrink-0 items-start justify-between gap-4 border-b border-amber-100 bg-gradient-to-r from-[#13211d] to-[#26342d] px-5 py-5 text-white sm:px-7">
@@ -614,7 +614,8 @@ export default function AddGoldShop({
 
         <form noValidate onSubmit={(event) => submit(event)} className={`flex flex-1 flex-col ${registrationMode ? "lg:min-h-0 lg:overflow-hidden" : "min-h-0 overflow-hidden"}`}>
           {registrationMode && <div className="shrink-0 px-1 pb-2 pt-2 sm:px-2">{tabNavigation}</div>}
-          <div className={`space-y-3 ${registrationMode ? "px-1 pt-1 sm:px-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"}`}>
+          <div className={`min-h-0 ${registrationMode ? "space-y-3 px-1 pt-1 sm:px-2 lg:flex lg:flex-1 lg:flex-col lg:overflow-y-auto" : "flex flex-1 flex-col items-center justify-center overflow-y-auto p-4 sm:p-6"}`}>
+          <div className={registrationMode ? "space-y-3" : "my-auto w-full space-y-3"}>
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
@@ -786,6 +787,7 @@ export default function AddGoldShop({
             )}
           </div>
           </fieldset>
+          </div>
           </div>
 
           {!registrationMode && (
