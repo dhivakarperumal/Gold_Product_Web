@@ -484,7 +484,7 @@ export default function AllGoldsShop() {
       setPaymentVerification({ shop, payment });
       setPaymentForm({
         transactionId: payment?.transaction_id || "",
-        paymentMethod: paymentMethodValue(payment?.payment_method),
+        paymentMethod: paymentMethodValue(payment?.payment_method) || "upi",
         verificationRemarks: ""
       });
     } catch (error) {
@@ -959,43 +959,62 @@ export default function AllGoldsShop() {
         >
           <form onSubmit={confirmSubscriptionPayment} className="space-y-4 p-5">
             <p className="text-sm text-slate-600">Confirm only after you have verified that the payment was received. This marks the current subscription as paid and records your reference.</p>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-              <p className="text-xs font-semibold text-slate-500">Amount received</p>
-              <p className="mt-1 font-bold text-slate-800">{formatAmount(paymentToConfirm.amount)}</p>
-            </div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Transaction / reference ID
-              <input
-                autoFocus
-                required
-                maxLength={120}
-                value={paymentForm.transactionId}
-                onChange={(event) => setPaymentForm((current) => ({ ...current, transactionId: event.target.value }))}
-                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
-                placeholder="Enter bank, UPI, or receipt reference"
-              />
-            </label>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Payment method
-              <CustomSelect
-                required
-                value={paymentForm.paymentMethod}
-                onChange={(event) => setPaymentForm((current) => ({ ...current, paymentMethod: event.target.value }))}
-                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
-              >
-                <option value="upi">UPI</option>
-                <option value="bank_transfer">Bank transfer</option>
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="other">Other</option>
-              </CustomSelect>
-            </label>
-            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-              <button type="button" disabled={paymentSubmitting} onClick={() => setPaymentToConfirm(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:opacity-50">Cancel</button>
-              <button type="submit" disabled={paymentSubmitting} className="inline-flex items-center gap-2 rounded-xl bg-[#00796B] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60">
-                {paymentSubmitting && <LoaderCircle size={16} className="animate-spin" />}
-                {paymentSubmitting ? "Confirming…" : "Confirm payment received"}
-              </button>
+            <section className="rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="mb-3 text-sm font-bold text-slate-800">Shop details</h3>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div><dt className="text-xs font-semibold text-slate-500">Shop name</dt><dd className="mt-1 font-semibold text-slate-800">{paymentVerification.shop.shop_name || "—"}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-500">Shop code</dt><dd className="mt-1 font-semibold text-slate-800">{paymentVerification.shop.shop_code || "—"}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-500">Owner</dt><dd className="mt-1 font-semibold text-slate-800">{paymentVerification.shop.owner_name || "—"}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-500">Contact</dt><dd className="mt-1 font-semibold text-slate-800">{paymentVerification.shop.mobile || paymentVerification.shop.email || "—"}</dd></div>
+              </dl>
+            </section>
+            <section className="rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="mb-3 text-sm font-bold text-slate-800">Subscription details</h3>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div><dt className="text-xs font-semibold text-slate-500">Plan</dt><dd className="mt-1 font-semibold text-slate-800">{paymentVerification.shop.plan_name || "—"}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-500">Duration</dt><dd className="mt-1 font-semibold capitalize text-slate-800">{paymentVerification.shop.duration || "—"}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-500">Start date</dt><dd className="mt-1 font-semibold text-slate-800">{formatDate(paymentVerification.shop.account_start_date || paymentVerification.shop.start_date)}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-500">End date</dt><dd className="mt-1 font-semibold text-slate-800">{formatDate(paymentVerification.shop.account_end_date || paymentVerification.shop.end_date)}</dd></div>
+              </dl>
+            </section>
+            <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="mb-3 text-sm font-bold text-slate-800">Payment details</h3>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div><dt className="text-xs font-semibold text-slate-500">Amount</dt><dd className="mt-1 font-bold text-slate-800">{formatAmount(paymentVerification.payment.amount)}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-500">Status</dt><dd className="mt-1"><StatusBadge value={paymentVerification.payment.payment_status} /></dd></div>
+                <div><dt className="text-xs font-semibold text-slate-500">Current method</dt><dd className="mt-1 font-semibold capitalize text-slate-800">{paymentVerification.payment.payment_method?.replaceAll("_", " ") || "Not recorded"}</dd></div>
+                <div><dt className="text-xs font-semibold text-slate-500">Payment date</dt><dd className="mt-1 font-semibold text-slate-800">{formatDate(paymentVerification.payment.payment_date || paymentVerification.payment.created_at)}</dd></div>
+                <div className="sm:col-span-2"><dt className="text-xs font-semibold text-slate-500">Existing reference</dt><dd className="mt-1 break-all font-semibold text-slate-800">{paymentVerification.payment.transaction_id || "Not recorded"}</dd></div>
+              </dl>
+            </section>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Transaction / reference ID
+                <input
+                  autoFocus
+                  required
+                  maxLength={120}
+                  value={paymentForm.transactionId}
+                  onChange={(event) => setPaymentForm((current) => ({ ...current, transactionId: event.target.value }))}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
+                  placeholder="Enter bank, UPI, or receipt reference"
+                />
+              </label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Payment method
+                <CustomSelect
+                  required
+                  value={paymentForm.paymentMethod}
+                  onChange={(event) => setPaymentForm((current) => ({ ...current, paymentMethod: event.target.value }))}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm normal-case"
+                >
+                  <option value="upi">UPI</option>
+                  <option value="bank_transfer">Bank transfer</option>
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="other">Other</option>
+                </CustomSelect>
+              </label>
             </div>
           </form>
         </Modal>
