@@ -75,7 +75,7 @@ export default function AuthLayout({
             </div>
           </aside>
 
-          <section className={`flex w-full min-w-0 flex-col bg-white lg:h-full lg:min-h-0 lg:flex-none lg:rounded-l-[5rem] ${wideFormPanel ? "px-4 py-4 sm:px-6 sm:py-5 lg:ml-0 lg:px-8 lg:py-5 xl:px-10 lg:w-1/2" : "px-5 py-5 sm:px-8 sm:py-7 lg:ml-0 lg:px-10 lg:py-8 xl:px-14 lg:w-[38%]"}`}>
+          <section className={`flex w-full min-w-0 flex-col bg-white lg:h-full lg:min-h-0 lg:flex-none lg:rounded-l-[5rem] ${wideFormPanel ? "px-2 py-4 sm:px-3 sm:py-5 lg:ml-0 lg:px-4 lg:py-5 xl:px-5 lg:w-1/2" : "px-5 py-5 sm:px-8 sm:py-7 lg:ml-0 lg:px-10 lg:py-8 xl:px-14 lg:w-[38%]"}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 lg:hidden">
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#063d2c] text-amber-300">

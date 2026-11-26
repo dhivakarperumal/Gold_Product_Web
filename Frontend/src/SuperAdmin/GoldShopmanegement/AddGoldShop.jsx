@@ -553,7 +553,7 @@ export default function AddGoldShop({
   };
 
   const sectionClass = registrationMode
-    ? "rounded-2xl border-0 bg-transparent p-4 sm:p-6"
+    ? "rounded-2xl border-0 bg-transparent p-4 sm:p-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto"
     : "rounded-2xl border border-stone-200 bg-white p-4 sm:p-5";
   const activeTabIndex = TABS.findIndex((tab) => tab.id === activeTab);
   const tabNavigation = (
@@ -614,7 +614,7 @@ export default function AddGoldShop({
 
         <form noValidate onSubmit={(event) => submit(event)} className={`flex flex-1 flex-col ${registrationMode ? "lg:min-h-0 lg:overflow-hidden" : "min-h-0 overflow-hidden"}`}>
           {registrationMode && <div className="shrink-0 px-1 pb-2 pt-2 sm:px-2">{tabNavigation}</div>}
-          <div className={`space-y-3 ${registrationMode ? "px-1 py-1 sm:px-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"}`}>
+          <div className={`space-y-3 ${registrationMode ? "px-1 py-1 sm:px-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"}`}>
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
@@ -624,7 +624,7 @@ export default function AddGoldShop({
             <p role="alert" aria-live="polite" className={`flex h-9 items-center overflow-hidden rounded-xl border px-3 text-xs ${formError ? "border-rose-200 bg-rose-50 text-rose-800" : "invisible border-transparent"}`}>{formError || " "}</p>
           )}
 
-          <div className={registrationMode ? "overflow-hidden rounded-2xl border border-b-0 border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)]" : "contents"}>
+          <div className={registrationMode ? "overflow-hidden rounded-2xl border border-b-0 border-stone-200 bg-white shadow-[0_8px_24px_rgba(27,39,33,0.08)] lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : "contents"}>
             <section id="gold-shop-panel-personal" role="tabpanel" aria-labelledby="gold-shop-tab-personal" hidden={activeTab !== "personal"} className={sectionClass}>
               {!registrationMode && <h3 className="mb-4 font-bold text-stone-800">Personal Details</h3>}
               <div className="grid gap-2 sm:grid-cols-2">
@@ -635,7 +635,7 @@ export default function AddGoldShop({
               </div>
             </section>
 
-            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className={registrationMode ? "" : "space-y-2"}>
+            <section id="gold-shop-panel-shop" role="tabpanel" aria-labelledby="gold-shop-tab-shop" hidden={activeTab !== "shop"} className={registrationMode ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : "space-y-2"}>
               <div className={sectionClass}>
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
