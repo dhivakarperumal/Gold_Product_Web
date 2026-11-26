@@ -27,13 +27,15 @@ import {
   Coins,
   CheckCircle2,
   MessageCircle,
-  ClipboardList
+  ClipboardList,
+  Percent
 } from "lucide-react";
 
 /* ================= NAV ITEMS ================= */
 const navItems = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { path: "/admin/settings/daily-gold-rate", label: "Daily Gold Rate", icon: Coins },
+  { path: "/admin/settings/tax", label: "Tax & GST Settings", icon: Percent },
 
  
   

@@ -3,7 +3,7 @@ import api from "../../api";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../PrivateRouter/AuthContext";
 import { toast } from "react-hot-toast";
-import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import SubscriptionCheckoutModal from "../Subscription/SubscriptionCheckoutModal";
 import AuthLayout from "./AuthLayout";
 
@@ -97,27 +97,34 @@ function Login() {
       alternatePrompt="New gold shop?"
       alternateLabel="Register here"
       alternateTo="/register"
-      contentClassName="flex items-center justify-center"
+      contentClassName="flex flex-col items-center justify-center"
+      splitLayout
       fixedHeight
       hideHeader
     >
-      <form onSubmit={handleSubmit} className="w-full space-y-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-7">
-
+      <div className="mx-auto mb-4 w-full max-w-md text-center">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-800">Secure admin access</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#172a23]">Login</h1>
+        <p className="mt-1 text-sm text-stone-600">Sign in to your Sri Golds account to continue.</p>
+      </div>
+      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-md space-y-5">
             {/* Email/Mobile */}
             <div>
-              <label className="mb-1.5 ml-1 block text-sm font-semibold tracking-wide text-stone-700">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 ml-1 tracking-wide">
                 Email / Mobile Number
               </label>
               <div className="relative group">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 transition-colors group-focus-within:text-emerald-800">
-                  <UserRound className="h-5 w-5" aria-hidden="true" />
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
                 </div>
                 <input
                   name="identifier"
                   type="text"
                   placeholder="Enter your email or mobile number"
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-stone-200 bg-[#eaf1ff] p-3.5 pl-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-emerald-800 focus:ring-2 focus:ring-emerald-800/15"
+                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-[#008577] focus:ring-2 focus:ring-emerald-600/15"
                   required
                 />
               </div>
@@ -125,26 +132,27 @@ function Login() {
 
             {/* Password */}
             <div>
-              <label className="mb-1.5 ml-1 block text-sm font-semibold tracking-wide text-stone-700">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 ml-1 tracking-wide">
                 Password
               </label>
               <div className="relative group">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 transition-colors group-focus-within:text-emerald-800">
-                  <LockKeyhole className="h-5 w-5" aria-hidden="true" />
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   placeholder="Enter your password"
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-stone-200 bg-[#eaf1ff] p-3.5 pl-12 pr-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-emerald-800 focus:ring-2 focus:ring-emerald-800/15"
+                  className="w-full rounded-xl border border-stone-200 bg-white p-3.5 pl-12 pr-12 text-sm font-medium text-stone-800 outline-none transition-all focus:border-[#008577] focus:ring-2 focus:ring-emerald-600/15"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 transition-colors hover:text-emerald-800"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors cursor-pointer"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -154,10 +162,10 @@ function Login() {
             {/* Remember & Forgot */}
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" className="h-4 w-4 rounded border-stone-300 accent-emerald-900" />
-                <span className="text-sm text-stone-600 transition-colors group-hover:text-emerald-900">Remember Me</span>
+                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 accent-primary" />
+                <span className="text-sm text-gray-600 group-hover:text-primary transition-colors">Remember Me</span>
               </label>
-              <a href="#" className="text-sm font-semibold text-emerald-800 transition-colors hover:text-emerald-950 hover:underline">
+              <a href="#" className="text-sm font-semibold text-primary-light hover:text-primary hover:underline transition-colors">
                 Forgot Password?
               </a>
             </div>
@@ -165,13 +173,15 @@ function Login() {
             {/* Login Button */}
             <button
               type="submit"
-              className="group relative flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-emerald-950 to-emerald-700 py-3.5 font-semibold text-white shadow-lg shadow-emerald-900/20 transition-all hover:-translate-y-0.5 hover:from-emerald-900 hover:to-emerald-800"
+              className="w-full rounded-xl bg-gradient-to-r from-[#064A41] to-[#008577] py-3.5 font-semibold text-white shadow-lg shadow-emerald-900/20 transition-all hover:-translate-y-0.5 hover:from-[#043D37] hover:to-[#00695C] flex items-center justify-center gap-2 relative overflow-hidden group cursor-pointer"
             >
               <span className="relative z-10 flex items-center gap-2 tracking-wide">
-                <LockKeyhole className="h-5 w-5" aria-hidden="true" />
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
                 Secure Login
               </span>
-              <div className="absolute inset-0 translate-y-full bg-white/20 transition-transform duration-300 group-hover:translate-y-0" />
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             </button>
 
           </form>

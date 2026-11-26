@@ -131,7 +131,7 @@ function createInitialForm(shop) {
   };
 }
 
-const inputClass = "mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-100";
+const inputClass = "mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-[#008577] focus:ring-4 focus:ring-emerald-100";
 const labelClass = "text-xs font-semibold uppercase tracking-wide text-stone-600";
 
 function Field({
@@ -169,7 +169,7 @@ function FileField({ label, name, accept, multiple = false, files, onChange, hin
     <label className="block text-xs font-semibold text-stone-700">
       {label}
       {registrationMode ? (
-        <span className="relative mt-1.5 flex min-h-[76px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-amber-200 bg-[#fffdf8] px-3 py-2 text-center text-emerald-900 transition hover:bg-amber-50">
+        <span className="relative mt-1.5 flex min-h-[76px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 px-3 py-2 text-center text-emerald-900 transition hover:bg-emerald-50">
           <input className="absolute inset-0 h-full w-full cursor-pointer opacity-0" type="file" name={name} accept={accept} multiple={multiple} onChange={onChange} />
           <UploadCloud size={23} aria-hidden="true" />
           <span className="mt-0.5 text-sm font-semibold">Choose File</span>
@@ -218,7 +218,7 @@ function PasswordField({ label, name, value, onChange, onBlur, error, visible, o
           onClick={onToggle}
           aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`}
           aria-pressed={visible}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-600"
         >
           {visible ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
@@ -585,14 +585,14 @@ export default function AddGoldShop({
   );
 
   return (
-    <div className={registrationMode ? "h-full min-h-0 w-full" : "fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"}>
+    <div className={registrationMode ? "w-full lg:h-full lg:min-h-0" : "fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"}>
       <section
         role={registrationMode ? "region" : "dialog"}
         aria-modal={registrationMode ? undefined : "true"}
         aria-label={registrationMode ? "Gold shop registration form" : undefined}
         aria-labelledby={registrationMode ? undefined : "gold-shop-form-title"}
         className={registrationMode
-          ? "mx-auto flex h-full min-h-0 w-full flex-col overflow-hidden"
+          ? "mx-auto flex w-full flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
           : "my-auto flex h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-[#fbfaf7] shadow-2xl sm:h-[calc(100vh-3rem)]"}
       >
         {!registrationMode && (
@@ -612,9 +612,9 @@ export default function AddGoldShop({
           </header>
         )}
 
-        <form noValidate onSubmit={(event) => submit(event)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <form noValidate onSubmit={(event) => submit(event)} className={`flex flex-1 flex-col ${registrationMode ? "lg:min-h-0 lg:overflow-hidden" : "min-h-0 overflow-hidden"}`}>
           {registrationMode && <div className="shrink-0 px-1 pb-1 pt-2 sm:px-2">{tabNavigation}</div>}
-          <div className={`min-h-0 flex-1 space-y-3 overflow-y-auto ${registrationMode ? "px-1 py-1 sm:px-2" : "p-4 sm:p-6"}`}>
+          <div className={`space-y-3 ${registrationMode ? "px-1 py-1 sm:px-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"}`}>
           {shopDetailsLoading && <p role="status" className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">Loading full shop details…</p>}
           {shopDetailsError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Could not load full shop details. Close the form and try again.</p>}
           <fieldset disabled={shopDetailsLoading || Boolean(shopDetailsError)} className="contents">
@@ -639,7 +639,7 @@ export default function AddGoldShop({
                   <div>
                     {!registrationMode && <><h3 className="font-bold text-stone-800">Shop Details</h3><p className="mt-1 text-xs text-stone-500">The shop code is generated automatically when saved.</p></>}
                   </div>
-                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold tracking-wide text-amber-800">GOLD-XXXX</span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold tracking-wide ${registrationMode ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>GOLD-XXXX</span>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Field label="Shop name" name="shopName" value={form.shopName} onChange={handleChange} onBlur={handleFieldBlur} error={fieldErrors.shopName} required maxLength={150} placeholder="e.g. Sri Golds" />
@@ -658,7 +658,7 @@ export default function AddGoldShop({
                   <label className={`${labelClass} sm:col-span-2`}>
                     <span className="flex flex-wrap items-center justify-between gap-2">
                       <span>Shop address</span>
-                      <button type="button" onClick={fetchCurrentLocation} disabled={fetchingLocation} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 px-2.5 py-1.5 text-[11px] font-bold normal-case tracking-normal text-amber-900 transition hover:bg-amber-50 disabled:cursor-wait disabled:opacity-60">
+                      <button type="button" onClick={fetchCurrentLocation} disabled={fetchingLocation} className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold normal-case tracking-normal transition disabled:cursor-wait disabled:opacity-60 ${registrationMode ? "border-emerald-300 text-emerald-900 hover:bg-emerald-50" : "border-amber-300 text-amber-900 hover:bg-amber-50"}`}>
                         <MapPin size={13} />{fetchingLocation ? "Fetching location…" : "Fetch current location"}
                       </button>
                     </span>
@@ -725,15 +725,15 @@ export default function AddGoldShop({
                           <option value="yearly">Yearly</option>
                         </select>
                       </label>
-                      <div className="rounded-xl bg-amber-50 p-3"><p className={labelClass}>Subscription price</p><p className="mt-1 text-xl font-bold text-amber-900">{Number.isFinite(price) ? `₹${price.toLocaleString("en-IN")}` : "Not configured"}</p></div>
+                      <div className={`rounded-xl p-3 ${registrationMode ? "bg-emerald-50" : "bg-amber-50"}`}><p className={labelClass}>Subscription price</p><p className={`mt-1 text-xl font-bold ${registrationMode ? "text-emerald-900" : "text-amber-900"}`}>{Number.isFinite(price) ? `₹${price.toLocaleString("en-IN")}` : "Not configured"}</p></div>
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Estimated end date</p><p className="mt-1 text-sm font-semibold text-stone-800">{endDate ? formatDate(endDate) : "Select a valid start date"}</p></div>
                       <label className={labelClass}>
                         Start date<span className="ml-1 text-rose-600">*</span>
                         <span className="relative block"><CalendarDays className="absolute right-3 top-4 h-4 w-4 text-stone-400" /><input className={`${inputClass} ${fieldErrors.startDate ? "border-rose-500" : ""}`} type="date" name="startDate" value={form.startDate} onChange={handleChange} onBlur={handleFieldBlur} aria-invalid={Boolean(fieldErrors.startDate)} /></span>
                         <span className={`mt-0.5 block h-6 overflow-hidden text-[11px] leading-3 font-medium normal-case tracking-normal ${fieldErrors.startDate ? "text-rose-700" : "invisible"}`}>{fieldErrors.startDate || " "}</span>
                       </label>
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className={labelClass}>Approval status</p><p className="mt-1 text-sm font-semibold text-amber-800">{isEditing ? (shopDetails?.approval_status || "Pending") : "Pending"}</p></div>
-                      <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className="mt-1 text-sm font-semibold text-amber-800">Pending Super Admin confirmation</p></div>
+                      <div className={`rounded-xl border p-3 ${registrationMode ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><p className={labelClass}>Approval status</p><p className={`mt-1 text-sm font-semibold ${registrationMode ? "text-emerald-800" : "text-amber-800"}`}>{isEditing ? (shopDetails?.approval_status || "Pending") : "Pending"}</p></div>
+                      <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className={`mt-1 text-sm font-semibold ${registrationMode ? "text-emerald-800" : "text-amber-800"}`}>Pending Super Admin confirmation</p></div>
                     </div>
                   )}
                 </>
@@ -769,18 +769,18 @@ export default function AddGoldShop({
           </div>
 
           <footer className={`flex shrink-0 justify-between gap-3 border-t border-stone-200 ${registrationMode ? "mx-1 rounded-b-2xl border-x border-b bg-white px-4 py-3 shadow-sm sm:mx-2 sm:px-6 sm:py-4" : "bg-[#fbfaf7] px-4 py-4 sm:px-6"}`}>
-            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-40 ${registrationMode ? "border border-amber-500 text-emerald-950" : "border border-stone-300 text-stone-700"}`}>
+            <button type="button" disabled={shopDetailsLoading || Boolean(shopDetailsError) || activeTabIndex === 0} onClick={() => { setActiveTab(TABS[activeTabIndex - 1].id); setFormError(""); }} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-40 ${registrationMode ? "border border-emerald-600 text-emerald-950" : "border border-stone-300 text-stone-700"}`}>
               {registrationMode && <ArrowLeft size={16} />}
               Previous
             </button>
             {activeTabIndex === TABS.length - 1 ? (
-              <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-900/10 transition hover:from-amber-700 hover:to-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="submit" disabled={submitting || shopDetailsLoading || Boolean(shopDetailsError) || (!isEditing && !plans.length)} className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-lg transition disabled:cursor-not-allowed disabled:opacity-60 ${registrationMode ? "bg-gradient-to-r from-[#064A41] to-[#008577] shadow-emerald-900/10 hover:from-[#043D37] hover:to-[#00695C]" : "bg-gradient-to-r from-amber-600 to-amber-500 shadow-amber-900/10 hover:from-amber-700 hover:to-amber-600"}`}>
                 {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
                 {isEditing ? "Save Changes" : "Save Gold Shop"}
                 {!submitting && <ArrowRight size={17} />}
               </button>
             ) : (
-              <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 ${registrationMode ? "bg-gradient-to-r from-amber-600 to-amber-500 shadow-md shadow-amber-900/10" : "bg-stone-800"}`}>
+              <button type="submit" disabled={shopDetailsLoading || Boolean(shopDetailsError)} className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 ${registrationMode ? "bg-gradient-to-r from-[#064A41] to-[#008577] shadow-md shadow-emerald-900/10" : "bg-stone-800"}`}>
                 Save &amp; Next <ArrowRight size={17} />
               </button>
             )}

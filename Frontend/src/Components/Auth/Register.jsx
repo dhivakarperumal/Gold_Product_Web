@@ -61,6 +61,8 @@ function Register() {
         alternateLabel="Sign in"
         alternateTo="/login"
         contentClassName="mx-auto max-w-lg"
+        splitLayout
+        wideFormPanel
         fixedHeight
       >
         <section className="rounded-2xl border border-stone-200 bg-white p-7 text-center shadow-sm sm:p-9">
@@ -86,6 +88,8 @@ function Register() {
         alternateLabel="Sign in"
         alternateTo="/login"
         contentClassName="mx-auto max-w-md"
+        splitLayout
+        wideFormPanel
         fixedHeight
       >
         <section className="rounded-2xl border border-stone-200 bg-white p-7 text-center shadow-sm">
@@ -115,11 +119,15 @@ function Register() {
 
   return (
     <AuthLayout
+      eyebrow="Gold shop registration"
+      title="Create an account"
+      subtitle="Register your gold shop to manage customers, products, and billing with ease."
       alternatePrompt="Already have an account?"
       alternateLabel="Sign in"
       alternateTo="/login"
+      splitLayout
+      wideFormPanel
       fixedHeight
-      hideHeader
     >
       <AddGoldShop
         mode="register"

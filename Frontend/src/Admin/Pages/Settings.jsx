@@ -1,4 +1,4 @@
-import { FiArrowRight, FiPrinter, FiSettings, FiUsers, FiLayout, FiDollarSign } from "react-icons/fi";
+import { FiArrowRight, FiPrinter, FiSettings, FiUsers, FiLayout, FiDollarSign, FiPercent } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 
@@ -22,6 +22,13 @@ const settingsLinks = [
         description: "Manage audited Gold, Silver, Platinum and Diamond rates used for billing and product calculations.",
         path: "/admin/settings/daily-gold-rate",
         label: "Manage rates"
+    },
+    {
+        title: "Tax & GST",
+        description: "Set your account's GST status, default rate, and tax calculation mode used by billing.",
+        path: "/admin/settings/tax",
+        label: "Configure tax",
+        icon: <FiPercent />
     },
     {
         title: "Receipt Settings",

@@ -15,6 +15,8 @@ async function initializeBillingModule() {
       sub_total DECIMAL(12,2) NOT NULL,
       discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
       gst_amount DECIMAL(12,2) NOT NULL,
+      gst_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+      tax_mode VARCHAR(20) NOT NULL DEFAULT 'Tax Exclusive',
       total_amount DECIMAL(12,2) NOT NULL,
       created_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
       updated_by VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
@@ -25,6 +27,14 @@ async function initializeBillingModule() {
   const [userIdColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'user_id'");
   if (userIdColumns.length === 0) {
     await pool.query('ALTER TABLE billings ADD COLUMN user_id VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL AFTER invoice_no');
+  }
+  const [gstRateColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'gst_rate'");
+  if (gstRateColumns.length === 0) {
+    await pool.query('ALTER TABLE billings ADD COLUMN gst_rate DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER gst_amount');
+  }
+  const [taxModeColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'tax_mode'");
+  if (taxModeColumns.length === 0) {
+    await pool.query("ALTER TABLE billings ADD COLUMN tax_mode VARCHAR(20) NOT NULL DEFAULT 'Tax Exclusive' AFTER gst_rate");
   }
   const [createdByColumns] = await pool.query("SHOW COLUMNS FROM billings LIKE 'created_by'");
   if (createdByColumns.length === 0) {
@@ -78,7 +88,7 @@ async function listBillings(userId, dateRange = {}) {
   const where = `WHERE ${conditions.join(' AND ')}`;
   const [rows] = await pool.execute(`
     SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
-      b.sub_total, b.discount_amount, b.gst_amount, b.total_amount, b.paid_amount, b.balance_due,
+      b.sub_total, b.discount_amount, b.gst_amount, b.gst_rate, b.tax_mode, b.total_amount, b.paid_amount, b.balance_due,
       b.created_at, b.updated_at, b.created_by,
       COALESCE(NULLIF(creator.name, ''), creator.username, b.created_by) AS created_by_name,
       b.updated_by, COALESCE(NULLIF(updater.name, ''), updater.username, b.updated_by) AS updated_by_name
@@ -94,7 +104,7 @@ async function listBillings(userId, dateRange = {}) {
 async function getBillingById(id, userId) {
   const [rows] = await pool.execute(
     `SELECT b.id, b.invoice_no, b.user_id, b.customers, b.products, b.exchanges, b.payment_type,
-       b.sub_total, b.discount_amount, b.gst_amount, b.total_amount, b.paid_amount, b.balance_due,
+       b.sub_total, b.discount_amount, b.gst_amount, b.gst_rate, b.tax_mode, b.total_amount, b.paid_amount, b.balance_due,
        b.created_at, b.updated_at, b.created_by,
        COALESCE(NULLIF(creator.name, ''), creator.username, b.created_by) AS created_by_name,
        b.updated_by, COALESCE(NULLIF(updater.name, ''), updater.username, b.updated_by) AS updated_by_name
@@ -121,87 +131,38 @@ async function getBillingProductsByIds(productIds, createdByUserId) {
   return rows;
 }
 
-async function createBilling(billing, userId, initialPayment = null) {
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
-    const paidAmount = initialPayment ? Number(initialPayment.amount) : 0;
-    const [result] = await connection.execute(
-      `INSERT INTO billings
-        (invoice_no, user_id, customers, products, exchanges, payment_type, sub_total, discount_amount,
-         gst_amount, total_amount, paid_amount, balance_due, created_by, updated_by, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      [
-        billing.invoice_no,
-        userId,
-        JSON.stringify(billing.customers),
-        JSON.stringify(billing.products),
-        JSON.stringify(billing.exchanges),
-        billing.payment_type,
-        billing.sub_total,
-        billing.discount_amount,
-        billing.gst_amount,
-        billing.total_amount,
-        paidAmount.toFixed(2),
-        (billing.total_amount - paidAmount).toFixed(2),
-        userId,
-        userId
-      ]
-    );
-    if (initialPayment) {
-      await getFundBalance(connection, initialPayment.created_by_user_id, true);
-      try {
-        await connection.execute(
-          `INSERT INTO billing_payments
-            (billing_id, payment_kind, amount, payment_method, reference_number,
-             payment_date, idempotency_key, created_by)
-           VALUES (?, 'PAYMENT', ?, ?, ?, ?, ?, ?)`,
-          [
-            result.insertId,
-            initialPayment.amount.toFixed(2),
-            initialPayment.payment_method,
-            initialPayment.reference_number,
-            initialPayment.payment_date,
-            initialPayment.idempotency_key,
-            initialPayment.created_by
-          ]
-        );
-        await insertFundRecord(connection, {
-          transaction_type: 'CREDIT',
-          transaction_date: initialPayment.payment_date,
-          amount: initialPayment.amount.toFixed(2),
-          related_reference: billing.invoice_no,
-          payment_method: initialPayment.payment_method,
-          description: `Tack order advance ${initialPayment.reference_number}`,
-          idempotency_key: initialPayment.idempotency_key,
-          created_by: initialPayment.created_by_user_id,
-          updated_by: initialPayment.created_by_user_id,
-          admin_name: initialPayment.admin_name
-        });
-      } catch (error) {
-        if (error.code === 'ER_DUP_ENTRY') {
-          const duplicateError = new Error('Tack order advance has already been transferred');
-          duplicateError.code = 'TACK_ORDER_ADVANCE_ALREADY_TRANSFERRED';
-          throw duplicateError;
-        }
-        throw error;
-      }
-    }
-    await connection.commit();
-    return getBillingById(result.insertId, userId);
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+async function createBilling(billing, userId) {
+  const [result] = await pool.execute(
+    `INSERT INTO billings
+      (invoice_no, user_id, customers, products, exchanges, payment_type, sub_total, discount_amount,
+       gst_amount, gst_rate, tax_mode, total_amount, paid_amount, balance_due, created_by, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    [
+      billing.invoice_no,
+      userId,
+      JSON.stringify(billing.customers),
+      JSON.stringify(billing.products),
+      JSON.stringify(billing.exchanges),
+      billing.payment_type,
+      billing.sub_total,
+      billing.discount_amount,
+      billing.gst_amount,
+      billing.gst_rate,
+      billing.tax_mode,
+      billing.total_amount,
+      billing.total_amount,
+      userId,
+      userId
+    ]
+  );
+  return getBillingById(result.insertId, userId);
 }
 
 async function updateBilling(id, billing, userId) {
   await pool.execute(
     `UPDATE billings
      SET customers = ?, products = ?, exchanges = ?, payment_type = ?,
-       sub_total = ?, discount_amount = ?, gst_amount = ?, total_amount = ?,
+       sub_total = ?, discount_amount = ?, gst_amount = ?, gst_rate = ?, tax_mode = ?, total_amount = ?,
        balance_due = GREATEST(? - paid_amount, 0), updated_by = ?
      WHERE id = ? AND user_id = ?`,
     [
@@ -212,6 +173,8 @@ async function updateBilling(id, billing, userId) {
       billing.sub_total,
       billing.discount_amount,
       billing.gst_amount,
+      billing.gst_rate,
+      billing.tax_mode,
       billing.total_amount,
       billing.total_amount,
       userId,

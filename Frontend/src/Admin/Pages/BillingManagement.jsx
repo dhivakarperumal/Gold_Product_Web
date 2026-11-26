@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiCalendar, FiChevronDown, FiChevronRight, FiCreditCard, FiDollarSign, FiEdit2, FiEye, FiGrid, FiImage, FiList, FiPlus, FiPrinter, FiRepeat, FiSave, FiSearch, FiTrash2, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
+import { Link } from "react-router-dom";
 import api from "../../api";
 import DateRangeFilter from "../Components/DateRangeFilter";
 import useGoldRates from "../../PrivateRouter/useGoldRates";
 import { getReceiptSettings } from "./receiptSettings";
 import { formatCurrency as currency } from "../../utils/currency";
 import { resolveBackendImageUrl } from "../../Components/Home/productDisplay";
+import { DEFAULT_TAX_SETTINGS, getTaxSettings } from "./taxSettings";
 
 const EMPTY_CUSTOMER = { name: "", phone: "", email: "", address: "" };
 const PAYMENT_METHOD_OPTIONS = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"];
@@ -496,7 +498,8 @@ export default function BillingManagement() {
   const [customers, setCustomers] = useState(() => tackOrderPrefill?.customers || [{ ...EMPTY_CUSTOMER }]);
   const [products, setProducts] = useState(() => tackOrderPrefill?.products || []);
   const [productToAdd, setProductToAdd] = useState({ ...EMPTY_PRODUCT });
-  const [gstRateInput, setGstRateInput] = useState(tackOrderPrefill?.gstRate || "0");
+  const [taxSettings, setTaxSettings] = useState({ ...DEFAULT_TAX_SETTINGS });
+  const [taxSettingsLoading, setTaxSettingsLoading] = useState(tackOrderPrefill?.gstRate || true);
   const [discountInput, setDiscountInput] = useState(tackOrderPrefill?.discount || "");
   const [exchanges, setExchanges] = useState([]);
   const [paymentType, setPaymentType] = useState("FULL_PAYMENT");
@@ -584,6 +587,21 @@ export default function BillingManagement() {
   }, [location.pathname, location.state, navigate]);
   useEffect(() => {
     let active = true;
+    getTaxSettings()
+      .then((savedSettings) => {
+        if (active) setTaxSettings(savedSettings);
+      })
+      .catch((error) => {
+        console.error("Failed to load billing tax settings:", error);
+        toast.error(error.response?.data?.message || "Could not load billing tax settings.");
+      })
+      .finally(() => {
+        if (active) setTaxSettingsLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    let active = true;
     api.get("/categories")
       .then((response) => {
         if (!Array.isArray(response.data)) throw new Error("The server returned an invalid category list.");
@@ -624,12 +642,17 @@ export default function BillingManagement() {
     && discountAmount >= 0
     && discountAmount <= subtotal
     && discountAmount + exchangeCredit <= subtotal;
-  const gstRate = gstRateInput.trim() === "" ? 0 : Number(gstRateInput);
-  const validGst = Number.isFinite(gstRate) && gstRate >= 0 && gstRate <= 100;
-  const gst = validGst && validDiscount
-    ? Math.round(Math.max(0, subtotal - discountAmount - exchangeCredit) * gstRate) / 100
+  const gstRate = taxSettings.gst_enabled ? Number(taxSettings.gst_rate) : 0;
+  const validGst = !taxSettingsLoading && Number.isFinite(gstRate) && gstRate >= 0 && gstRate <= 100;
+  const taxableSubtotal = Math.max(0, subtotal - discountAmount - exchangeCredit);
+  const gst = validGst && validDiscount && gstRate > 0
+    ? taxSettings.tax_mode === "Tax Inclusive"
+      ? Math.round((taxableSubtotal * gstRate / (100 + gstRate)) * 100) / 100
+      : Math.round(taxableSubtotal * gstRate) / 100
     : 0;
-  const total = Math.round((subtotal - discountAmount - exchangeCredit + gst) * 100) / 100;
+  const total = taxSettings.tax_mode === "Tax Inclusive"
+    ? taxableSubtotal
+    : Math.round((taxableSubtotal + gst) * 100) / 100;
   const totalBilled = bills.reduce((sum, bill) => sum + (Number(bill.total_amount) || 0), 0);
   const todayBilled = bills.reduce((sum, bill) => {
     if (!bill.created_at || new Date(bill.created_at).toLocaleDateString("en-CA") !== todayKey) return sum;
@@ -823,7 +846,7 @@ export default function BillingManagement() {
             <div class="total-row"><span>Sub-Total</span><span>${currency(bill.sub_total)}</span></div>
             ${Number(bill.discount_amount) > 0 ? `<div class="total-row"><span>Discount</span><span>−${currency(bill.discount_amount)}</span></div>` : ""}
             ${exchangeTotal > 0 ? `<div class="total-row"><span>Exchange Amount</span><span>−${currency(exchangeTotal)}</span></div>` : ""}
-            <div class="total-row"><span>GST</span><span>${currency(bill.gst_amount)}</span></div>
+            <div class="total-row"><span>GST (${escapeHtml(Number(bill.gst_rate || 0))}%, ${escapeHtml(bill.tax_mode || "Tax Exclusive")})</span><span>${currency(bill.gst_amount)}</span></div>
             <div class="total-row grand-total"><span>Total</span><span>${currency(bill.total_amount)}</span></div>
           </div>
           <footer>
@@ -863,7 +886,6 @@ export default function BillingManagement() {
     setCustomers([{ ...EMPTY_CUSTOMER }]);
     setProducts([]);
     setProductToAdd({ ...EMPTY_PRODUCT });
-    setGstRateInput("0");
     setDiscountInput("");
     setExchanges([]);
     setPaymentType("FULL_PAYMENT");
@@ -873,14 +895,6 @@ export default function BillingManagement() {
     const billCustomers = decodeArray(bill.customers);
     const billProducts = decodeArray(bill.products);
     const billExchanges = decodeArray(bill.exchanges);
-    const billSubtotal = Number(bill.sub_total) || 0;
-    const billDiscount = Number(bill.discount_amount) || 0;
-    const exchangeTotal = billExchanges.reduce((sum, exchange) => sum + (Number(exchange.credit_amount) || 0), 0);
-    const taxableSubtotal = Math.max(0, billSubtotal - billDiscount - exchangeTotal);
-    const savedGstRate = taxableSubtotal > 0
-      ? Math.round((Number(bill.gst_amount || 0) / taxableSubtotal) * 10000) / 100
-      : 0;
-
     setEditingBillId(bill.id);
     setCustomers(billCustomers.length ? billCustomers : [{ ...EMPTY_CUSTOMER }]);
     setProducts(billProducts.map((product) => ({
@@ -902,8 +916,7 @@ export default function BillingManagement() {
       rate_per_unit: String(exchange.rate_per_unit ?? "")
     })));
     setPaymentType(bill.payment_type);
-    setGstRateInput(String(savedGstRate));
-    setDiscountInput(billDiscount ? String(billDiscount) : "");
+    setDiscountInput(Number(bill.discount_amount) ? String(bill.discount_amount) : "");
     setShowForm(true);
   };
 
@@ -1068,7 +1081,6 @@ export default function BillingManagement() {
           }))
           : [],
         payment_type: paymentType,
-        gst_rate: gstRate,
         discount_amount: discountAmount
       };
       if (editingBillId) {
@@ -1488,22 +1500,18 @@ export default function BillingManagement() {
             </label>
             {!validDiscount && <p className="text-xs font-semibold text-rose-600">Discount and exchange credit cannot exceed the products subtotal.</p>}
             {paymentType === "EXCHANGE_GOLD" && <div className="flex justify-between text-sm text-amber-700"><span>Exchange Amount</span><span>−{currency(exchangeCredit)}</span></div>}
-            <label className="flex items-center justify-between gap-4 text-sm font-medium text-slate-600">
-              GST Rate (%)
-              <input
-                className={`${inputClass} mt-0 max-w-40 text-right`}
-                type="number"
-                min="0"
-                max="100"
-                step="0.0001"
-                value={gstRateInput}
-                onChange={(event) => setGstRateInput(event.target.value)}
-                placeholder="0"
-                aria-invalid={!validGst}
-              />
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+              <span>
+                {taxSettings.gst_enabled
+                  ? `GST (${gstRate}%, ${taxSettings.tax_mode})`
+                  : "GST disabled"}
+              </span>
+              <Link to="/admin/settings/tax" className="font-semibold text-[#00695C] hover:underline">
+                Tax settings
+              </Link>
+            </div>
             <div className="flex justify-between text-sm text-slate-600">
-              <span>GST Amount ({gstRateInput || "0"}%)</span>
+              <span>GST Amount</span>
               <span>{validDiscount && validGst ? currency(gst) : "—"}</span>
             </div>
             <div className="flex justify-between border-t border-slate-100 pt-3 text-lg font-extrabold text-slate-900"><span>Total Bill</span><span>{validDiscount && validGst ? currency(total) : "—"}</span></div>
@@ -1624,7 +1632,7 @@ export default function BillingManagement() {
               <div className="flex justify-between text-slate-600"><span>Sub-Total</span><span>{currency(viewingBill.sub_total)}</span></div>
               {Number(viewingBill.discount_amount) > 0 && <div className="flex justify-between text-emerald-700"><span>Discount</span><span>−{currency(viewingBill.discount_amount)}</span></div>}
               {decodeArray(viewingBill.exchanges).length > 0 && <div className="flex justify-between text-amber-700"><span>Exchange Amount</span><span>−{currency(decodeArray(viewingBill.exchanges).reduce((sum, item) => sum + (Number(item.credit_amount) || 0), 0))}</span></div>}
-              <div className="flex justify-between text-slate-600"><span>GST</span><span>{currency(viewingBill.gst_amount)}</span></div>
+              <div className="flex justify-between text-slate-600"><span>GST ({Number(viewingBill.gst_rate || 0)}%, {viewingBill.tax_mode || "Tax Exclusive"})</span><span>{currency(viewingBill.gst_amount)}</span></div>
               <div className="flex justify-between border-t border-slate-200 pt-2 text-lg font-extrabold text-slate-900"><span>Total</span><span>{currency(viewingBill.total_amount)}</span></div>
               <div className="flex justify-between text-emerald-700"><span>Paid</span><span>{currency(viewingBill.paid_amount)}</span></div>
               <div className="flex justify-between font-bold text-rose-700"><span>Balance due</span><span>{currency(viewingBill.balance_due)}</span></div>
