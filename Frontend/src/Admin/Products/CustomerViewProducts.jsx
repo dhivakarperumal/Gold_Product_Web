@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, RefreshCw, Search, SlidersHorizontal, Star } from "lucide-react";
 import api from "../../api";
 import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { formatCurrency } from "../../utils/currency";
@@ -7,6 +7,7 @@ import { formatCurrency } from "../../utils/currency";
 const PRODUCTS_PAGE_SIZE = 100;
 const PRODUCTS_PER_PAGE = 18;
 const OFFER_THRESHOLDS = [10, 20, 30, 40];
+const RATING_THRESHOLDS = [4, 3, 2, 1];
 const PRICE_STEP = 1_000;
 const PRICE_RANGES = [
     { label: "₹ 0 - 25K", minimum: 0, maximum: 25_000 },
@@ -28,6 +29,9 @@ const getDiscount = (product) => {
         : 0;
 };
 
+const productIsInStock = (product) =>
+    Number(product.total_stock ?? product.stock ?? 0) > 0;
+
 const CustomerViewProducts = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -38,6 +42,8 @@ const CustomerViewProducts = () => {
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [selectedMetals, setSelectedMetals] = useState([]);
     const [offerThreshold, setOfferThreshold] = useState(0);
+    const [minimumRating, setMinimumRating] = useState(0);
+    const [availability, setAvailability] = useState("");
     const [minimumPrice, setMinimumPrice] = useState("");
     const [maximumPrice, setMaximumPrice] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -47,6 +53,8 @@ const CustomerViewProducts = () => {
         metal: true,
         offer: true,
         price: true,
+        rating: true,
+        availability: true,
     });
 
     useEffect(() => {
@@ -106,6 +114,18 @@ const CustomerViewProducts = () => {
         return counts;
     }, {}), [products]);
 
+    const ratingCounts = useMemo(() => products.reduce((counts, product) => {
+        const rating = Number(product.rating) || 0;
+        RATING_THRESHOLDS.forEach((threshold) => {
+            if (rating >= threshold) counts[threshold] += 1;
+        });
+        return counts;
+    }, Object.fromEntries(RATING_THRESHOLDS.map((rating) => [rating, 0]))), [products]);
+    const inStockCount = useMemo(
+        () => products.filter(productIsInStock).length,
+        [products]
+    );
+
     const categories = Object.keys(categoryCounts).sort((first, second) => first.localeCompare(second));
     const metals = Object.keys(metalCounts).sort((first, second) => first.localeCompare(second));
     const priceSliderMaximum = useMemo(() => {
@@ -136,11 +156,16 @@ const CustomerViewProducts = () => {
             const matchesMetal = !selectedMetals.length
                 || selectedMetals.includes(product.metal_type);
             const matchesOffer = !offerThreshold || getDiscount(product) >= offerThreshold;
+            const matchesRating = !minimumRating || Number(product.rating || 0) >= minimumRating;
+            const inStock = productIsInStock(product);
+            const matchesAvailability = !availability
+                || (availability === "in-stock" ? inStock : !inStock);
             const price = getProductPrice(product);
             const matchesMinimum = minimumPrice === "" || price >= Number(minimumPrice);
             const matchesMaximum = maximumPrice === "" || price <= Number(maximumPrice);
 
             return matchesSearch && matchesCategory && matchesMetal && matchesOffer
+                && matchesRating && matchesAvailability
                 && matchesMinimum && matchesMaximum;
         });
 
@@ -152,7 +177,7 @@ const CustomerViewProducts = () => {
             const secondDate = new Date(second.created_at || 0).getTime();
             return sortBy === "oldest" ? firstDate - secondDate : secondDate - firstDate;
         });
-    }, [maximumPrice, minimumPrice, offerThreshold, products, search, selectedCategories, selectedMetals, sortBy]);
+    }, [availability, maximumPrice, minimumPrice, minimumRating, offerThreshold, products, search, selectedCategories, selectedMetals, sortBy]);
 
     const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
     const activePage = Math.min(currentPage, Math.max(totalPages, 1));
@@ -166,6 +191,8 @@ const CustomerViewProducts = () => {
         setSelectedCategories([]);
         setSelectedMetals([]);
         setOfferThreshold(0);
+        setMinimumRating(0);
+        setAvailability("");
         setMinimumPrice("");
         setMaximumPrice("");
         setCurrentPage(1);
@@ -236,16 +263,6 @@ const CustomerViewProducts = () => {
                         />
                     </label>
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                        <button
-                            type="button"
-                            onClick={() => setFiltersVisible((visible) => !visible)}
-                            aria-expanded={filtersVisible}
-                            aria-controls="customer-product-filters"
-                            className="flex shrink-0 items-center gap-2 rounded-lg border border-[#e8dfd1] bg-white px-3 py-2 text-xs font-semibold text-[#174a38] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
-                        >
-                            <SlidersHorizontal size={14} aria-hidden="true" />
-                            {filtersVisible ? "Hide Filters" : "Show Filters"}
-                        </button>
                         <label className="flex items-center gap-2 text-xs text-[#62594d]">
                             Sort by:
                             <select
@@ -263,6 +280,16 @@ const CustomerViewProducts = () => {
                                 <option value="name">Name: A to Z</option>
                             </select>
                         </label>
+                        <button
+                            type="button"
+                            onClick={() => setFiltersVisible((visible) => !visible)}
+                            aria-expanded={filtersVisible}
+                            aria-controls="customer-product-filters"
+                            className="flex shrink-0 items-center gap-2 rounded-lg border border-[#e8dfd1] bg-white px-3 py-2 text-xs font-semibold text-[#174a38] transition hover:border-[#d8b46c] hover:bg-[#fffaf0]"
+                        >
+                            <SlidersHorizontal size={14} aria-hidden="true" />
+                            {filtersVisible ? "Hide Filters" : "Show Filters"}
+                        </button>
                     </div>
                 </div>
             </header>
@@ -375,6 +402,49 @@ const CustomerViewProducts = () => {
                                     );
                                 })}
                             </div>
+                        </>
+                    ))}
+
+                    {filterSection("rating", "Rating", (
+                        <div className="space-y-2">
+                            {RATING_THRESHOLDS.map((rating) => (
+                                <label key={rating} className="flex cursor-pointer items-center gap-2 text-xs text-[#514b42]">
+                                    <input
+                                        type="checkbox"
+                                        checked={minimumRating === rating}
+                                        onChange={() => {
+                                            setCurrentPage(1);
+                                            setMinimumRating((current) => current === rating ? 0 : rating);
+                                        }}
+                                        aria-label={`${rating} stars and above`}
+                                        className="h-3.5 w-3.5 shrink-0 accent-[#174a38]"
+                                    />
+                                    <span className="flex items-center gap-0.5" aria-hidden="true">
+                                        {Array.from({ length: 5 }, (_, index) => (
+                                            <Star
+                                                key={index}
+                                                size={11}
+                                                className={index < rating ? "fill-[#e6a323] text-[#e6a323]" : "text-[#dedbd5]"}
+                                            />
+                                        ))}
+                                    </span>
+                                    <span className="min-w-0 flex-1 whitespace-nowrap">{rating} &amp; above</span>
+                                    <span className="text-[10px] text-[#9a9286]">{ratingCounts[rating]}</span>
+                                </label>
+                            ))}
+                        </div>
+                    ))}
+
+                    {filterSection("availability", "Availability", (
+                        <>
+                            {checkboxOption("In stock", availability === "in-stock", () => {
+                                setCurrentPage(1);
+                                setAvailability((current) => current === "in-stock" ? "" : "in-stock");
+                            }, inStockCount)}
+                            {checkboxOption("Out of stock", availability === "out-of-stock", () => {
+                                setCurrentPage(1);
+                                setAvailability((current) => current === "out-of-stock" ? "" : "out-of-stock");
+                            }, products.length - inStockCount)}
                         </>
                     ))}
                 </aside>
