@@ -1,5 +1,5 @@
 import CustomSelect from "../../Components/CustomSelect.jsx";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import api from "../../api";
 import {
@@ -17,9 +17,6 @@ import {
     FiCheckCircle,
     FiAlertCircle,
     FiBox,
-    FiLayers,
-    FiFilter,
-    FiDownload,
 } from "react-icons/fi";
 import imageCompression from "browser-image-compression";
 import { toast, Toaster } from "react-hot-toast";
@@ -65,7 +62,7 @@ const Category = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const itemsPerPage = 10;
 
     // ---- Modal State ----
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -234,6 +231,7 @@ const Category = () => {
     const resetModalForm = () => {
         setFormData({ catId: "", name: "", description: "", subcategory: "", images: [] });
         setSubcategories([]);
+        setSubInput("");
         setIsEditing(false);
     };
 
@@ -251,175 +249,208 @@ const Category = () => {
             images: Array.isArray(category.images) ? category.images : (category.images ? [category.images] : [])
         });
         setSubcategories(category.subcategory || []);
+        setSubInput("");
         setIsEditing(true);
         setIsModalOpen(true);
     };
 
     // ---- Renderers ----
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-screen pb-20 font-sans">
+        <div className="space-y-5 pb-10 font-sans">
             <Toaster position="top-right" />
 
-           
-
-            {/* Stats Cards Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-[20px] bg-[#003B3B] flex items-center justify-center shrink-0 shadow-lg shadow-emerald-200">
-                        <FiBox className="text-white text-2xl" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-bold text-gray-400 mb-1">Total Categories</p>
-                        <h3 className="text-3xl font-black text-slate-800 leading-none mb-1">{categories.length}</h3>
-                        <p className="text-[11px] text-gray-400 font-medium">All category collections</p>
-                    </div>
+            <section className="relative isolate overflow-hidden rounded-[28px] bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577] px-6 py-7 text-white shadow-[0_20px_45px_rgba(4,78,69,0.18)] sm:px-9 sm:py-8">
+                <div aria-hidden="true" className="pointer-events-none absolute -right-8 -top-28 -z-10 h-80 w-80 rounded-full border border-white/10">
+                    <div className="absolute inset-8 rounded-full border border-white/10" />
                 </div>
-                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-[20px] bg-[#D4AF37] flex items-center justify-center shrink-0 shadow-lg shadow-amber-200">
-                        <FiCheckCircle className="text-white text-2xl" />
+                <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="max-w-3xl">
+                        <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-100">
+                            Product Management <span className="mx-1.5 text-emerald-200/70">·</span> Category Directory
+                        </p>
+                        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Categories</h1>
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50 sm:text-base">
+                            Organize your jewellery collections and keep category details up to date.
+                        </p>
                     </div>
-                    <div>
-                        <p className="text-xs font-bold text-gray-400 mb-1">Active</p>
-                        <h3 className="text-3xl font-black text-slate-800 leading-none mb-1">{activeCount}</h3>
-                        <p className="text-[11px] text-gray-400 font-medium">Active collections</p>
-                    </div>
-                </div>
-                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-[20px] bg-[#9A6B2F] flex items-center justify-center shrink-0 shadow-lg shadow-orange-200">
-                        <FiAlertCircle className="text-white text-2xl" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-bold text-gray-400 mb-1">Inactive</p>
-                        <h3 className="text-3xl font-black text-slate-800 leading-none mb-1">{inactiveCount}</h3>
-                        <p className="text-[11px] text-gray-400 font-medium">Inactive collections</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Filter Bar */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center justify-between gap-4 mb-6">
-                <div className="relative flex-1 max-w-md">
-                    <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
-                    <input
-                        type="text"
-                        placeholder="Search categories by name, ID..."
-                        value={searchQuery}
-                        onChange={handleSearch}
-                        className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all font-medium placeholder:text-gray-400"
-                    />
-                </div>
-                
-                <div className="flex items-center gap-3">
-                    <div className="relative">
-                        <CustomSelect
-                            value={statusFilter}
-                            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                            className="appearance-none bg-white border border-gray-200 text-sm font-bold text-gray-600 pl-4 pr-10 py-2.5 rounded-xl outline-none focus:border-amber-400 cursor-pointer"
-                        >
-                            <option value="All">Select Status</option>
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </CustomSelect>
-                    </div>
-                   
-                    <div className="flex items-center gap-3">
-                    <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
-                        <button onClick={() => setViewMode("table")} className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-[#003B3B] text-white' : 'text-gray-400 hover:text-slate-600'}`}>
-                            <FiList size={18} />
-                        </button>
-                        <button onClick={() => setViewMode("grid")} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-[#003B3B] text-white' : 'text-gray-400 hover:text-slate-600'}`}>
-                            <FiGrid size={18} />
-                        </button>
-                    </div>
-                    <button onClick={openAddModal} className="flex items-center gap-2 py-3 bg-[#003B3B] hover:bg-[#008577] text-white px-5 rounded-md text-sm font-bold transition-all shadow-md active:scale-95">
+                    <button
+                        type="button"
+                        onClick={openAddModal}
+                        className="inline-flex min-h-14 shrink-0 items-center justify-center gap-2.5 self-start rounded-2xl bg-white px-6 py-3 text-sm font-extrabold text-[#064e45] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-white/30 sm:self-center"
+                    >
                         <FiPlus size={18} /> Add New Category
                     </button>
                 </div>
-                </div>
+            </section>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {[
+                    { label: "Total Categories", value: categories.length, sub: "All category collections", icon: <FiBox size={23} />, card: "border-t-[#00b8a9] bg-gradient-to-br from-[#eefbf9] to-white", iconBg: "bg-[#009b8b]", dot: "bg-[#009b8b]", text: "text-[#007d70]" },
+                    { label: "Active", value: activeCount, sub: "Currently available", icon: <FiCheckCircle size={23} />, card: "border-t-emerald-500 bg-gradient-to-br from-emerald-50 to-white", iconBg: "bg-emerald-600", dot: "bg-emerald-600", text: "text-emerald-700" },
+                    { label: "Inactive", value: inactiveCount, sub: "Unavailable categories", icon: <FiAlertCircle size={23} />, card: "border-t-amber-500 bg-gradient-to-br from-amber-50 to-white", iconBg: "bg-amber-500", dot: "bg-amber-600", text: "text-amber-700" },
+                ].map((stat) => (
+                    <article key={stat.label} className={`relative flex min-h-[148px] items-center justify-between gap-3 overflow-hidden rounded-[22px] border-x border-b border-t-4 border-x-slate-200/70 border-b-slate-200/70 p-5 shadow-[0_5px_15px_rgba(15,23,42,0.055)] transition hover:-translate-y-0.5 hover:shadow-md sm:p-6 ${stat.card}`}>
+                        <div className="min-w-0">
+                            <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">{stat.label}</p>
+                            <p className="my-2 text-4xl font-black leading-none tabular-nums text-slate-950">{stat.value}</p>
+                            <p className={`flex items-center gap-2 text-xs font-bold ${stat.text}`}>
+                                <span className={`h-2 w-2 shrink-0 rounded-full ${stat.dot}`} />
+                                <span className="truncate">{stat.sub}</span>
+                            </p>
+                        </div>
+                        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] text-white shadow-lg shadow-slate-900/10 ${stat.iconBg}`}>
+                            {stat.icon}
+                        </div>
+                    </article>
+                ))}
             </div>
 
-            {/* Content Area */}
-            {loading ? (
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 flex flex-col items-center justify-center">
-                    <div className="w-10 h-10 border-4 border-amber-100 border-t-amber-500 rounded-full animate-spin mb-4"></div>
-                    <p className="text-gray-500 font-bold">Loading Categories...</p>
+            <section aria-label="Category search and filters" className="space-y-4 rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] sm:p-5">
+                <div className="flex flex-wrap items-center gap-3">
+                    <label className="relative min-w-[240px] flex-[1_1_320px]">
+                        <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={17} aria-hidden="true" />
+                        <span className="sr-only">Search categories by name or ID</span>
+                        <input
+                            type="search"
+                            placeholder="Search categories by name or ID..."
+                            value={searchQuery}
+                            onChange={handleSearch}
+                            className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50/60 py-2.5 pl-11 pr-4 text-sm font-medium text-slate-700 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 hover:border-slate-300 hover:bg-white focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10"
+                        />
+                    </label>
+                    <CustomSelect
+                        aria-label="Filter categories by status"
+                        value={statusFilter}
+                        onChange={(event) => { setStatusFilter(event.target.value); setCurrentPage(1); }}
+                        className="min-h-12 min-w-48 rounded-[14px] border border-slate-200 bg-slate-50/60 px-3.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition hover:border-emerald-300 hover:bg-white focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10"
+                    >
+                        <option value="All">All statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </CustomSelect>
                 </div>
-            ) : currentCategories.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-16 flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 mb-4">
-                        <FiSearch size={32} />
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                    <p className="text-xs font-medium text-slate-500">
+                        Showing {filteredCategories.length ? (currentPage - 1) * itemsPerPage + 1 : 0}–{Math.min(currentPage * itemsPerPage, filteredCategories.length)} of {filteredCategories.length} categories
+                    </p>
+                    <div className="flex rounded-xl border border-slate-200 bg-slate-100/80 p-1 shadow-inner" role="group" aria-label="Category view mode">
+                        <button
+                            type="button"
+                            onClick={() => setViewMode("table")}
+                            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-all ${viewMode === "table" ? "bg-[#003B3B] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}
+                            aria-label="Table view"
+                            aria-pressed={viewMode === "table"}
+                            title="Table view"
+                        >
+                            <FiList size={17} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode("grid")}
+                            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-all ${viewMode === "grid" ? "bg-[#003B3B] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}
+                            aria-label="Card view"
+                            aria-pressed={viewMode === "grid"}
+                            title="Card view"
+                        >
+                            <FiGrid size={17} />
+                        </button>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-800">No categories found</h3>
-                    <p className="text-gray-400 text-sm mt-1">Adjust your search or filter to find what you're looking for.</p>
                 </div>
-            ) : viewMode === 'table' ? (
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+            </section>
+
+            <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+                <div className="flex flex-col gap-2 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <div>
+                        <h2 className="text-sm font-extrabold text-slate-900">Category Directory</h2>
+                        <p className="mt-0.5 text-xs text-slate-500">Manage collections, product counts, and category status.</p>
+                    </div>
+                    <span className="inline-flex w-fit items-center rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
+                        {filteredCategories.length} categories
+                    </span>
+                </div>
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-emerald-500/20 border-t-[#008577]" />
+                        <p className="text-sm font-bold text-slate-500">Loading categories...</p>
+                    </div>
+                ) : currentCategories.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400"><FiSearch size={22} /></span>
+                        <h3 className="mt-3 text-sm font-extrabold text-slate-700">No categories found</h3>
+                        <p className="mt-1 text-xs text-slate-500">Adjust your search or status filter to find what you’re looking for.</p>
+                    </div>
+                ) : viewMode === "table" ? (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left whitespace-nowrap">
+                        <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-left">
+                            <colgroup>
+                                <col className="w-[4%]" />
+                                <col className="w-[6%]" />
+                                <col className="w-[23%]" />
+                                <col className="w-[15%]" />
+                                <col className="w-[9%]" />
+                                <col className="w-[10%]" />
+                                <col className="w-[23%]" />
+                                <col className="w-[10%]" />
+                            </colgroup>
                             <thead>
-                                <tr className="bg-[#003B3B] border-b border-[#008577]">
-                                    <th className="px-4 py-4 w-12 text-center "><input type="checkbox" className="rounded accent-[#D4AF37] w-4 h-4 border-amber-300" /></th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider w-10">S.NO.</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider w-10">CATEGORY</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider w-10">DESCRIPTION</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider w-10">PRODUCTS</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider w-10">STATUS</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider">CREATED / UPDATED</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-white uppercase tracking-wider w-10">ACTIONS</th>
+                                <tr className="bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577]">
+                                    <th scope="col" className="border-b border-white/15 px-4 py-4 text-center">
+                                        <input aria-label="Select all categories" type="checkbox" className="h-4 w-4 rounded accent-[#F5C45E]" />
+                                    </th>
+                                    {["S.No.", "Category", "Description", "Products", "Status", "Created / Updated", "Actions"].map((heading) => (
+                                        <th key={heading} scope="col" className="whitespace-nowrap border-b border-white/15 px-5 py-4 text-[11px] font-extrabold uppercase tracking-[0.14em] text-white">{heading}</th>
+                                    ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {currentCategories.map((cat, ind) => {
-                                    const sNo = (currentPage - 1) * itemsPerPage + ind + 1;
-                                    const status = cat.status || (ind % 4 === 3 ? 'Inactive' : 'Active');
-                                    const totalProds = cat.totalProducts || Math.floor(Math.random() * 20 + 2);
+                            <tbody>
+                                {currentCategories.map((cat, index) => {
+                                    const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                                    const status = cat.status || "Active";
+                                    const totalProducts = cat.totalProducts ?? 0;
+                                    const imageUrl = getCategoryImageUrl(cat.images);
 
                                     return (
-                                        <tr key={cat.catId} className="hover:bg-gray-50/50 transition-colors group">
-                                            <td className="px-6 py-4 text-center"><input type="checkbox" className="rounded accent-[#D4AF37] focus:ring-amber-500 w-4 h-4 border-gray-300" /></td>
-                                            <td className="px-4 py-4 text-sm font-bold text-gray-500">{sNo}</td>
-                                            <td className="px-4 py-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
-                                                        {cat.images && cat.images.length > 0 ? (
-                                                            <img src={getCategoryImageUrl(cat.images)} alt={cat.name} onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-full h-full object-cover" />
+                                        <tr key={cat.catId} className="group h-[82px] odd:bg-white even:bg-slate-50/60 transition-colors hover:bg-emerald-50/70">
+                                            <td className="border-b border-slate-100 px-4 py-4 text-center">
+                                                <input aria-label={`Select ${cat.name}`} type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-emerald-700" />
+                                            </td>
+                                            <td className="border-b border-slate-100 px-5 py-4 text-sm font-semibold tabular-nums text-slate-500">{serialNumber}</td>
+                                            <td className="border-b border-slate-100 px-5 py-4">
+                                                <div className="flex min-w-0 items-center gap-3">
+                                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm">
+                                                        {imageUrl ? (
+                                                            <img src={imageUrl} alt={cat.name} onError={(event) => { event.currentTarget.style.display = "none"; }} className="h-full w-full object-cover" />
                                                         ) : (
-                                                            <div className="w-full h-full flex items-center justify-center"><FiImage className="text-gray-400" /></div>
+                                                            <FiImage className="text-slate-400" size={18} />
                                                         )}
                                                     </div>
-                                                    <div>
-                                                        <h4 className="text-sm font-bold text-slate-800 mb-0.5">{cat.name}</h4>
-                                                        <p className="text-[11px] text-gray-400 font-medium">ID: {cat.catId || "N/A"}</p>
+                                                    <div className="min-w-0">
+                                                        <h3 className="truncate text-sm font-extrabold text-slate-900">{cat.name}</h3>
+                                                        <p className="mt-1 truncate text-[11px] font-medium text-slate-400">ID: {cat.catId || "N/A"}</p>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 text-sm font-medium text-gray-500 max-w-[200px] truncate">
-                                                {cat.description || "No description"}
+                                            <td className="max-w-[220px] border-b border-slate-100 px-5 py-4 text-sm font-medium text-slate-500">
+                                                <p className="line-clamp-2 whitespace-normal">{cat.description || "No description"}</p>
                                             </td>
-                                            <td className="px-4 py-4 text-sm font-bold text-slate-800 text-center">
-                                                {totalProds}
+                                            <td className="border-b border-slate-100 px-5 py-4 text-center">
+                                                <span className="inline-flex min-w-9 justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-extrabold tabular-nums text-slate-700">{totalProducts}</span>
                                             </td>
-                                            <td className="px-4 py-4 text-center">
-                                                {status === 'Active' ? (
-                                                    <span className="inline-block px-3 py-1 bg-amber-50 text-amber-800 text-[11px] font-bold rounded-lg">
-                                                        Active
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-block px-3 py-1 bg-stone-100 text-stone-600 text-[11px] font-bold rounded-lg">
-                                                        Inactive
-                                                    </span>
-                                                )}
+                                            <td className="border-b border-slate-100 px-5 py-4">
+                                                <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-bold ${status === "Active" ? "border-emerald-100 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-100 text-slate-600"}`}>
+                                                    {status}
+                                                </span>
                                             </td>
-                                            <td className="px-4 py-3 text-xs text-gray-500">
-                                                <div><span className="font-bold text-slate-600">Created:</span> {cat.created_by_name || cat.created_by || "—"} · {formatAuditDateTime(cat.created_at)}</div>
-                                                <div className="mt-1"><span className="font-bold text-slate-600">Updated:</span> {cat.updated_by_name || cat.updated_by || "—"} · {formatAuditDateTime(cat.updated_at)}</div>
+                                            <td className="border-b border-slate-100 px-5 py-4 text-xs text-slate-500">
+                                                <p className="whitespace-nowrap"><span className="font-bold text-slate-700">Created:</span> {cat.created_by_name || cat.created_by || "—"} · {formatAuditDateTime(cat.created_at)}</p>
+                                                <p className="mt-1 whitespace-nowrap"><span className="font-bold text-slate-700">Updated:</span> {cat.updated_by_name || cat.updated_by || "—"} · {formatAuditDateTime(cat.updated_at)}</p>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button disabled={refreshing} onClick={() => openEditModal(cat)} className="w-8 h-8 flex items-center justify-center rounded-full bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50" title="Edit">
+                                            <td className="border-b border-slate-100 px-5 py-4">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button type="button" disabled={refreshing} onClick={() => openEditModal(cat)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-800 transition-all hover:border-emerald-700 hover:bg-emerald-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Edit category" aria-label={`Edit ${cat.name}`}>
                                                         <FiEdit2 size={14} />
                                                     </button>
-                                                    <button disabled={refreshing} onClick={() => handleDeleteCategory(cat.catId)} className="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50" title="Delete">
+                                                    <button type="button" disabled={refreshing} onClick={() => handleDeleteCategory(cat.catId)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-100 bg-rose-50 text-rose-600 transition-all hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Delete category" aria-label={`Delete ${cat.name}`}>
                                                         <FiTrash2 size={14} />
                                                     </button>
                                                 </div>
@@ -430,237 +461,283 @@ const Category = () => {
                             </tbody>
                         </table>
                     </div>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
-                    {currentCategories.map((cat, ind) => {
-                        const status = cat.status || (ind % 4 === 3 ? 'Inactive' : 'Active');
-                        const totalProds = cat.totalProducts || Math.floor(Math.random() * 20 + 2);
+                ) : (
+                    <div className="grid grid-cols-1 gap-5 p-5 sm:grid-cols-2 xl:grid-cols-3">
+                        {currentCategories.map((cat) => {
+                            const status = cat.status || "Active";
+                            const totalProducts = cat.totalProducts ?? 0;
+                            const imageUrl = getCategoryImageUrl(cat.images);
 
-                        return (
-                            <div key={cat.catId} className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col h-full">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
-                                        {cat.images && cat.images.length > 0 ? (
-                                            <img src={getCategoryImageUrl(cat.images)} alt={cat.name} onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-full h-full object-cover" />
+                            return (
+                                <article key={cat.catId} className="group overflow-hidden rounded-[20px] border border-slate-200/80 bg-white shadow-[0_3px_10px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_14px_28px_rgba(15,23,42,0.12)]">
+                                    <div className="relative h-40 overflow-hidden bg-gradient-to-br from-slate-100 to-emerald-50">
+                                        {imageUrl ? (
+                                            <img src={imageUrl} alt={cat.name} onError={(event) => { event.currentTarget.style.display = "none"; }} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                                         ) : (
-                                            <FiImage className="text-gray-400 text-xl" />
+                                            <div className="flex h-full w-full items-center justify-center text-emerald-800/40"><FiImage size={34} /></div>
                                         )}
+                                        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/20 to-transparent" />
+                                        <span className={`absolute right-3 top-3 inline-flex rounded-full border px-3 py-1.5 text-[11px] font-extrabold shadow-sm ${status === "Active" ? "border-emerald-100 bg-emerald-50/95 text-emerald-800" : "border-slate-200 bg-white/95 text-slate-600"}`}>{status}</span>
                                     </div>
-                                    <span className="bg-gray-100 text-gray-500 text-[10px] font-bold tracking-wider uppercase px-2 py-1 rounded">
-                                        {cat.catId || "N/A"}
-                                    </span>
-                                </div>
-
-                                <div className="flex-1">
-                                    <h3 className="text-sm font-bold text-slate-800 mb-1">{cat.name}</h3>
-                                    <p className="text-xs text-gray-500 mb-4 line-clamp-2">
-                                        {cat.description || "No description provided."}
-                                    </p>
-                                    
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <div>
-                                            <p className="text-[10px] text-gray-400 font-medium">Products</p>
-                                            <p className="text-sm font-bold text-gray-800">{totalProds}</p>
+                                    <div className="p-4 sm:p-[18px]">
+                                        <div className="min-h-[104px]">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <h3 className="truncate text-base font-extrabold text-slate-900">{cat.name}</h3>
+                                                <span className="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">{cat.catId || "N/A"}</span>
+                                            </div>
+                                            <p className="mt-2 line-clamp-2 min-h-9 text-xs leading-5 text-slate-500">{cat.description || "No description provided."}</p>
                                         </div>
-                                        <div>
-                                            <p className="text-[10px] text-gray-400 font-medium">Status</p>
-                                            {status === 'Active' ? (
-                                                <span className="inline-block px-2 py-0.5 mt-0.5 bg-amber-50 text-amber-800 text-[10px] font-bold uppercase rounded">Active</span>
-                                            ) : (
-                                                <span className="inline-block px-2 py-0.5 mt-0.5 bg-stone-100 text-stone-600 text-[10px] font-bold uppercase rounded">Inactive</span>
-                                            )}
+                                        <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3.5">
+                                            <div>
+                                                <p className="text-[11px] font-medium text-slate-400">Products</p>
+                                                <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{totalProducts}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[11px] font-medium text-slate-400">Status</p>
+                                                <p className={`mt-1 text-sm font-extrabold ${status === "Active" ? "text-emerald-700" : "text-slate-500"}`}>{status}</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-[10px] leading-4 text-slate-500">
+                                            <p className="truncate"><span className="font-bold text-slate-700">Created:</span> {cat.created_by_name || cat.created_by || "—"} · {formatAuditDateTime(cat.created_at)}</p>
+                                            <p className="truncate"><span className="font-bold text-slate-700">Updated:</span> {cat.updated_by_name || cat.updated_by || "—"} · {formatAuditDateTime(cat.updated_at)}</p>
+                                        </div>
+                                        <div className="mt-4 flex gap-2">
+                                            <button type="button" disabled={refreshing} onClick={() => openEditModal(cat)} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#07564B] to-[#008577] px-3 py-2 text-xs font-extrabold text-white shadow-[0_4px_10px_rgba(0,107,98,0.18)] transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
+                                                <FiEdit2 size={13} /> Edit Category
+                                            </button>
+                                            <button type="button" disabled={refreshing} onClick={() => handleDeleteCategory(cat.catId)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-100 bg-rose-50 text-rose-600 transition-colors hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Delete category" aria-label={`Delete ${cat.name}`}>
+                                                <FiTrash2 size={14} />
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="mb-4 space-y-1 border-t border-gray-100 pt-3 text-[10px] text-gray-500">
-                                        <p><span className="font-bold text-slate-600">Created:</span> {cat.created_by_name || cat.created_by || "—"} · {formatAuditDateTime(cat.created_at)}</p>
-                                        <p><span className="font-bold text-slate-600">Updated:</span> {cat.updated_by_name || cat.updated_by || "—"} · {formatAuditDateTime(cat.updated_at)}</p>
-                                    </div>
-                                </div>
-
-                                <div className="mt-auto pt-4 border-t border-gray-50 flex items-center gap-2 shrink-0">
-                                    <button disabled={refreshing} onClick={() => openEditModal(cat)} className="flex-1 py-1.5 flex items-center justify-center gap-1.5 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 transition-colors text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50">
-                                        <FiEdit2 size={12} /> Edit
-                                    </button>
-                                    <button disabled={refreshing} onClick={() => handleDeleteCategory(cat.catId)} className="flex-1 py-1.5 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 text-red-500 hover:bg-red-50 transition-colors text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50">
-                                        <FiTrash2 size={12} /> Delete
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* Pagination / Footer */}
-            {!loading && totalPages > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="text-sm font-bold text-gray-500">
-                        Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredCategories.length)} of {filteredCategories.length} categories
+                                </article>
+                            );
+                        })}
                     </div>
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                            disabled={currentPage === 1}
-                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm"
-                        >
-                            <FiChevronLeft size={16} />
-                        </button>
-                        <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#003B3B] text-white text-sm font-bold shadow-sm">
-                            {currentPage}
-                        </button>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                            disabled={currentPage === totalPages}
-                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm"
-                        >
-                            <FiChevronRight size={16} />
-                        </button>
+                )}
+                {!loading && filteredCategories.length > 0 && (
+                    <div className="flex flex-col gap-4 border-t border-slate-100 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-xs font-medium text-slate-500">
+                            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredCategories.length)} of {filteredCategories.length} categories
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
+                                disabled={currentPage === 1}
+                                aria-label="Previous page"
+                                className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:border-emerald-500 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                <FiChevronLeft size={16} />
+                            </button>
+                            <span className="flex h-9 min-w-9 items-center justify-center rounded-xl border border-emerald-700 bg-emerald-700 px-3 text-sm font-bold text-white shadow-sm">
+                                {currentPage} <span className="mx-1 text-emerald-200">/</span> {totalPages}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                aria-label="Next page"
+                                className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:border-emerald-500 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                <FiChevronRight size={16} />
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </section>
 
             {/* Add/Edit Category Modal */}
             {isModalOpen && createPortal(
-                <div className="fixed inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4" style={{ zIndex: 9999 }}>
-                    <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-                        <div className="flex items-center justify-between p-6 border-b border-gray-100 shrink-0">
-                            <div>
-                                <h2 className="text-xl font-black text-slate-800">
-                                    {isEditing ? 'Edit Category' : 'Add New Category'}
-                                </h2>
-                                {isEditing && <p className="text-xs text-gray-500 mt-1 font-medium">Editing ID: <span className="font-bold text-amber-700">{formData.catId}</span></p>}
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="category-modal-title"
+                        className="flex max-h-[92vh] w-full max-w-3xl animate-in zoom-in-95 flex-col overflow-hidden rounded-[26px] border border-white/60 bg-white shadow-[0_28px_90px_rgba(2,20,18,0.35)] duration-200"
+                    >
+                        <div className="relative isolate overflow-hidden bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577] px-5 py-5 text-white sm:px-7">
+                            <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-32 -z-10 h-64 w-64 rounded-full border border-white/10">
+                                <div className="absolute inset-8 rounded-full border border-white/10" />
                             </div>
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="p-2 text-gray-400 hover:text-slate-700 hover:bg-gray-100 rounded-full transition-colors"
-                            >
-                                <FiX size={20} />
-                            </button>
+                            <div className="relative flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-emerald-100">Category Management</p>
+                                    <h2 id="category-modal-title" className="mt-1 text-xl font-black tracking-tight sm:text-2xl">
+                                        {isEditing ? "Edit Category" : "Add New Category"}
+                                    </h2>
+                                    <p className="mt-1 text-xs text-emerald-50 sm:text-sm">
+                                        {isEditing ? "Update collection details and images." : "Create a collection and organize its products."}
+                                    </p>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-3">
+                                    {isEditing && (
+                                        <span className="hidden rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white sm:inline-flex">
+                                            ID: {formData.catId}
+                                        </span>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsModalOpen(false)}
+                                        aria-label="Close category form"
+                                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
+                                    >
+                                        <FiX size={19} />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="p-6 overflow-y-auto flex-1">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Left Column: Inputs */}
-                                <div className="space-y-4">
+                        <div className="flex-1 overflow-y-auto p-5 sm:p-7">
+                            <div className="grid grid-cols-1 gap-7 md:grid-cols-2 md:gap-8">
+                                <section className="space-y-5" aria-label="Category details">
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Category ID</label>
+                                        <h3 className="text-sm font-extrabold text-slate-800">Basic details</h3>
+                                        <p className="mt-1 text-xs text-slate-500">Set the category name and a short description.</p>
+                                    </div>
+                                    <div>
+                                        <label htmlFor="category-id" className="mb-1.5 block text-xs font-bold text-slate-700">Category ID</label>
                                         <input
+                                            id="category-id"
                                             type="text"
                                             name="catId"
                                             value={isEditing ? formData.catId : "Assigned automatically on save"}
                                             readOnly
-                                            className="w-full bg-gray-50 border border-gray-200 text-gray-500 font-bold rounded-xl px-4 py-2.5 cursor-not-allowed focus:outline-none text-sm"
+                                            className="min-h-11 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500 outline-none"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Category Name</label>
+                                        <label htmlFor="category-name" className="mb-1.5 block text-xs font-bold text-slate-700">
+                                            Category Name <span className="text-rose-500" aria-hidden="true">*</span>
+                                        </label>
                                         <input
+                                            id="category-name"
                                             type="text"
                                             name="name"
                                             value={formData.name}
                                             onChange={handleInputChange}
                                             placeholder="e.g. Gold Necklace"
-                                            className="w-full bg-white border border-gray-200 text-slate-800 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium text-sm"
+                                            required
+                                            autoFocus
+                                            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Description</label>
+                                        <label htmlFor="category-description" className="mb-1.5 block text-xs font-bold text-slate-700">Description <span className="font-medium text-slate-400">(optional)</span></label>
                                         <textarea
+                                            id="category-description"
                                             name="description"
                                             value={formData.description}
                                             onChange={handleInputChange}
-                                            placeholder="Enter gold jewellery category description..."
-                                            rows="4"
-                                            className="w-full bg-white border border-gray-200 text-slate-800 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none font-medium text-sm"
-                                        ></textarea>
+                                            placeholder="Add a short description for this category..."
+                                            rows="5"
+                                            className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10"
+                                        />
                                     </div>
-                                </div>
+                                </section>
 
-                                {/* Right Column: Advanced */}
-                                <div className="space-y-4">
-                                    {/* Multiple Subcategories Input */}
+                                <section className="space-y-5" aria-label="Subcategories and images">
                                     <div>
-                                        <label className="flex items-center justify-between text-xs font-bold text-gray-700 mb-1.5">
-                                            <span>Subcategories</span>
-                                            <span className="text-[10px] text-gray-400 font-medium">Press enter to add</span>
-                                        </label>
-                                        <div className="bg-white border border-gray-200 rounded-xl p-2 min-h-[100px] focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500 transition-all">
-                                            <div className="flex flex-wrap gap-2 mb-2">
-                                                {subcategories.map((sub, idx) => (
-                                                    <span key={idx} className="flex items-center gap-1.5 bg-amber-50 text-amber-800 px-2 py-1 rounded-lg text-xs font-bold">
-                                                        {sub}
-                                                        <button
-                                                            onClick={() => removeSubcategory(sub)}
-                                                            className="text-amber-700 hover:text-red-500 transition-colors"
-                                                        >
-                                                            <FiX size={12} />
-                                                        </button>
-                                                    </span>
-                                                ))}
-                                            </div>
+                                        <h3 className="text-sm font-extrabold text-slate-800">Organization & media</h3>
+                                        <p className="mt-1 text-xs text-slate-500">Add optional subcategories and collection images.</p>
+                                    </div>
+                                    <div>
+                                        <div className="mb-1.5 flex items-center justify-between gap-3">
+                                            <label htmlFor="subcategory-input" className="text-xs font-bold text-slate-700">Subcategories <span className="font-medium text-slate-400">(optional)</span></label>
+                                            <span className="text-[10px] font-medium text-slate-400">Press Enter to add</span>
+                                        </div>
+                                        <div className="min-h-[120px] rounded-xl border border-slate-200 bg-white p-3 transition focus-within:border-[#008577] focus-within:ring-4 focus-within:ring-emerald-700/10">
+                                            {subcategories.length > 0 && (
+                                                <div className="mb-2 flex flex-wrap gap-2">
+                                                    {subcategories.map((sub, index) => (
+                                                        <span key={`${sub}-${index}`} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800">
+                                                            {sub}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeSubcategory(sub)}
+                                                                aria-label={`Remove ${sub}`}
+                                                                className="text-emerald-700 transition-colors hover:text-rose-600"
+                                                            >
+                                                                <FiX size={13} />
+                                                            </button>
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
                                             <input
+                                                id="subcategory-input"
                                                 type="text"
                                                 value={subInput}
-                                                onChange={(e) => setSubInput(e.target.value)}
+                                                onChange={(event) => setSubInput(event.target.value)}
                                                 onKeyDown={handleAddSubcategory}
-                                                placeholder="Type and press Enter..."
-                                                className="w-full bg-transparent border-none outline-none text-slate-800 px-1 py-1 text-sm font-medium placeholder:text-gray-400"
+                                                placeholder="Type a subcategory and press Enter..."
+                                                className="min-h-8 w-full bg-transparent px-1 py-1 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400"
                                             />
                                         </div>
                                     </div>
 
-                                    {/* Image Dropzone */}
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Category Images</label>
-                                        {formData.images && formData.images.length > 0 ? (
-                                            <div className="grid grid-cols-3 gap-2 mb-2">
-                                                {formData.images.map((imgUrl, idx) => (
-                                                    <div key={idx} className="relative group w-full h-20 rounded-xl overflow-hidden border border-gray-200">
-                                                        <img src={getCategoryImageUrl(imgUrl)} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
+                                        <div className="mb-1.5 flex items-center justify-between gap-3">
+                                            <label className="text-xs font-bold text-slate-700">Category Images <span className="font-medium text-slate-400">(optional)</span></label>
+                                            <span className="text-[10px] font-semibold text-slate-400">{formData.images.length}/20 images</span>
+                                        </div>
+                                        {formData.images.length > 0 ? (
+                                            <div className="grid grid-cols-3 gap-2.5">
+                                                {formData.images.map((image, index) => (
+                                                    <div key={index} className="group/image relative aspect-[4/3] overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                                                        <img src={getCategoryImageUrl(image)} alt={`Category image ${index + 1}`} className="h-full w-full object-cover" />
                                                         <button
-                                                            onClick={() => removeImage(idx)}
-                                                            className="absolute top-1 right-1 p-1 bg-white/90 hover:bg-red-50 text-red-500 rounded opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                                                            type="button"
+                                                            onClick={() => removeImage(index)}
+                                                            aria-label={`Remove image ${index + 1}`}
+                                                            className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white/95 text-rose-600 shadow-sm transition-colors hover:bg-rose-50"
                                                         >
-                                                            <FiX size={12} />
+                                                            <FiX size={14} />
                                                         </button>
                                                     </div>
                                                 ))}
-                                                <label className="w-full h-20 border-2 border-dashed border-gray-300 hover:border-amber-400 hover:bg-amber-50/50 rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all">
-                                                    <FiPlus className="text-lg text-amber-600 mb-0.5" />
-                                                    <span className="text-[10px] font-bold text-gray-500">Add More</span>
-                                                    <input type="file" accept="image/png,image/jpeg" multiple onChange={handleImageUpload} className="hidden" />
-                                                </label>
+                                                {formData.images.length < 20 && (
+                                                    <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-center transition-colors hover:border-[#008577] hover:bg-emerald-50/60 focus-within:border-[#008577] focus-within:ring-4 focus-within:ring-emerald-700/10">
+                                                        <FiPlus className="mb-1 text-emerald-700" size={18} />
+                                                        <span className="text-[10px] font-bold text-slate-600">Add images</span>
+                                                        <input type="file" accept="image/png,image/jpeg" multiple onChange={handleImageUpload} className="sr-only" />
+                                                    </label>
+                                                )}
                                             </div>
                                         ) : (
-                                            <label className="relative border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-amber-50/50 hover:border-amber-400 rounded-xl overflow-hidden transition-all cursor-pointer flex flex-col items-center justify-center p-6 text-center min-h-[100px]">
-                                                <input type="file" accept="image/png,image/jpeg" multiple onChange={handleImageUpload} className="hidden" />
-                                                <div className="w-8 h-8 bg-white shadow-sm rounded-full flex items-center justify-center mb-2 text-amber-600">
-                                                    <FiUploadCloud size={16} />
-                                                </div>
-                                                <p className="text-xs font-bold text-slate-700">Upload gold jewellery category images</p>
-                                                <p className="text-[10px] text-gray-500 mt-0.5 font-medium">PNG, JPG up to 5MB</p>
+                                            <label className="flex min-h-[154px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/80 px-5 py-6 text-center transition-colors hover:border-[#008577] hover:bg-emerald-50/60 focus-within:border-[#008577] focus-within:ring-4 focus-within:ring-emerald-700/10">
+                                                <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-700 shadow-sm">
+                                                    <FiUploadCloud size={19} />
+                                                </span>
+                                                <span className="text-xs font-bold text-slate-700">Upload category images</span>
+                                                <span className="mt-1 text-[10px] font-medium text-slate-500">PNG or JPG · up to 5 MB each · max 20</span>
+                                                <input type="file" accept="image/png,image/jpeg" multiple onChange={handleImageUpload} className="sr-only" />
                                             </label>
                                         )}
                                     </div>
-                                </div>
+                                </section>
                             </div>
                         </div>
 
-                        <div className="p-5 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/80 shrink-0">
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:text-slate-800 hover:bg-gray-200 rounded-xl transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveCategory}
-                                disabled={!formData.name}
-                                className="px-6 py-2.5 bg-[#003B3B] hover:bg-[#008577] text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
-                            >
-                                {isEditing ? 'Update Category' : 'Save Category'}
-                            </button>
+                        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-7">
+                            <p className="hidden text-xs text-slate-500 sm:block"><span className="text-rose-500">*</span> Required field</p>
+                            <div className="ml-auto flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="min-h-11 rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-300/60"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveCategory}
+                                    disabled={!formData.name.trim()}
+                                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-[#07564B] to-[#008577] px-6 py-2.5 text-sm font-extrabold text-white shadow-[0_5px_14px_rgba(0,107,98,0.2)] transition-all hover:brightness-110 focus:outline-none focus:ring-4 focus:ring-emerald-700/15 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                                >
+                                    {isEditing ? "Update Category" : "Save Category"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
