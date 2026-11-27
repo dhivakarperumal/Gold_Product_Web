@@ -68,6 +68,18 @@ async function initializeCategoryModule() {
 }
 
 async function ensureCategoryAuditForeignKey(column, constraintName) {
+  await pool.query(`
+    UPDATE categories category
+    LEFT JOIN users legacy_user ON legacy_user.id = CAST(category.\`${column}\` AS UNSIGNED)
+    SET category.\`${column}\` = legacy_user.user_id
+    WHERE category.\`${column}\` REGEXP '^[0-9]+$'
+  `);
+  await pool.query(`
+    UPDATE categories category
+    LEFT JOIN users audit_user ON audit_user.user_id = category.\`${column}\`
+    SET category.\`${column}\` = NULL
+    WHERE category.\`${column}\` IS NOT NULL AND audit_user.user_id IS NULL
+  `);
   const [orphanedUsers] = await pool.execute(
     `SELECT category.id FROM categories category
      LEFT JOIN users audit_user ON audit_user.user_id = category.\`${column}\`
