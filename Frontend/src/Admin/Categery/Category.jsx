@@ -427,20 +427,16 @@ const Category = () => {
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-left">
                             <colgroup>
-                                <col className="w-[4%]" />
                                 <col className="w-[6%]" />
-                                <col className="w-[23%]" />
-                                <col className="w-[15%]" />
+                                <col className="w-[24%]" />
+                                <col className="w-[16%]" />
                                 <col className="w-[9%]" />
                                 <col className="w-[10%]" />
-                                <col className="w-[23%]" />
+                                <col className="w-[25%]" />
                                 <col className="w-[10%]" />
                             </colgroup>
                             <thead>
                                 <tr className="bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577]">
-                                    <th scope="col" className="border-b border-white/15 px-4 py-4 text-center">
-                                        <input aria-label="Select all categories" type="checkbox" className="h-4 w-4 rounded accent-[#F5C45E]" />
-                                    </th>
                                     {["S.No.", "Category", "Description", "Products", "Status", "Created / Updated", "Actions"].map((heading) => (
                                         <th key={heading} scope="col" className="whitespace-nowrap border-b border-white/15 px-5 py-4 text-[11px] font-extrabold uppercase tracking-[0.14em] text-white">{heading}</th>
                                     ))}
@@ -455,9 +451,6 @@ const Category = () => {
 
                                     return (
                                         <tr key={cat.catId} className="group h-[82px] odd:bg-white even:bg-slate-50/60 transition-colors hover:bg-emerald-50/70">
-                                            <td className="border-b border-slate-100 px-4 py-4 text-center">
-                                                <input aria-label={`Select ${cat.name}`} type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-emerald-700" />
-                                            </td>
                                             <td className="border-b border-slate-100 px-5 py-4 text-sm font-semibold tabular-nums text-slate-500">{serialNumber}</td>
                                             <td className="border-b border-slate-100 px-5 py-4">
                                                 <div className="flex min-w-0 items-center gap-3">
