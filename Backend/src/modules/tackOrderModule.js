@@ -62,19 +62,32 @@ async function initializeTackOrderModule() {
   `);
 }
 
-async function getTackOrderProductsByIds(productIds, userId) {
+async function getTackOrderProductsByIds(productIds, userId, { includeMedia = false } = {}) {
   if (productIds.length === 0) return [];
   const placeholders = productIds.map(() => '?').join(', ');
   const [rows] = await pool.execute(
     `SELECT id, name, category, metal_type, purity, net_gold_weight, gold_rate_per_gram,
        making_charge_type, making_charge, wastage_type, wastage, stone_charges,
        other_charges, gst_rate, price_includes_gst, offer_type, offer,
-       fixed_discount_amount, final_selling_price, offer_price, mrp, status
+       fixed_discount_amount, final_selling_price, offer_price, mrp, status${includeMedia ? ', images, variants' : ''}
      FROM products
      WHERE id IN (${placeholders}) AND created_by = ?`,
     [...productIds, userId]
   );
   return rows;
+}
+
+function getFirstProductImage(product) {
+  const parseArray = (value) => {
+    if (Array.isArray(value)) return value;
+    return typeof value === 'string' && value.trim() ? JSON.parse(value) : [];
+  };
+  const firstImage = (value) => parseArray(value)
+    .find((image) => typeof image === 'string' && image.trim()) || '';
+  const variantImage = parseArray(product.variants)
+    .map((variant) => firstImage(variant.images))
+    .find(Boolean);
+  return variantImage || firstImage(product.images);
 }
 
 async function createTackOrder(tackOrder, userId) {
@@ -187,6 +200,7 @@ async function updateTackOrderStatus(id, status, userId) {
 module.exports = {
   createTackOrder,
   getTackOrderById,
+  getFirstProductImage,
   getTackOrderProductsByIds,
   initializeTackOrderModule,
   listTackOrders,
