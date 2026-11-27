@@ -56,7 +56,6 @@ const HomeSections = React.lazy(() => import("./Admin/Pages/HomeSections.jsx"));
 const Profile = React.lazy(() => import("./Admin/Pages/Profile.jsx"));
 const Dealers = React.lazy(() => import("./Admin/Dealers/Dealers.jsx"));
 
-const AdminKyc = React.lazy(() => import("./Admin/Kyc/AdminKyc.jsx"));
 const BillingManagement = React.lazy(() => import("./Admin/Pages/BillingManagement.jsx"));
 const Reports = React.lazy(() => import("./Admin/Pages/Reports.jsx"));
 const TackOrders = React.lazy(() => import("./Admin/TackOrders/Tackorders.jsx"));
@@ -109,7 +108,6 @@ const router = createHashRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: "users/all", element: <Users /> },
-      { path: "kyc", element: <AdminKyc /> },
       { path: "billings", element: <BillingManagement /> },
       { path: "loans/customermanagement", element: <LoanCustomerManagement /> },
       { path: "loans/customers/:id", element: <LoanCustomerDetails /> },

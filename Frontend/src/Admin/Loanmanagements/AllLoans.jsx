@@ -115,11 +115,11 @@ export default function AllLoans() {
   const overdueLoansCount = loans.filter((loan) => isOverdueActiveLoan(loan, todayUtc)).length;
   const reviewRequiredCount = loans.filter((loan) => isLoanReviewDue(loan, todayUtc)).length;
   const summaryCards = [
-    { label: "Total Loans", value: loans.length, icon: FiLayers, color: "bg-teal-50 text-[#008577]", accent: "from-teal-500/10" },
-    { label: "Active Loans", value: loanCounts.active, icon: FiCheckCircle, color: "bg-emerald-50 text-emerald-700", accent: "from-emerald-500/10" },
-    { label: "Inactive Loans", value: loanCounts.inactive, icon: FiPauseCircle, color: "bg-amber-50 text-amber-700", accent: "from-amber-500/10" },
-    { label: "Completed Loans", value: loanCounts.completed, icon: FiCheck, color: "bg-slate-100 text-slate-600", accent: "from-slate-500/10" },
-    { label: "Overdue Loans", value: overdueLoansCount, icon: FiAlertCircle, color: "bg-rose-50 text-rose-700", accent: "from-rose-500/10" }
+    { label: "Total Loans", value: loans.length, note: "All recorded loans", icon: FiLayers, card: "border-teal-100 border-t-teal-500 from-teal-50/80", iconClass: "bg-teal-600 shadow-teal-600/20", noteClass: "text-teal-700", dotClass: "bg-teal-600" },
+    { label: "Active Loans", value: loanCounts.active, note: "Currently active", icon: FiCheckCircle, card: "border-emerald-100 border-t-emerald-500 from-emerald-50/80", iconClass: "bg-emerald-600 shadow-emerald-600/20", noteClass: "text-emerald-700", dotClass: "bg-emerald-600" },
+    { label: "Inactive Loans", value: loanCounts.inactive, note: "Inactive accounts", icon: FiPauseCircle, card: "border-amber-100 border-t-amber-500 from-amber-50/80", iconClass: "bg-amber-500 shadow-amber-500/20", noteClass: "text-amber-700", dotClass: "bg-amber-600" },
+    { label: "Completed Loans", value: loanCounts.completed, note: "Successfully completed", icon: FiCheck, card: "border-slate-200 border-t-slate-500 from-slate-100/80", iconClass: "bg-slate-600 shadow-slate-600/20", noteClass: "text-slate-600", dotClass: "bg-slate-500" },
+    { label: "Overdue Loans", value: overdueLoansCount, note: "Past maturity date", icon: FiAlertCircle, card: "border-rose-100 border-t-rose-500 from-rose-50/80", iconClass: "bg-rose-600 shadow-rose-600/20", noteClass: "text-rose-700", dotClass: "bg-rose-600" }
   ];
   const query = searchTerm.trim().toLowerCase();
   const filteredLoans = loans.filter((loan) => {
@@ -146,17 +146,32 @@ export default function AllLoans() {
   };
 
   return (
-    <main className="space-y-6 p-2 sm:p-2">
+    <main className="space-y-5 text-slate-800">
+      <section aria-label="All loans overview" className="relative overflow-hidden rounded-[24px] bg-gradient-to-r from-[#064A41] via-[#08695B] to-[#087E6F] px-6 py-7 text-white shadow-[0_16px_40px_rgba(0,59,59,0.18)] sm:px-8 sm:py-8">
+        <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full border border-white/10" />
+        <div className="pointer-events-none absolute -right-1 -top-12 h-48 w-48 rounded-full border border-white/10" />
+        <div className="relative flex flex-wrap items-center justify-between gap-6">
+          <div className="max-w-2xl">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-100">Loan Management · Portfolio Overview</p>
+            <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">All Loans</h1>
+            <p className="mt-2 text-sm text-emerald-50/90 sm:text-base">Track customer loans, outstanding balances, repayment status, and maturity.</p>
+          </div>
+          <Link to="/admin/loans/createloan" className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#064A41] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-white/30">
+            <FiPlus size={17} />
+            Create New Loan
+          </Link>
+        </div>
+      </section>
 
       <section aria-label="Loan summary" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {summaryCards.map(({ label, value, icon: Icon, color, accent }) => (
-          <article key={label} className="group relative isolate flex min-h-28 items-center justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/[0.06]">
-            <div className={`pointer-events-none absolute inset-y-0 right-0 -z-10 w-2/3 bg-gradient-to-l ${accent} to-transparent opacity-70`} />
-            <div>
-              <p className="text-sm font-semibold text-slate-500">{label}</p>
-              <p className="mt-2 text-3xl font-extrabold tracking-tight text-[#064A41]">{loading ? "—" : value}</p>
+        {summaryCards.map(({ label, value, note, icon: Icon, card, iconClass, noteClass, dotClass }) => (
+          <article key={label} className={`relative flex min-h-[142px] items-center justify-between overflow-hidden rounded-2xl border border-t-4 bg-gradient-to-br to-white px-5 py-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg ${card}`}>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-black uppercase tracking-[0.12em] text-slate-500">{label}</p>
+              <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">{loading ? "—" : value.toLocaleString()}</p>
+              <p className={`mt-3 inline-flex items-center gap-2 text-[11px] font-bold ${noteClass}`}><span className={`h-2 w-2 rounded-full ${dotClass}`} />{note}</p>
             </div>
-            <span className={`rounded-2xl p-3.5 ring-1 ring-inset ring-black/[0.03] ${color}`}><Icon size={22} aria-hidden="true" /></span>
+            <span className={`ml-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg ${iconClass}`}><Icon size={22} aria-hidden="true" /></span>
           </article>
         ))}
       </section>
@@ -176,28 +191,27 @@ export default function AllLoans() {
         </section>
       )}
 
-      <section aria-label="Loan list controls" className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_2px_10px_rgba(15,23,42,0.04)] sm:flex-row sm:items-center sm:justify-between sm:p-4">
+      <section aria-label="Loan list controls" className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
        
         <label className="relative min-w-0 sm:w-1/3 sm:min-w-[280px] sm:flex-none">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
           <span className="sr-only">Search loans</span>
           <input type="search" placeholder="Search loans by number, customer..." value={searchTerm} onChange={(event) => { setSearchTerm(event.target.value); setCurrentPage(1); }}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-3 pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:font-normal placeholder:text-slate-400 hover:border-slate-300 focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10" />
+            className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50/60 py-3 pl-11 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:font-normal placeholder:text-slate-400 hover:border-slate-300 focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10" />
         </label>
 
         
         <div className="flex flex-wrap items-center justify-between gap-2 sm:ml-auto sm:justify-start sm:gap-3">
-          <div> <DateRangeFilter onApply={(range) => { setCurrentPage(1); setDateRange(range); }} /></div>
+          <DateRangeFilter onApply={(range) => { setCurrentPage(1); setDateRange(range); }} controlClassName="min-h-12 rounded-xl border-slate-200 px-4 shadow-sm" />
           <CustomSelect aria-label="Filter loans by status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setCurrentPage(1); }}
-            className="min-w-[142px] rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-600 outline-none transition hover:border-slate-300 focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10">
-            <option value="All">Select Status</option>
+            className="min-h-12 min-w-[150px] rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm outline-none transition hover:border-slate-300 focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10">
+            <option value="All">All</option>
             {["Active", "Suspended", "Awaiting Gold Release", "Inactive", "Completed", "Pending"].map((status) => <option key={status} value={status}>{status}</option>)}
           </CustomSelect>
           <div className="flex rounded-xl border border-slate-200 bg-slate-100/80 p-1">
-            <button type="button" onClick={() => setViewMode("table")} aria-label="List view" aria-pressed={viewMode === "table"} className={`rounded-lg p-2.5 transition-all ${viewMode === "table" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiList size={17} /></button>
-            <button type="button" onClick={() => setViewMode("grid")} aria-label="Card view" aria-pressed={viewMode === "grid"} className={`rounded-lg p-2.5 transition-all ${viewMode === "grid" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiGrid size={17} /></button>
+            <button type="button" onClick={() => setViewMode("table")} aria-label="List view" aria-pressed={viewMode === "table"} className={`inline-flex h-10 w-10 items-center justify-center rounded-lg transition-all ${viewMode === "table" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiList size={17} /></button>
+            <button type="button" onClick={() => setViewMode("grid")} aria-label="Card view" aria-pressed={viewMode === "grid"} className={`inline-flex h-10 w-10 items-center justify-center rounded-lg transition-all ${viewMode === "grid" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiGrid size={17} /></button>
           </div>
-          <Link to="/admin/loans/createloan" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#064A41] px-4 py-3 text-sm font-bold text-white shadow-md shadow-emerald-950/15 transition hover:-translate-y-0.5 hover:bg-[#087263] focus:outline-none focus:ring-4 focus:ring-emerald-700/20"><FiPlus size={16} /> Create Loan</Link>
         </div>
          
 
@@ -205,19 +219,17 @@ export default function AllLoans() {
 
      
       {viewMode === "table" ? (
-        <section aria-label="Loans in table view" className="overflow-hidden  bg-white">
-          <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-0 sm:flex-row sm:items-center sm:justify-between">
-          </div>
+        <section aria-label="Loans in table view" className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[880px] border-separate border-spacing-0 text-left">
-              <thead><tr className="bg-[#064A41] text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-50/90">
-                {["S No", "Loan Number", "Customer", "Outstanding Balance", "Interest", "Maturity", "Status", "Actions"].map((title) => <th key={title} scope="col" className="whitespace-nowrap px-4 py-4 first:rounded-tl-xl first:pl-5 last:rounded-tr-xl last:pr-5">{title}</th>)}
+              <thead><tr className="bg-gradient-to-r from-[#064A41] to-[#087568] text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-50/90">
+                {["S No", "Loan Number", "Customer", "Outstanding Balance", "Interest", "Maturity", "Status", "Actions"].map((title) => <th key={title} scope="col" className="whitespace-nowrap px-4 py-4 first:pl-5 last:pr-5">{title}</th>)}
               </tr></thead>
               <tbody className="divide-y divide-slate-100/80">
                 {loading ? <tr><td colSpan="8" className="px-4 py-16 text-center text-sm font-medium text-slate-400">Loading loans...</td></tr>
                   : filteredLoans.length === 0 ? <tr><td colSpan="8" className="px-4 py-16 text-center text-sm font-medium text-slate-400">{loans.length === 0 ? "No loans created yet." : "No loans match your search or status filter."}</td></tr>
                     : paginatedLoans.map((loan, index) => (
-                      <tr key={loan.id} className="text-sm transition-colors hover:bg-emerald-50/55">
+                      <tr key={loan.id} className="text-sm transition-colors odd:bg-white even:bg-emerald-50/35 hover:bg-emerald-50/80">
                         <td className="whitespace-nowrap px-4 py-4 pl-5 text-xs font-medium tabular-nums text-slate-400">{(activePage - 1) * pageSize + index + 1}</td>
                         <td className="whitespace-nowrap px-4 py-4 font-bold text-[#064A41]">{loan.loan_number}</td>
                         <td className="px-4 py-4"><div className="flex min-w-[145px] items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-bold uppercase text-[#087263] ring-1 ring-inset ring-emerald-800/5">{String(loan.customer_name || "?").trim().charAt(0)}</span><span className="min-w-0"><span className="block truncate font-semibold text-slate-800">{loan.customer_name || "—"}</span><span className="mt-0.5 block text-xs text-slate-400">{loan.customer_code || "—"}</span></span></div></td>

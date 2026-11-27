@@ -8,7 +8,17 @@ import api, { getPrivateFile } from "../../api";
 import { formatRateDate, getRateForPurity } from "../../PrivateRouter/goldRateUtils";
 import useGoldRates from "../../PrivateRouter/useGoldRates";
 import { printLoanAgreement, printLoanDraft } from "./loanPrint";
-import { formatCurrency } from "../../utils/currency";
+
+const loanCurrencyFormatter = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0
+});
+
+function formatLoanCurrency(value) {
+  if (value == null || value === "" || !Number.isFinite(Number(value))) return "—";
+  return loanCurrencyFormatter.format(Number(value));
+}
 
 const INTEREST_FREQUENCIES = [
   ["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"],
@@ -566,7 +576,7 @@ export default function CreateLoan() {
           return;
         }
         if (requestedAmount > latestAvailableBalance + 0.001) {
-          const message = `Loan amount exceeds available funds (${formatCurrency(latestAvailableBalance)}).`;
+          const message = `Loan amount exceeds available funds (${formatLoanCurrency(latestAvailableBalance)}).`;
           setLoanAmountError(message);
           toast.error(message);
           return;
@@ -701,11 +711,11 @@ export default function CreateLoan() {
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2 lg:items-stretch lg:gap-6">
         <div className="contents">
-        <section className="order-1 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)] sm:p-6 lg:col-span-2">
+        <section className="order-1 rounded-2xl border border-slate-200/80 border-t-4 border-t-emerald-500 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.045)] transition-shadow hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] sm:p-6 lg:col-span-2">
           <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-sm font-black text-[#006b62]">01</span>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-100 text-sm font-black text-[#006b62] ring-4 ring-emerald-50">01</span>
             <div>
-              <h2 className="text-base font-bold text-[#003B3B]">Customer</h2>
+              <h2 className="text-base font-extrabold text-[#003B3B]">Customer</h2>
               <p className="mt-0.5 text-xs text-slate-500">Choose the registered customer for this loan.</p>
             </div>
           </div>
@@ -771,32 +781,48 @@ export default function CreateLoan() {
             )}
           </div>
           {customer && (
-            <div className="mt-5 rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-white p-4 sm:p-5">
+            <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-200/80 bg-white shadow-sm">
               {loadingCustomer ? <p className="text-sm text-slate-500">Loading customer account and loan history...</p> : (
                 <>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
+                  <div className="flex flex-wrap items-center gap-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/80 to-white p-4 sm:px-5">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-lg font-black text-[#007568]">
+                      {customer.full_name?.trim().charAt(0).toUpperCase() || "?"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-700">Selected borrower</p>
+                      <p className="mt-0.5 truncate text-base font-extrabold text-[#003B3B]">{customer.full_name}</p>
+                      <p className="text-xs text-slate-500">{customer.customer_code || `Customer ID ${customer.id}`} · {customer.mobile || "Mobile unavailable"}</p>
+                    </div>
+                    <span className={`rounded-full px-3 py-1.5 text-xs font-extrabold ${customer.kyc_status === "Verified" ? "bg-emerald-100 text-emerald-800" : customer.kyc_status === "Rejected" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>
+                      KYC {customer.kyc_status || "Pending"}
+                    </span>
+                  </div>
+                  <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
                     {[
                       ["Customer ID", customer.customer_code || customer.id],
-                      ["Full Name", customer.full_name],
-                      ["Mobile", customer.mobile],
-                      ["KYC Status", customer.kyc_status]
-                    ].map(([label, value]) => <div key={label}><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-sm font-semibold text-slate-800">{value || "—"}</p></div>)}
-                    <div className="sm:col-span-2 lg:col-span-2">
-                      <p className="text-xs text-slate-500">Address</p>
-                      <p className="mt-1 text-sm text-slate-800">{[customer.address, customer.city, customer.district, customer.state, customer.pincode].filter(Boolean).join(", ") || "Address not provided"}</p>
+                      ["Email", customer.email]
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+                        <p className="mt-1 break-words text-sm font-bold text-slate-800">{value || "—"}</p>
+                      </div>
+                    ))}
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:col-span-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Address</p>
+                      <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-700">{[customer.address, customer.city, customer.district, customer.state, customer.pincode].filter(Boolean).join(", ") || "Address not provided"}</p>
                     </div>
                   </div>
-                  <div className="mt-4 grid gap-4 border-t border-emerald-100 pt-4 lg:grid-cols-2">
+                  <div className="grid gap-4 border-t border-slate-100 bg-slate-50/40 p-4 sm:p-5 lg:grid-cols-2">
                     <div>
-                      <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Active loans ({activeLoans.length})</h3>
+                      <h3 className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Active loans <span className="ml-1 rounded-full bg-white px-2 py-0.5 text-slate-700 ring-1 ring-slate-200">{activeLoans.length}</span></h3>
                       {activeLoans.length ? activeLoans.map((loan) => (
                         <Link key={loan.id} to={`/admin/loans/details/${loan.id}`} className="mb-1 flex justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs hover:bg-emerald-100">
-                          <span className="font-semibold">{loan.loan_number}</span><span>{formatCurrency(Number(loan.principal_amount))}</span>
+                          <span className="font-semibold">{loan.loan_number}</span><span>{formatLoanCurrency(Number(loan.principal_amount))}</span>
                         </Link>
                       )) : <p className="text-xs text-slate-500">No active loans.</p>}
                     </div>
                     <div>
-                      <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Previous loan history ({customerLoans.length})</h3>
+                      <h3 className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Previous loan history <span className="ml-1 rounded-full bg-white px-2 py-0.5 text-slate-700 ring-1 ring-slate-200">{customerLoans.length}</span></h3>
                       {customerLoans.length ? customerLoans.slice(0, 4).map((loan) => (
                         <Link key={loan.id} to={`/admin/loans/details/${loan.id}`} className="mb-1 flex justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs hover:bg-emerald-100">
                           <span className="font-semibold">{loan.loan_number}</span><span>{loan.loan_status}</span>
@@ -810,11 +836,11 @@ export default function CreateLoan() {
           )}
         </section>
 
-        <section className="order-3 h-full rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)] sm:p-6 lg:col-start-1 lg:row-start-3">
+        <section className="order-3 h-full rounded-2xl border border-slate-200/80 border-t-4 border-t-sky-500 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.045)] transition-shadow hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] sm:p-6 lg:col-start-1 lg:row-start-3">
           <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-sky-50 text-sm font-black text-sky-700">03</span>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-sky-100 text-sm font-black text-sky-700 ring-4 ring-sky-50">03</span>
             <div>
-              <h2 className="text-base font-bold text-[#003B3B]">Interest & Contract Terms</h2>
+              <h2 className="text-base font-extrabold text-[#003B3B]">Interest & Contract Terms</h2>
               <p className="mt-0.5 text-xs text-slate-500">Set the interest method, rate and authorized charges.</p>
             </div>
           </div>
@@ -864,16 +890,16 @@ export default function CreateLoan() {
             <div className="overflow-hidden rounded-xl border border-amber-100 bg-white shadow-sm">
               <div className="grid gap-x-6 px-4 sm:grid-cols-2 sm:px-5">
                 {[
-                  ["Principal Amount", formatCurrency(estimate.principal)],
+                  ["Principal Amount", formatLoanCurrency(estimate.principal)],
                   ["Interest Type", interestTypes.find((type) => type.type_key === form.interest_type)?.label || "—"],
                   ["Applicable Rate", form.interest_type === "fixed"
-                    ? `${formatCurrency(Number(form.fixed_interest_amount || 0))} / ${form.interest_frequency.replaceAll("_", " ")}`
+                    ? `${formatLoanCurrency(Number(form.fixed_interest_amount || 0))} / ${form.interest_frequency.replaceAll("_", " ")}`
                     : `${Number(form.interest_rate || 0)}% / ${form.interest_frequency.replaceAll("_", " ")}`],
-                  ["Accrued Interest at Maturity", formatCurrency(estimate.interest)],
-                  ["Processing Fee", formatCurrency(estimate.fee)],
-                  ["Other Charges", formatCurrency(estimate.charges)],
-                  ["Payments Received", formatCurrency(0)],
-                  ["Outstanding Principal", formatCurrency(estimate.principal)]
+                  ["Accrued Interest at Maturity", formatLoanCurrency(estimate.interest)],
+                  ["Processing Fee", formatLoanCurrency(estimate.fee)],
+                  ["Other Charges", formatLoanCurrency(estimate.charges)],
+                  ["Payments Received", formatLoanCurrency(0)],
+                  ["Outstanding Principal", formatLoanCurrency(estimate.principal)]
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-center justify-between gap-3 border-b border-slate-100 py-3">
                     <p className="text-xs text-slate-500">{label}</p>
@@ -884,7 +910,7 @@ export default function CreateLoan() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-amber-100 bg-amber-50/70 px-4 py-4 sm:px-5">
                 <div>
                   <p className="text-xs font-bold text-slate-600">Total Amount Due · Settlement Estimate</p>
-                  <p className="mt-1 text-xl font-extrabold tabular-nums text-[#003B3B]">{formatCurrency(estimate.total)}</p>
+                  <p className="mt-1 text-xl font-extrabold tabular-nums text-[#003B3B]">{formatLoanCurrency(estimate.total)}</p>
                 </div>
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-800">Estimated at maturity</span>
               </div>
@@ -898,11 +924,11 @@ export default function CreateLoan() {
         </div>
 
         <div className="contents">
-        <section className="order-2 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)] sm:p-6 lg:col-span-2 lg:row-start-2">
+        <section className="order-2 rounded-2xl border border-slate-200/80 border-t-4 border-t-amber-500 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.045)] transition-shadow hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] sm:p-6 lg:col-span-2 lg:row-start-2">
           <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-sm font-black text-amber-700">02</span>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber-100 text-sm font-black text-amber-700 ring-4 ring-amber-50">02</span>
             <div>
-              <h2 className="text-base font-bold text-[#003B3B]">Pledged Jewellery</h2>
+              <h2 className="text-base font-extrabold text-[#003B3B]">Pledged Jewellery</h2>
               <p className="mt-0.5 text-xs text-slate-500">Enter the collateral details to calculate its current valuation.</p>
             </div>
           </div>
@@ -954,7 +980,7 @@ export default function CreateLoan() {
             <FormField label={`${form.metal_type} Valuation (₹)`} name="gold_valuation" form={{ gold_valuation: estimatedGoldValuation.toFixed(2) }} onChange={() => {}} readOnly required min="0.01" step="0.01" help={`Eligible net weight (${weightUnit}) × the applied ${appliedRateUnit} rate snapshot; retail charges are excluded.`} />
           </div>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4">
+            <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 to-white p-4 shadow-sm sm:p-5">
               <span className={labelClass}>Loan Amount (₹)<span className="ml-1 text-rose-500">*</span></span>
               <div className="mt-1.5 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="radiogroup" aria-label="Loan amount calculation mode">
                 {[
@@ -978,7 +1004,7 @@ export default function CreateLoan() {
                   <input className={`${fieldClass} bg-slate-50`} type="number" value={calculatedLoanAmount} readOnly aria-label="Available loan amount, automatically calculated as 50% of pledged value" placeholder="Enter weight and select an active metal rate" />
                   <p className="mt-1 text-[11px] font-normal text-slate-500">
                     {calculatedLoanAmount
-                      ? `Available loan amount: 50% of pledged metal value (${formatCurrency(estimatedGoldValuation)}).`
+                      ? `Available loan amount: 50% of pledged metal value (${formatLoanCurrency(estimatedGoldValuation)}).`
                       : ratesLoading
                         ? "Loading the active metal rate to calculate the available loan amount..."
                         : appliedGoldRate > 0
@@ -995,7 +1021,7 @@ export default function CreateLoan() {
                   <p className="mt-1 text-sm font-bold text-[#064A41]">
                     {availableFundBalance == null
                       ? fundBalanceLoading ? "Loading..." : "Unavailable"
-                      : formatCurrency(availableFundBalance)}
+                      : formatLoanCurrency(availableFundBalance)}
                     {fundBalanceLoading && availableFundBalance != null && <span className="ml-1 text-[10px] font-normal text-slate-400">Updating</span>}
                   </p>
                 </div>
@@ -1003,14 +1029,14 @@ export default function CreateLoan() {
                   <p className="text-[11px] font-semibold text-slate-500">Loan Amount</p>
                   <p className="mt-1 text-sm font-bold text-slate-800">
                     {Number.isFinite(Number(loanAmountInput)) && String(loanAmountInput ?? "").trim() !== "" && Number(loanAmountInput) > 0
-                      ? formatCurrency(Number(loanAmountInput))
+                      ? formatLoanCurrency(Number(loanAmountInput))
                       : "—"}
                   </p>
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold text-slate-500">Remaining Balance</p>
                   <p className={`mt-1 text-sm font-bold ${availableFundBalance != null && Number(loanAmountInput) > availableFundBalance ? "text-rose-600" : "text-slate-800"}`}>
-                    {availableFundBalance == null ? "—" : formatCurrency(availableFundBalance - (Number(loanAmountInput) || 0))}
+                    {availableFundBalance == null ? "—" : formatLoanCurrency(availableFundBalance - (Number(loanAmountInput) || 0))}
                   </p>
                 </div>
               </div>
@@ -1066,11 +1092,11 @@ export default function CreateLoan() {
           </div>
         </section>
 
-        <section className="order-4 h-full rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)] sm:p-6 lg:col-start-2 lg:row-start-3">
+        <section className="order-4 h-full rounded-2xl border border-slate-200/80 border-t-4 border-t-violet-500 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.045)] transition-shadow hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] sm:p-6 lg:col-start-2 lg:row-start-3">
           <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-50 text-sm font-black text-violet-700">04</span>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet-100 text-sm font-black text-violet-700 ring-4 ring-violet-50">04</span>
             <div>
-              <h2 className="text-base font-bold text-[#003B3B]">Loan Schedule</h2>
+              <h2 className="text-base font-extrabold text-[#003B3B]">Loan Schedule</h2>
               <p className="mt-0.5 text-xs text-slate-500">Choose the loan dates and repayment frequency.</p>
             </div>
           </div>
@@ -1087,7 +1113,7 @@ export default function CreateLoan() {
         <div className="sticky bottom-3 z-10 order-6 flex flex-wrap justify-end gap-2 rounded-2xl border border-slate-200/90 bg-white/95 p-3 shadow-xl shadow-slate-900/10 backdrop-blur-md sm:p-4 lg:col-span-2">
           <button type="button" onClick={() => navigate("/admin/loans/allloans")} disabled={saving} className="min-h-11 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
           {!loanRecord && <button type="button" onClick={handleReset} disabled={saving} className="min-h-11 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50">Reset</button>}
-          <button type="submit" disabled={saving || compressingGoldImage || loadingCustomer || !customer || interestTypes.length === 0} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#064A41] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#087263] focus:outline-none focus:ring-4 focus:ring-emerald-700/20 disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="submit" disabled={saving || compressingGoldImage || loadingCustomer || !customer || interestTypes.length === 0} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-[#064A41] to-[#087568] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-950/15 transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-emerald-700/20 disabled:cursor-not-allowed disabled:opacity-50">
             <FiCheck /> {saving ? (loanRecord ? "Updating Loan..." : "Saving Loan...") : (loanRecord ? "Update Loan" : "Save Loan")}
           </button>
         </div>

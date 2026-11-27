@@ -3,7 +3,6 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
-  Users,
   BarChart3,
   X,
   ArrowUpRight,
@@ -63,7 +62,6 @@ const navItems = [
         label: "Customer Management",
         icon: FilePlus
       },
-      { path: "/admin/kyc", label: "KYC Review", icon: Users },
       {
         path: "/admin/loans/allloans",
         activePaths: [

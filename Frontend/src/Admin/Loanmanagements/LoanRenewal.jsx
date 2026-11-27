@@ -107,69 +107,96 @@ export function LoanPaymentModal({ loan: loanRow, onClose, onLoanUpdated }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="loan-payment-title" className="my-auto max-h-[95vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white p-4 sm:p-5">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-3 backdrop-blur-sm sm:p-5" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="loan-payment-title" className="my-auto max-h-[95vh] w-full max-w-5xl overflow-y-auto rounded-[24px] border border-white/60 bg-white shadow-[0_28px_90px_rgba(2,20,20,0.35)]">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-4 bg-gradient-to-r from-[#064A41] to-[#087568] px-5 py-4 text-white sm:px-7">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-widest text-emerald-700">Payment and renewal</p>
-            <h2 id="loan-payment-title" className="mt-1 truncate text-lg font-black text-slate-900">{loanRow.loan_number} · {loanRow.customer_name || "Customer"}</h2>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-emerald-100">Payment &amp; Renewal</p>
+            <h2 id="loan-payment-title" className="mt-1 truncate text-base font-extrabold sm:text-lg">{loanRow.loan_number} <span className="text-emerald-100/70">·</span> {loanRow.customer_name || "Customer"}</h2>
           </div>
-          <button type="button" onClick={onClose} disabled={saving} aria-label="Close payment details" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"><FiX size={20} /></button>
+          <button type="button" onClick={onClose} disabled={saving} aria-label="Close payment details" className="shrink-0 rounded-xl p-2.5 text-white/80 transition hover:bg-white/15 hover:text-white disabled:opacity-50"><FiX size={20} /></button>
         </div>
 
         {loading
-          ? <p className="p-8 text-center text-sm text-slate-500">Loading payment details...</p>
+          ? <div className="p-12 text-center"><span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-[#087263]"><FiRefreshCw className="animate-spin" size={20} /></span><p className="mt-4 text-sm font-semibold text-slate-600">Loading payment details...</p></div>
           : loadError || !loan || !preview
-            ? <div className="p-6"><p role="alert" className="text-sm text-rose-700">{loadError || "Payment details are unavailable."}</p></div>
-            : <div className="p-4 sm:p-5">
-              <section className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-[#008577]"><FiCalendar /></span>
-                  <div><h3 className="font-bold text-slate-800">Payment and renewal</h3><p className="text-xs text-slate-500">Renewal date: {dateText(preview.renewal_date)}</p></div>
+            ? <div className="p-6 sm:p-8"><div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-800">{loadError || "Payment details are unavailable."}</div></div>
+            : <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[1.05fr_0.95fr]">
+              <section aria-label="Loan payment summary" className="space-y-4">
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-white p-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-100 text-[#087263]"><FiCalendar size={20} /></span>
+                    <div className="min-w-0"><h3 className="font-extrabold text-slate-800">Loan summary</h3><p className="mt-0.5 text-xs text-slate-500">Renewal date: {dateText(preview.renewal_date)}</p></div>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${loan.loan_status === "Active" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{loan.loan_status}</span>
                 </div>
-                <div className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
-                  <div className="flex justify-between gap-3 text-slate-600"><span>Current principal</span><strong className="text-slate-800">{money(preview.current_principal)}</strong></div>
-                  <div className="flex justify-between gap-3 text-slate-600"><span>Maturity date</span><strong className="text-slate-800">{dateText(loan.maturity_date)}</strong></div>
-                  <div className="flex justify-between gap-3 text-slate-600"><span>Regular interest accrued</span><strong className="text-slate-800">{money(preview.regular_interest)}</strong></div>
-                  <div className="flex justify-between gap-3 text-slate-600"><span>Overdue extra interest / late fee</span><strong className="text-rose-700">{money(preview.late_payment_fee)}</strong></div>
-                  <div className="flex justify-between gap-3 text-xs text-slate-500"><span>Saved late-payment interest rate</span><strong>{rateText(loan.late_payment_interest_rate)}</strong></div>
-                  <div className="flex justify-between gap-3 border-t border-slate-200 pt-2 text-slate-600"><span>Total interest and late fee</span><strong className="text-slate-800">{money(preview.accrued_interest)}</strong></div>
-                  <div className="flex justify-between gap-3 border-t border-slate-200 pt-2 font-bold text-slate-800"><span>Total due</span><span>{money(preview.total_due)}</span></div>
-                  <p className="pt-1 text-[11px] leading-relaxed text-slate-500">Overdue extra interest uses the loan&apos;s saved late-payment rate. Total due is principal plus accrued interest and overdue charges; processing and other charges are not included.</p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Current principal</p>
+                    <p className="mt-1.5 text-lg font-extrabold tabular-nums text-[#064A41]">{money(preview.current_principal)}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Maturity date</p>
+                    <p className="mt-1.5 text-sm font-bold tabular-nums text-slate-800">{dateText(loan.maturity_date)}</p>
+                  </div>
                 </div>
-                {preview.current_principal > 0 ? (
-                  <form onSubmit={submitPayment} className="space-y-3">
-                    <label className="block text-sm font-semibold text-slate-700">Payable amount
-                      <span className="mt-1.5 flex min-h-12 items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-[#008577] focus-within:ring-4 focus-within:ring-emerald-700/10">
-                        <span className="mr-2 text-slate-400">₹</span>
-                        <input type="number" inputMode="decimal" min="0.01" max={preview.total_due} step="0.01" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} disabled={loan.loan_status !== "Active" || saving} placeholder="Enter amount received" className="w-full border-0 bg-transparent text-sm font-bold text-slate-800 outline-none" />
-                      </span>
-                    </label>
-                    <label className="block text-sm font-semibold text-slate-700">Payment method
-                      <CustomSelect value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} disabled={saving} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-[#008577]">
-                        {["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"].map((method) => <option key={method} value={method}>{method}</option>)}
-                      </CustomSelect>
-                    </label>
-                    <label className="block text-sm font-semibold text-slate-700">Reference number <span className="font-normal text-slate-400">(optional)</span>
-                      <input value={referenceNumber} onChange={(event) => setReferenceNumber(event.target.value)} maxLength={100} disabled={saving} className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-700 outline-none focus:border-[#008577]" />
-                    </label>
-                    <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Minimum interest payment: <strong>{money(preview.minimum_payment)}</strong>. Any extra payment reduces the principal; remaining balance earns interest at the saved rate for the next 11 months.</div>
-                    {paymentAmount && Number.isFinite(amount) && amount > 0 && <div className="space-y-1 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-xs">
-                      <p className="flex justify-between gap-2 text-slate-600"><span>Interest covered</span><strong>{money(Math.min(amount, preview.accrued_interest))}</strong></p>
-                      <p className="flex justify-between gap-2 text-slate-600"><span>Principal reduction</span><strong>{money(principalReduction)}</strong></p>
-                      <p className="flex justify-between gap-2 font-bold text-[#064A41]"><span>Principal after payment</span><strong>{money(preview.current_principal - principalReduction)}</strong></p>
-                    </div>}
-                    <button type="submit" disabled={!canPay || saving} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#064A41] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#087263] disabled:cursor-not-allowed disabled:opacity-50">
-                      {saving ? "Saving payment..." : <><FiRefreshCw /> Record Payment &amp; Renew</>}
-                    </button>
-                    {loan.loan_status !== "Active" && <p className="text-center text-xs font-semibold text-slate-500">This loan is not active and cannot be renewed.</p>}
-                  </form>
-                ) : <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-                  <p className="font-semibold">This loan is paid in full.</p>
-                  <Link to={`/admin/loans/goldrelease/${loan.id}`} onClick={onClose} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#064A41] px-3 py-2 font-bold text-white hover:bg-[#087263]"><FiCheckCircle /> Continue to Gold Release</Link>
-                </div>}
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <h4 className="mb-3 text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">Amount breakdown</h4>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between gap-3 text-slate-600"><span>Regular interest accrued</span><strong className="text-slate-800">{money(preview.regular_interest)}</strong></div>
+                    <div className="flex justify-between gap-3 text-slate-600"><span>Overdue interest / late fee</span><strong className="text-rose-700">{money(preview.late_payment_fee)}</strong></div>
+                    <div className="flex justify-between gap-3 text-xs text-slate-500"><span>Saved late-payment rate</span><strong>{rateText(loan.late_payment_interest_rate)}</strong></div>
+                    <div className="flex justify-between gap-3 border-t border-slate-100 pt-3 text-slate-600"><span>Total interest and late fee</span><strong className="text-slate-800">{money(preview.accrued_interest)}</strong></div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#064A41] px-4 py-3 text-white">
+                    <span className="text-sm font-bold">Total due</span>
+                    <strong className="text-lg font-black tabular-nums">{money(preview.total_due)}</strong>
+                  </div>
+                  <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Overdue extra interest uses the loan&apos;s saved late-payment rate. Total due is principal plus accrued interest and overdue charges; processing and other charges are not included.</p>
+                </div>
               </section>
 
+              {preview.current_principal > 0 ? (
+                <form onSubmit={submitPayment} className="space-y-4 rounded-2xl border border-slate-200 bg-gradient-to-b from-[#F5FAF8] to-white p-4 sm:p-5">
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800">Record a payment</h3>
+                    <p className="mt-1 text-xs text-slate-500">Enter the amount received and payment details.</p>
+                  </div>
+                  <label className="block text-sm font-bold text-slate-700">Payable amount
+                    <span className="mt-1.5 flex min-h-14 items-center rounded-xl border border-slate-200 bg-white px-4 shadow-sm transition focus-within:border-[#008577] focus-within:ring-4 focus-within:ring-emerald-700/10">
+                      <span className="mr-2 text-lg font-bold text-[#087263]">₹</span>
+                      <input type="number" inputMode="decimal" min="0.01" max={preview.total_due} step="0.01" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} disabled={loan.loan_status !== "Active" || saving} placeholder="Enter amount received" className="w-full border-0 bg-transparent text-base font-extrabold tabular-nums text-slate-800 outline-none placeholder:text-sm placeholder:font-medium placeholder:text-slate-400" />
+                    </span>
+                    <span className="mt-1.5 block text-[11px] font-medium text-slate-500">Minimum payment: {money(preview.minimum_payment)} <span className="px-1 text-slate-300">·</span> Maximum: {money(preview.total_due)}</span>
+                  </label>
+                  <label className="block text-sm font-bold text-slate-700">Payment method
+                    <CustomSelect value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} disabled={saving} className="mt-1.5 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10">
+                      {["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"].map((method) => <option key={method} value={method}>{method}</option>)}
+                    </CustomSelect>
+                  </label>
+                  <label className="block text-sm font-bold text-slate-700">Reference number <span className="font-normal text-slate-400">(optional)</span>
+                    <input value={referenceNumber} onChange={(event) => setReferenceNumber(event.target.value)} maxLength={100} disabled={saving} placeholder="Enter transaction or receipt reference" className="mt-1.5 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10" />
+                  </label>
+                  <div className="rounded-xl border border-amber-200/80 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Any amount above the minimum interest payment reduces the principal. Remaining balance earns interest at the saved rate for the next 11 months.</div>
+                  {paymentAmount && Number.isFinite(amount) && amount > 0 && <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3.5 text-xs">
+                    <p className="mb-1 font-extrabold uppercase tracking-wide text-emerald-800">Payment allocation preview</p>
+                    <p className="flex justify-between gap-2 text-slate-600"><span>Interest covered</span><strong>{money(Math.min(amount, preview.accrued_interest))}</strong></p>
+                    <p className="flex justify-between gap-2 text-slate-600"><span>Principal reduction</span><strong>{money(principalReduction)}</strong></p>
+                    <p className="flex justify-between gap-2 border-t border-emerald-200 pt-2 font-extrabold text-[#064A41]"><span>Principal after payment</span><strong>{money(preview.current_principal - principalReduction)}</strong></p>
+                  </div>}
+                  <button type="submit" disabled={!canPay || saving} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#064A41] to-[#087568] px-4 py-3 text-sm font-extrabold text-white shadow-md shadow-emerald-950/15 transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50">
+                    {saving ? "Saving payment..." : <><FiRefreshCw /> Record Payment &amp; Renew</>}
+                  </button>
+                  {loan.loan_status !== "Active" && <p className="text-center text-xs font-semibold text-slate-500">This loan is not active and cannot be renewed.</p>}
+                </form>
+              ) : <section className="flex flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white p-6 text-center">
+                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-100 text-emerald-700"><FiCheckCircle size={23} /></span>
+                <p className="mt-3 font-extrabold text-emerald-900">This loan is paid in full</p>
+                <p className="mt-1 text-xs text-emerald-800/80">Continue to record the pledged gold release.</p>
+                <Link to={`/admin/loans/goldrelease/${loan.id}`} onClick={onClose} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#064A41] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#087263]"><FiCheckCircle /> Continue to Gold Release</Link>
+              </section>}
             </div>}
       </section>
     </div>
@@ -267,13 +294,13 @@ export default function LoanRenewal() {
   });
   const todayKey = localDateKey(new Date());
   const renewalSummary = [
-    { label: "Total Loans", value: loans.length, icon: FiLayers, color: "border-slate-200 text-[#008577]", iconColor: "bg-teal-50 text-[#008577]" },
-    { label: "Maturing Today", value: loans.filter((item) => String(item.maturity_date || "").slice(0, 10) === todayKey).length, icon: FiCalendar, color: "border-amber-100 text-amber-700", iconColor: "bg-amber-50 text-amber-700" },
+    { label: "Total Loans", value: loans.length, note: "Eligible renewal accounts", icon: FiLayers, card: "border-emerald-100 from-emerald-50/70 before:bg-emerald-500", iconClass: "bg-emerald-500 shadow-emerald-500/20", noteClass: "text-emerald-700", dotClass: "bg-emerald-500" },
+    { label: "Maturing Today", value: loans.filter((item) => String(item.maturity_date || "").slice(0, 10) === todayKey).length, note: "Loans due today", icon: FiCalendar, card: "border-sky-100 from-sky-50/70 before:bg-sky-500", iconClass: "bg-sky-500 shadow-sky-500/20", noteClass: "text-sky-700", dotClass: "bg-sky-500" },
     { label: "Past Maturity", value: loans.filter((item) => {
       const maturityDate = String(item.maturity_date || "").slice(0, 10);
       return Boolean(maturityDate) && maturityDate < todayKey;
-    }).length, icon: FiAlertCircle, color: "border-rose-100 text-rose-700", iconColor: "bg-rose-50 text-rose-700" },
-    { label: "15-Month Reviews", value: loans.filter((item) => isLoanReviewDue(item)).length, icon: FiShield, color: "border-emerald-100 text-emerald-700", iconColor: "bg-emerald-50 text-emerald-700" }
+    }).length, note: "Require customer follow-up", icon: FiAlertCircle, card: "border-amber-100 from-amber-50/70 before:bg-amber-500", iconClass: "bg-amber-500 shadow-amber-500/20", noteClass: "text-amber-700", dotClass: "bg-amber-500" },
+    { label: "15-Month Reviews", value: loans.filter((item) => isLoanReviewDue(item)).length, note: "Authorized manual review only", icon: FiShield, card: "border-orange-100 from-orange-50/70 before:bg-orange-500", iconClass: "bg-orange-500 shadow-orange-500/20", noteClass: "text-orange-700", dotClass: "bg-orange-500" }
   ];
 
   const amount = Number(paymentAmount);
@@ -346,30 +373,46 @@ export default function LoanRenewal() {
 
   if (!id) {
     return (
-      <main className="space-y-6 p-2">
+      <main className="space-y-5 p-2">
+        <section aria-label="Loan renewal overview" className="relative overflow-hidden rounded-[24px] bg-gradient-to-r from-[#064A41] via-[#08695B] to-[#087E6F] px-6 py-7 text-white shadow-[0_16px_40px_rgba(0,59,59,0.18)] sm:px-8 sm:py-8">
+          <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full border border-white/10" />
+          <div className="pointer-events-none absolute -right-1 -top-12 h-48 w-48 rounded-full border border-white/10" />
+          <div className="relative flex flex-wrap items-center justify-between gap-6">
+            <div className="max-w-2xl">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-100">Loan Management · Renewal Tracking</p>
+              <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">Loan Renewal Overview</h1>
+              <p className="mt-2 text-sm text-emerald-50/90 sm:text-base">Review maturing accounts, record payments, and manage eligible loan renewals.</p>
+            </div>
+            <Link to="/admin/loans/createloan" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#064A41] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-white/30">
+              <FiPlus size={17} />
+              Create New Loan
+            </Link>
+          </div>
+        </section>
         <section aria-label="Loan renewal summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {renewalSummary.map(({ label, value, icon: Icon, color, iconColor }) => (
-            <article key={label} className={`flex items-center justify-between rounded-2xl border bg-white p-5 shadow-sm ${color}`}>
-              <div>
-                <p className="text-sm font-semibold text-slate-500">{label}</p>
-                <p className="mt-2 text-2xl font-extrabold">{loading ? "—" : value}</p>
+          {renewalSummary.map(({ label, value, note, icon: Icon, card, iconClass, noteClass, dotClass }) => (
+            <article key={label} className={`relative flex min-h-[168px] items-center justify-between overflow-hidden rounded-2xl border bg-gradient-to-br via-white to-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] before:absolute before:left-0 before:top-0 before:h-1 before:w-full ${card}`}>
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+                <p className="mt-3 text-3xl font-black tabular-nums tracking-tight text-slate-950">{loading ? "—" : value}</p>
+                <p className={`mt-2 flex items-center gap-2 text-xs font-bold ${noteClass}`}><span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />{note}</p>
               </div>
-              <span className={`rounded-xl p-3 ${iconColor}`}><Icon size={21} /></span>
+              <span className={`ml-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg ${iconClass}`}><Icon size={22} /></span>
             </article>
           ))}
         </section>
-        <section aria-label="Loan renewal filters" className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_2px_10px_rgba(15,23,42,0.04)] sm:flex-row sm:items-center sm:justify-between sm:p-4">
+        <section aria-label="Loan renewal filters" className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <label className="relative min-w-0 sm:w-1/3 sm:min-w-[280px] sm:flex-none">
             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <span className="sr-only">Search loans</span>
             <input value={search} onChange={(event) => setSearch(event.target.value)} type="search" placeholder="Search loans by number, customer..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-3 pl-12 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:font-normal placeholder:text-slate-400 hover:border-slate-300 focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10" />
+              className="min-h-12 w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 text-sm font-medium text-slate-700 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 hover:border-slate-300 focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10" />
           </label>
           <div className="flex flex-wrap items-center justify-between gap-2 sm:ml-auto sm:justify-start sm:gap-3">
             <DateRangeFilter onApply={(range) => { setLoading(true); setDateRange(range); }} />
             <CustomSelect aria-label="Filter loans by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}
               className="min-w-[142px] rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-600 outline-none transition hover:border-slate-300 focus:border-[#008577] focus:ring-4 focus:ring-emerald-700/10">
-              <option value="All">Select Status</option>
+              <option value="All">All</option>
               <option value="Active">Active</option>
               <option value="Suspended">Suspended</option>
             </CustomSelect>
@@ -377,26 +420,31 @@ export default function LoanRenewal() {
               <button type="button" onClick={() => setViewMode("table")} aria-label="List view" aria-pressed={viewMode === "table"} className={`rounded-lg p-2.5 transition-all ${viewMode === "table" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiList size={17} /></button>
               <button type="button" onClick={() => setViewMode("card")} aria-label="Card view" aria-pressed={viewMode === "card"} className={`rounded-lg p-2.5 transition-all ${viewMode === "card" ? "bg-[#064A41] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><FiGrid size={17} /></button>
             </div>
-            <Link to="/admin/loans/createloan" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#064A41] px-4 py-3 text-sm font-bold text-white shadow-md shadow-emerald-950/15 transition hover:-translate-y-0.5 hover:bg-[#087263] focus:outline-none focus:ring-4 focus:ring-emerald-700/20"><FiPlus size={16} /> Create Loan</Link>
           </div>
         </section>
-        {viewMode === "table" ? <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        {viewMode === "table" ? <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.055)]">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[780px] border-separate border-spacing-0 text-left">
-              <thead><tr className="bg-[#064A41] text-[11px] font-bold uppercase tracking-wide text-emerald-50/90">
+              <thead><tr className="bg-gradient-to-r from-[#003B3B] to-[#075B50] text-[10px] font-extrabold uppercase tracking-[0.1em] text-white">
                 {["Loan Number", "Customer", "Mobile", "Principal", "Balance", "Interest", "Maturity", "Actions"].map((label) =>
-                  <th key={label} className="whitespace-nowrap px-4 py-3 first:pl-5">{label}</th>)}
+                  <th key={label} className="whitespace-nowrap px-4 py-4 first:pl-5">{label}</th>)}
               </tr></thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-emerald-100/80">
                 {loading
-                  ? <tr><td colSpan="8" className="px-4 py-14 text-center text-sm text-slate-400">Loading loans...</td></tr>
+                  ? <tr><td colSpan="8" className="px-4 py-16 text-center text-sm font-medium text-slate-400">Loading loans...</td></tr>
                   : filteredLoans.length === 0
-                    ? <tr><td colSpan="8" className="px-4 py-14 text-center text-sm text-slate-400">{loans.length ? "No loans match your search." : "No active loans are available for renewal."}</td></tr>
+                    ? <tr><td colSpan="8" className="px-4 py-14">
+                      <div className="mx-auto flex max-w-md flex-col items-center text-center">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-[#087263] ring-1 ring-emerald-100"><FiCalendar size={22} /></span>
+                        <p className="mt-3 text-sm font-bold text-slate-700">{loans.length ? "No loans match your filters" : "No loans ready for renewal"}</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">{loans.length ? "Try another search term or adjust the status filter." : "Eligible active loans will appear here when available."}</p>
+                      </div>
+                    </td></tr>
                     : filteredLoans.map((item) => (
-                      <tr key={item.id} className={`text-sm transition-colors ${["Active", "Suspended"].includes(item.loan_status) ? "cursor-pointer hover:bg-emerald-50/60" : "opacity-60"}`}
+                      <tr key={item.id} className={`bg-[#F3FBF8] text-sm transition-colors ${["Active", "Suspended"].includes(item.loan_status) ? "cursor-pointer hover:bg-[#EAF7F2]" : "opacity-60"}`}
                         onClick={() => ["Active", "Suspended"].includes(item.loan_status) && navigate(Number(item.outstanding_principal ?? item.principal_amount) === 0 ? `/admin/loans/completeloan/${item.id}` : `/admin/loans/loanreniwel/${item.id}`)}>
                         <td className="whitespace-nowrap px-4 py-4 pl-5 font-bold text-[#064A41]">{item.loan_number}</td>
-                        <td className="px-4 py-4"><span className="block font-semibold text-slate-800">{item.customer_name || "—"}</span><span className="text-xs text-slate-400">{item.customer_code || "—"}</span></td>
+                        <td className="px-4 py-4"><span className="block font-semibold text-slate-800">{item.customer_name || "—"}</span><span className="text-xs text-slate-500">{item.customer_code || "—"}</span></td>
                         <td className="whitespace-nowrap px-4 py-4 text-slate-600">{item.customer_mobile || "—"}</td>
                         <td className="whitespace-nowrap px-4 py-4 tabular-nums text-slate-600">{money(item.principal_amount)}</td>
                         <td className="whitespace-nowrap px-4 py-4 font-bold tabular-nums text-slate-800">{money(item.outstanding_principal ?? item.principal_amount)}</td>
@@ -419,6 +467,9 @@ export default function LoanRenewal() {
               </tbody>
             </table>
           </div>
+          {!loading && <div className="border-t border-slate-100 bg-white px-5 py-3.5 text-xs font-medium text-slate-500">
+            Showing <span className="font-bold text-slate-700">{filteredLoans.length}</span> renewal {filteredLoans.length === 1 ? "loan" : "loans"}
+          </div>}
         </section> : loading
           ? <section className="rounded-2xl border border-slate-200 bg-white px-4 py-14 text-center text-sm text-slate-400">Loading loans...</section>
           : filteredLoans.length === 0
