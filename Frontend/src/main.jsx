@@ -61,6 +61,7 @@ const BillingManagement = React.lazy(() => import("./Admin/Pages/BillingManageme
 const Reports = React.lazy(() => import("./Admin/Pages/Reports.jsx"));
 const TackOrders = React.lazy(() => import("./Admin/TackOrders/Tackorders.jsx"));
 const AllTackOrders = React.lazy(() => import("./Admin/TackOrders/AllOrder.jsx"));
+const TackOrderDetails = React.lazy(() => import("./Admin/TackOrders/OrdersViewdetails.jsx"));
 
 const ErrorPage = React.lazy(() => import("./Admin/Pages/ErrorPage.jsx"));
 
@@ -159,6 +160,7 @@ const router = createHashRouter([
       { path: "enquiries/edit/:id", element: <Enquiries /> },
       { path: "tack-orders", element: <TackOrders /> },
       { path: "tackAllOrders", element: <AllTackOrders /> },
+      { path: "tackAllOrders/:id", element: <TackOrderDetails /> },
     ],
   },
 ]);
