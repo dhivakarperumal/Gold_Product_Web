@@ -134,19 +134,6 @@ async function migrateProductAuditColumn(column) {
     }
   }
 
-  const [orphanedLegacyIds] = await pool.execute(
-    `SELECT p.id
-     FROM products p
-     LEFT JOIN users legacy_user ON legacy_user.id = CAST(p.\`${column}\` AS UNSIGNED)
-     WHERE p.\`${column}\` IS NOT NULL
-       AND p.\`${column}\` REGEXP '^[0-9]+$'
-       AND legacy_user.id IS NULL
-     LIMIT 1`
-  );
-  if (orphanedLegacyIds.length) {
-    throw new Error(`Cannot migrate products.${column} for product ${orphanedLegacyIds[0].id}: the user id does not exist`);
-  }
-
   if (needsUuidType) {
     await pool.query(
       `ALTER TABLE products
@@ -158,6 +145,13 @@ async function migrateProductAuditColumn(column) {
      JOIN users legacy_user ON legacy_user.id = CAST(p.\`${column}\` AS UNSIGNED)
      SET p.\`${column}\` = legacy_user.user_id
      WHERE p.\`${column}\` REGEXP '^[0-9]+$'`
+  );
+
+  await pool.execute(
+    `UPDATE products p
+     LEFT JOIN users audit_user ON audit_user.user_id = p.\`${column}\`
+     SET p.\`${column}\` = NULL
+     WHERE p.\`${column}\` IS NOT NULL AND audit_user.user_id IS NULL`
   );
 
   const [orphanedUserIds] = await pool.execute(
