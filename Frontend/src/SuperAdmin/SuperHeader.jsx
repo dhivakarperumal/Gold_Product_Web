@@ -67,7 +67,6 @@ const pageTitles = {
   "/admin/products/stock/add": "Add Stock",
   "/admin/products": "Inventory",
   "/admin/billings": "Billing",
-  "/admin/kyc": "KYC Review",
   "/admin/loans/customermanagement": "Customer Management",
   "/admin/loans/customers": "Customer Management",
   "/admin/loans/allloans": "All Loans",

@@ -64,7 +64,6 @@ const pageTitles = {
   "/admin/billings": "Billing",
   "/admin/tack-orders": "Tack Orders",
   "/admin/tackAllOrders": "All Tack Orders",
-  "/admin/kyc": "KYC Review",
   "/admin/loans/customermanagement": "Customer Management",
   "/admin/loans/customers": "Customer Management",
   "/admin/loans/allloans": "All Loans",

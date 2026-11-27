@@ -103,7 +103,7 @@ const DOCUMENT_SIDES = ["front", "back"];
 const MAX_KYC_DOCUMENT_SLOTS = (DOCUMENT_TYPES.length - 1) * DOCUMENT_SIDES.length;
 const documentSlotKey = (type, side) => `${type}:${side}`;
 
-const inputClass = "mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#008577] focus:ring-2 focus:ring-emerald-100";
+const inputClass = "mt-1.5 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#008577] focus:ring-2 focus:ring-emerald-100";
 const labelClass = "block text-xs font-semibold text-slate-600";
 
 function CustomerField({ label, name, value, onChange, type = "text", required = false, placeholder = "" }) {
@@ -561,52 +561,76 @@ export default function LoanCustomerManagement() {
 
   const verifiedCount = customers.filter((customer) => customer.kyc_status === "Verified").length;
   const pendingCount = customers.filter((customer) => customer.kyc_status === "Pending").length;
+  const todayKey = new Date().toDateString();
+  const addedTodayCount = customers.filter((customer) =>
+    customer.created_at && new Date(customer.created_at).toDateString() === todayKey
+  ).length;
 
   return (
-    <main className="min-h-screen space-y-5 bg-[#F4F7F6] py-1 text-slate-800">
+    <main className="min-h-screen space-y-5 text-slate-800">
+      <header className="flex flex-col justify-between gap-5 overflow-hidden rounded-2xl bg-gradient-to-r from-[#064A41] to-[#087568] px-6 py-6 text-white shadow-[0_14px_35px_rgba(0,59,59,0.16)] sm:flex-row sm:items-center sm:px-8 sm:py-7">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-200">Loan Management · Customer Records</p>
+          <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Customer overview</h1>
+          <p className="mt-1.5 text-sm text-emerald-50/80">Manage borrower profiles, contact information, and KYC verification.</p>
+        </div>
+        <button
+          type="button"
+          onClick={openAddCustomer}
+          className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-[#064A41] shadow-lg transition hover:-translate-y-0.5 hover:bg-emerald-50"
+        >
+          <FiPlus size={18} /> Add New Customer
+        </button>
+      </header>
 
-
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Total Customers", value: customers.length, icon: FiUsers },
-          { label: "KYC Verified", value: verifiedCount, icon: FiCheckCircle },
-          { label: "KYC Pending", value: pendingCount, icon: FiUser }
-        ].map(({ label, value, icon: Icon }) => (
-          <article key={label} className="flex min-h-28 items-center gap-3 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-[#008577]"><Icon size={20} /></span>
-            <span><span className="block text-xs text-slate-500">{label}</span><strong className="text-2xl text-slate-900">{value.toLocaleString()}</strong></span>
+          { label: "Total Customers", value: customers.length, note: "Customer profiles", icon: FiUsers, cardClass: "border-emerald-100 border-t-emerald-500 from-emerald-50/80", iconClass: "bg-emerald-600 shadow-emerald-600/20", noteClass: "text-emerald-700", dotClass: "bg-emerald-600" },
+          { label: "Added Today", value: addedTodayCount, note: "New customer profiles", icon: FiPlus, cardClass: "border-sky-100 border-t-sky-500 from-sky-50/80", iconClass: "bg-sky-600 shadow-sky-600/20", noteClass: "text-sky-700", dotClass: "bg-sky-600" },
+          { label: "KYC Verified", value: verifiedCount, note: "Verified identities", icon: FiCheckCircle, cardClass: "border-amber-100 border-t-amber-500 from-amber-50/80", iconClass: "bg-amber-500 shadow-amber-500/20", noteClass: "text-amber-700", dotClass: "bg-amber-600" },
+          { label: "KYC Pending", value: pendingCount, note: "Awaiting verification", icon: FiUser, cardClass: "border-rose-100 border-t-rose-500 from-rose-50/80", iconClass: "bg-rose-600 shadow-rose-600/20", noteClass: "text-rose-700", dotClass: "bg-rose-600" }
+        ].map(({ label, value, note, icon: Icon, cardClass, iconClass, noteClass, dotClass }) => (
+          <article key={label} className={`relative flex min-h-[150px] items-center justify-between overflow-hidden rounded-2xl border border-t-4 bg-gradient-to-br to-white px-5 py-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg ${cardClass}`}>
+            <div className="relative min-w-0">
+              <span className="block truncate text-xs font-black uppercase tracking-[0.15em] text-slate-500">{label}</span>
+              <strong className="mt-2 block text-3xl font-black tracking-tight text-slate-950">{loading ? "—" : value.toLocaleString()}</strong>
+              <span className={`mt-3 inline-flex items-center gap-2 text-xs font-bold ${noteClass}`}>
+                <span className={`h-2 w-2 rounded-full ${dotClass}`} />{note}
+              </span>
+            </div>
+            <span className={`ml-3 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg ${iconClass}`}><Icon size={24} /></span>
           </article>
         ))}
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <label className="relative min-w-0 w-full flex-1 sm:max-w-xs">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.05)] sm:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <label className="relative min-w-0 w-full flex-1 lg:max-w-md">
+            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
-              className={`${inputClass} mt-0 pl-9`}
+              className="mt-0 min-h-12 w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-11 pr-4 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#008577] focus:ring-4 focus:ring-emerald-100"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search customer, code, mobile, city..."
             />
           </label>
-          <div className="flex flex-wrap items-center gap-3 sm:ml-auto sm:justify-end">
-            <DateRangeFilter onApply={setDateRange} />
-            <label className="relative">
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto sm:justify-end sm:gap-3">
+            <DateRangeFilter onApply={setDateRange} controlClassName="min-h-12 rounded-xl border-slate-200 px-4 shadow-sm" />
+            <label className="relative min-w-[150px]">
               <FiFilter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <CustomSelect className={`${inputClass} mt-0 pl-9`} value={kycFilter} onChange={(event) => setKycFilter(event.target.value)}>
+              <CustomSelect className={`${inputClass} mt-0 bg-white pl-9 shadow-sm`} value={kycFilter} onChange={(event) => setKycFilter(event.target.value)}>
                 {["All", "Pending", "Verified", "Rejected"].map((status) => <option key={status}>{status}</option>)}
               </CustomSelect>
             </label>
            
-            <div className="inline-flex shrink-0 rounded-lg border border-slate-200 p-1" role="group" aria-label="Customer view mode">
+            <div className="inline-flex shrink-0 rounded-xl border border-slate-200 bg-white p-1 shadow-sm" role="group" aria-label="Customer view mode">
             <button
               type="button"
               onClick={() => setViewMode("table")}
               aria-label="Table view"
               aria-pressed={viewMode === "table"}
               title="Table view"
-              className={`inline-flex items-center justify-center rounded-md p-2 text-xs font-semibold transition ${viewMode === "table" ? "bg-[#003B3B] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-lg text-xs font-semibold transition ${viewMode === "table" ? "bg-[#003B3B] text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"}`}
             >
               <FiList size={16} />
             </button>
@@ -616,92 +640,98 @@ export default function LoanCustomerManagement() {
               aria-label="Card view"
               aria-pressed={viewMode === "card"}
               title="Card view"
-              className={`inline-flex items-center justify-center rounded-md p-2 text-xs font-semibold transition ${viewMode === "card" ? "bg-[#003B3B] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-lg text-xs font-semibold transition ${viewMode === "card" ? "bg-[#003B3B] text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"}`}
             >
               <FiGrid size={16} />
             </button>
             </div>
-             <button
-          type="button"
-          onClick={openAddCustomer}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#003B3B] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#008577]"
-        >
-          <FiPlus /> Add New Customer
-        </button>
           </div>
         </div>
+      </section>
 
-        {viewMode === "table" ? <div className="overflow-x-auto rounded-xl">
-          <table className="w-full min-w-[850px] border-separate border-spacing-0 overflow-hidden rounded-xl text-left">
-            <thead>
-              <tr className="bg-[#003B3B] text-[10px] font-bold uppercase tracking-wide text-white">
-                <th className="px-4 py-4">S No</th>
-                <th className="px-4 py-4">Customer</th>
-                <th className="px-4 py-4">Mobile</th>
-                <th className="px-4 py-4">Type</th>
-                <th className="px-4 py-4">Location</th>
-                <th className="px-4 py-4">KYC Status</th>
-                <th className="px-4 py-4">Added</th>
-                <th className="px-4 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr><td colSpan="8" className="px-4 py-12 text-center text-sm text-slate-400">Loading customers...</td></tr>
-              ) : filteredCustomers.length === 0 ? (
-                <tr><td colSpan="8" className="px-4 py-12 text-center text-sm text-slate-400">No customers found.</td></tr>
-              ) : filteredCustomers.map((customer, index) => (
-                <tr key={customer.id} className="transition hover:bg-emerald-50/40">
-                  <td className="px-4 py-3 text-sm font-semibold text-slate-500">{index + 1}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      {customerPhotoPreviews[String(customer.id)] ? (
-                        <img src={customerPhotoPreviews[String(customer.id)]} alt={`${customer.full_name} profile`} className="h-10 w-10 shrink-0 rounded-full border border-slate-200 object-cover" />
-                      ) : (
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-bold text-[#008577]">
-                          {customer.full_name.trim().charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                      <div className="min-w-0">
-                        <p className="truncate font-bold text-slate-800">{customer.full_name}</p>
-                        <p className="text-xs text-slate-500">{customer.customer_code}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <p>{customer.mobile}</p>
-                    {customer.alternate_mobile && <p className="text-xs text-slate-400">{customer.alternate_mobile}</p>}
-                    {customer.email && <p className="text-xs text-slate-500">{customer.email}</p>}
-                  </td>
-                  <td className="px-4 py-3 text-sm">{customer.customer_type}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    <span className="inline-flex items-center gap-1"><FiMapPin className="shrink-0" />{[customer.city, customer.district].filter(Boolean).join(", ") || "—"}</span>
-                  </td>
-                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${getKycStyle(customer.kyc_status)}`}>{customer.kyc_status}</span></td>
-                  <td className="px-4 py-3 text-sm text-slate-500">{customer.created_at ? new Date(customer.created_at).toLocaleDateString("en-IN") : "—"}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      {customer.kyc_status !== "Verified" && (
-                        <button
-                          type="button"
-                          onClick={() => handleVerifyKyc(customer)}
-                          disabled={verifyingCustomerId !== null}
-                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-60"
-                        >
-                          <FiCheckCircle />
-                          {verifyingCustomerId === customer.id ? "Verifying..." : "Verify KYC"}
-                        </button>
-                      )}
-                      <button type="button" onClick={() => navigate(`/admin/loans/customers/${customer.id}`)} aria-label={`View ${customer.full_name}`} title="View customer" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><FiEye /></button>
-                      <button type="button" onClick={() => openEditCustomer(customer)} aria-label={`Edit ${customer.full_name}`} className="rounded-lg p-2 text-[#008577] hover:bg-emerald-50"><FiEdit2 /></button>
-                      <button type="button" onClick={() => handleDelete(customer)} aria-label={`Delete ${customer.full_name}`} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50"><FiTrash2 /></button>
-                    </div>
-                  </td>
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
+        {viewMode === "table" ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left">
+              <thead>
+                <tr className="bg-gradient-to-r from-[#003B3B] to-[#075B50] text-[10px] font-extrabold uppercase tracking-[0.08em] text-white">
+                  <th className="w-16 px-4 py-4">S No</th>
+                  <th className="px-4 py-4">Customer</th>
+                  <th className="px-4 py-4">Mobile</th>
+                  <th className="px-4 py-4">Type</th>
+                  <th className="px-4 py-4">Location</th>
+                  <th className="px-4 py-4">KYC Status</th>
+                  <th className="px-4 py-4">Added</th>
+                  <th className="px-5 py-4 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div> : (
+              </thead>
+              <tbody className="divide-y divide-emerald-100/80">
+                {loading ? (
+                  <tr><td colSpan="8" className="px-4 py-16 text-center text-sm font-medium text-slate-400">Loading customers...</td></tr>
+                ) : filteredCustomers.length === 0 ? (
+                  <tr><td colSpan="8" className="px-4 py-16 text-center text-sm font-medium text-slate-400">No customers found.</td></tr>
+                ) : filteredCustomers.map((customer, index) => (
+                  <tr key={customer.id} className="group bg-[#F3FBF8] transition-colors hover:bg-[#EAF7F2]">
+                    <td className="px-4 py-4 align-middle text-sm font-semibold tabular-nums text-slate-500">{index + 1}</td>
+                    <td className="px-4 py-4 align-middle">
+                      <div className="flex min-w-[190px] items-center gap-3">
+                        {customerPhotoPreviews[String(customer.id)] ? (
+                          <img src={customerPhotoPreviews[String(customer.id)]} alt={`${customer.full_name} profile`} className="h-10 w-10 shrink-0 rounded-full border border-white object-cover shadow-sm ring-1 ring-emerald-100" />
+                        ) : (
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-extrabold text-[#00796B] ring-1 ring-white">
+                            {customer.full_name.trim().charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-slate-800">{customer.full_name}</p>
+                          <p className="mt-0.5 text-xs font-medium text-slate-500">{customer.customer_code}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 align-middle">
+                      <div className="min-w-[155px]">
+                        <p className="text-sm font-semibold tabular-nums text-slate-700">{customer.mobile || "—"}</p>
+                        {customer.alternate_mobile && <p className="mt-0.5 text-xs tabular-nums text-slate-500">{customer.alternate_mobile}</p>}
+                        {customer.email && <p className="mt-0.5 max-w-[190px] truncate text-xs text-slate-500" title={customer.email}>{customer.email}</p>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 align-middle text-sm text-slate-700">{customer.customer_type}</td>
+                    <td className="px-4 py-4 align-middle">
+                      <span className="inline-flex max-w-[190px] items-center gap-1.5 text-sm text-slate-600">
+                        <FiMapPin className="shrink-0 text-slate-500" />
+                        <span className="truncate">{[customer.city, customer.district].filter(Boolean).join(", ") || "—"}</span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 align-middle">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-bold ${getKycStyle(customer.kyc_status)}`}>
+                        {customer.kyc_status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 align-middle text-sm font-medium tabular-nums text-slate-500">{customer.created_at ? new Date(customer.created_at).toLocaleDateString("en-IN") : "—"}</td>
+                    <td className="px-5 py-4 align-middle">
+                      <div className="flex min-w-max items-center justify-end gap-1.5">
+                        {customer.kyc_status !== "Verified" && (
+                          <button
+                            type="button"
+                            onClick={() => handleVerifyKyc(customer)}
+                            disabled={verifyingCustomerId !== null}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-60"
+                          >
+                            <FiCheckCircle />
+                            {verifyingCustomerId === customer.id ? "Verifying..." : "Verify KYC"}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => navigate(`/admin/loans/customers/${customer.id}`)} aria-label={`View ${customer.full_name}`} title="View customer" className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-white hover:text-teal-700"><FiEye /></button>
+                        <button type="button" onClick={() => openEditCustomer(customer)} aria-label={`Edit ${customer.full_name}`} title="Edit customer" className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#008577] transition hover:bg-white"><FiEdit2 /></button>
+                        <button type="button" onClick={() => handleDelete(customer)} aria-label={`Delete ${customer.full_name}`} title="Delete customer" className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-rose-500 transition hover:bg-white"><FiTrash2 /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
           <div className="p-4">
             {loading ? (
               <p className="py-12 text-center text-sm text-slate-400">Loading customers...</p>
@@ -739,6 +769,17 @@ export default function LoanCustomerManagement() {
                       <p className="text-xs text-slate-400">Added {customer.created_at ? new Date(customer.created_at).toLocaleDateString("en-IN") : "—"}</p>
                     </div>
                     <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3">
+                      {customer.kyc_status !== "Verified" && (
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyKyc(customer)}
+                          disabled={verifyingCustomerId !== null}
+                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          <FiCheckCircle />
+                          {verifyingCustomerId === customer.id ? "Verifying..." : "Verify KYC"}
+                        </button>
+                      )}
                       <button type="button" onClick={() => navigate(`/admin/loans/customers/${customer.id}`)} aria-label={`View ${customer.full_name}`} title="View customer" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><FiEye /></button>
                       <button type="button" onClick={() => openEditCustomer(customer)} aria-label={`Edit ${customer.full_name}`} className="rounded-lg p-2 text-[#008577] hover:bg-emerald-50"><FiEdit2 /></button>
                       <button type="button" onClick={() => handleDelete(customer)} aria-label={`Delete ${customer.full_name}`} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50"><FiTrash2 /></button>
@@ -749,20 +790,20 @@ export default function LoanCustomerManagement() {
             )}
           </div>
         )}
-        <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
-          Showing {filteredCustomers.length} of {customers.length} customers
+        <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-4 text-xs font-medium text-slate-500">
+          Showing <span className="font-bold text-slate-700">{filteredCustomers.length}</span> of <span className="font-bold text-slate-700">{customers.length}</span> customers
         </div>
       </section>
 
       {isFormOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-end bg-slate-950/50" role="presentation" onMouseDown={(event) => {
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/55 p-3 sm:p-5" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) closeForm();
         }}>
-          <section className="flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="customer-form-title">
-            <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <section className="my-auto flex max-h-[calc(100vh-24px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100vh-40px)]" role="dialog" aria-modal="true" aria-labelledby="customer-form-title">
+            <header className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-6">
               <div>
                 <h2 id="customer-form-title" className="text-lg font-extrabold text-[#003B3B]">{editingCustomer ? "Edit Customer" : "Add New Customer"}</h2>
-                <p className="text-xs text-slate-500">Enter borrower details and KYC status.</p>
+                <p className="mt-0.5 text-xs text-slate-500">Complete customer, address, guarantor, photo, and KYC details.</p>
               </div>
               <button type="button" onClick={closeForm} aria-label="Close form" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><FiX size={20} /></button>
             </header>
@@ -772,62 +813,81 @@ export default function LoanCustomerManagement() {
                   {saveError}
                 </div>
               )}
-              <div className="flex-1 space-y-4 overflow-y-auto p-5">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <CustomerField label="Full Name" name="full_name" value={form.full_name} onChange={handleChange} required placeholder="Enter full name" />
-                  <CustomerField label="Mobile" name="mobile" value={form.mobile} onChange={handleChange} required placeholder="Enter phone number" />
-                  <CustomerField label="Alternate Mobile" name="alternate_mobile" value={form.alternate_mobile} onChange={handleChange} placeholder="Enter alternate phone number" />
-                  <CustomerField label="Email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="name@example.com" />
-                  {!editingCustomer && (
-                    <p className="text-xs text-slate-500 sm:col-span-2">
-                      The initial password defaults to the primary mobile number; you can change it here.
-                    </p>
-                  )}
-                  <CustomerField label="Date of Birth" name="date_of_birth" type="date" value={form.date_of_birth} onChange={handleChange} placeholder="dd-mm-yyyy" />
-                  <fieldset className="min-w-0">
-                    <legend className={labelClass}>
-                      Gender<span className="ml-1 text-red-500">*</span>
-                    </legend>
-                    <div className="mt-2 flex flex-wrap gap-3">
-                      {["Male", "Female", "Other"].map((gender) => (
-                        <label key={gender} className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:border-[#008577]">
-                          <input
-                            className="accent-[#008577]"
-                            type="radio"
-                            name="gender"
-                            value={gender}
-                            checked={form.gender === gender}
-                            onChange={handleChange}
-                            required
-                          />
-                          {gender}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                  <CustomerField label="City / Town" name="city" value={form.city} onChange={handleChange} required placeholder="Enter city or town" />
-                  <CustomerField label="District" name="district" value={form.district} onChange={handleChange} required placeholder="Enter district" />
-                  <CustomerSelect label="State" name="state" value={form.state} onChange={handleChange} options={["", ...INDIAN_STATES_AND_UTS]} required />
-                  <CustomerField label="PIN Code" name="pincode" value={form.pincode} onChange={handleChange} required placeholder="Enter PIN code" />
-                </div>
-                <label className={labelClass} htmlFor="residential-address">Residential Address<span className="ml-1 text-red-500">*</span>
-                  <textarea id="residential-address" className={`${inputClass} min-h-20`} name="address" value={form.address || ""} onChange={handleChange} rows="3" required placeholder="Enter full residential address" />
-                </label>
-                <section className="space-y-3 rounded-xl border border-slate-200 p-4">
+              <div className="flex-1 space-y-5 overflow-y-auto bg-slate-50/40 p-4 sm:p-6">
+                <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#003B3B]">Personal Details</h3>
+                    <p className="mt-1 text-xs text-slate-500">Basic identity and account information.</p>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <CustomerSelect label="Customer Type" name="customer_type" value={form.customer_type} onChange={handleChange} options={["Individual", "Business"]} required />
+                    <CustomerField label="Full Name" name="full_name" value={form.full_name} onChange={handleChange} required placeholder="Enter full name" />
+                    <CustomerField label="Mobile" name="mobile" value={form.mobile} onChange={handleChange} required placeholder="Enter phone number" />
+                    <CustomerField label="Alternate Mobile" name="alternate_mobile" value={form.alternate_mobile} onChange={handleChange} placeholder="Enter alternate phone number" />
+                    <CustomerField label="Email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="name@example.com" />
+                    {!editingCustomer ? (
+                      <label className={labelClass}>
+                        Account Password
+                        <input
+                          className={inputClass}
+                          type="password"
+                          name="account_password"
+                          value={accountPassword}
+                          onChange={(event) => setAccountPassword(event.target.value)}
+                          placeholder="Defaults to primary mobile number"
+                          autoComplete="new-password"
+                        />
+                      </label>
+                    ) : null}
+                    <CustomerField label="Occupation" name="occupation" value={form.occupation} onChange={handleChange} placeholder="Enter occupation" />
+                    <CustomerField label="Date of Birth" name="date_of_birth" type="date" value={form.date_of_birth} onChange={handleChange} />
+                    <fieldset className="min-w-0">
+                      <legend className={labelClass}>Gender<span className="ml-1 text-red-500">*</span></legend>
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        {["Male", "Female", "Other"].map((gender) => (
+                          <label key={gender} className={`inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border px-2 text-sm font-medium transition ${form.gender === gender ? "border-[#008577] bg-emerald-50 text-[#00695C]" : "border-slate-200 text-slate-700 hover:border-[#008577]"}`}>
+                            <input className="accent-[#008577]" type="radio" name="gender" value={gender} checked={form.gender === gender} onChange={handleChange} required />
+                            {gender}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#003B3B]">Address Details</h3>
+                    <p className="mt-1 text-xs text-slate-500">Residential address and location.</p>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <CustomerField label="City / Town" name="city" value={form.city} onChange={handleChange} required placeholder="Enter city or town" />
+                    <CustomerField label="District" name="district" value={form.district} onChange={handleChange} required placeholder="Enter district" />
+                    <CustomerSelect label="State" name="state" value={form.state} onChange={handleChange} options={["", ...INDIAN_STATES_AND_UTS]} required />
+                    <CustomerField label="PIN Code" name="pincode" value={form.pincode} onChange={handleChange} required placeholder="Enter PIN code" />
+                    <label className={`${labelClass} sm:col-span-2 xl:col-span-3`} htmlFor="residential-address">Residential Address<span className="ml-1 text-red-500">*</span>
+                      <textarea id="residential-address" className={`${inputClass} min-h-24`} name="address" value={form.address || ""} onChange={handleChange} rows="3" required placeholder="Enter full residential address" />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                   <div>
                     <h3 className="text-sm font-bold text-[#003B3B]">Guarantor / Surety Details</h3>
                     <p className="mt-1 text-xs text-slate-500">Guarantor address is optional; other details are required.</p>
                   </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <CustomerField label="Guarantor Name" name="guarantor_name" value={form.guarantor_name} onChange={handleChange} required placeholder="Enter guarantor's full name" />
                     <CustomerField label="Guarantor Mobile" name="guarantor_mobile" value={form.guarantor_mobile} onChange={handleChange} required placeholder="Enter phone number" />
+                    <CustomerField label="Guarantor Email" name="guarantor_email" type="email" value={form.guarantor_email} onChange={handleChange} placeholder="guarantor@example.com" />
                     <CustomerField label="Relationship to Customer" name="guarantor_relationship" value={form.guarantor_relationship} onChange={handleChange} required placeholder="e.g. Spouse, Parent, Friend" />
-                    <label className={labelClass} htmlFor="guarantor-address">Guarantor Address
-                      <textarea id="guarantor-address" className={`${inputClass} min-h-20`} name="guarantor_address" value={form.guarantor_address || ""} onChange={handleChange} rows="2" placeholder="Enter guarantor's full address" />
+                    <label className={`${labelClass} sm:col-span-2`} htmlFor="guarantor-address">Guarantor Address
+                      <textarea id="guarantor-address" className={`${inputClass} min-h-24`} name="guarantor_address" value={form.guarantor_address || ""} onChange={handleChange} rows="3" placeholder="Enter guarantor's full address" />
                     </label>
                   </div>
                 </section>
-                <div className="rounded-xl border border-slate-200 p-4">
+
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                   <p className={labelClass}>Customer Photo<span className="ml-1 text-red-500">*</span></p>
                   <p className="mt-1 text-xs text-slate-500">Required. Upload a PNG or JPG (up to 5 MB). Photos are stored privately.</p>
                   {photoPreview.reference === form.photo_url && photoPreview.url && (
@@ -857,7 +917,7 @@ export default function LoanCustomerManagement() {
                   </div>
                   {form.photo_url && <p className="mt-2 break-all text-[11px] text-slate-400">Secure reference saved</p>}
                 </div>
-                        <section className="space-y-3 rounded-xl border border-slate-200 p-4">
+                <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                   <div>
                     <h3 className="text-sm font-bold text-[#003B3B]">KYC Documents</h3>
                     <p className="mt-1 text-xs text-slate-500">Select a document type, then upload both front and back as PDF, PNG, or JPG (up to 10 MB each).</p>
@@ -959,12 +1019,14 @@ export default function LoanCustomerManagement() {
                       ) : null}
                     </>
                 </section>
-                <label className={labelClass}>Internal Notes
-                  <textarea className={`${inputClass} min-h-20`} name="notes" value={form.notes || ""} onChange={handleChange} rows="3" />
-                </label>
-                <CustomerSelect label="KYC Status" name="kyc_status" value={form.kyc_status} onChange={handleChange} options={["Pending", "Verified", "Rejected"]} />
+                <section className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-3 sm:p-5">
+                  <label className={`${labelClass} sm:col-span-2`}>Internal Notes
+                    <textarea className={`${inputClass} min-h-24`} name="notes" value={form.notes || ""} onChange={handleChange} rows="3" placeholder="Add any internal remarks" />
+                  </label>
+                  <CustomerSelect label="KYC Status" name="kyc_status" value={form.kyc_status} onChange={handleChange} options={["Pending", "Verified", "Rejected"]} />
+                </section>
               </div>
-              <footer className="flex justify-end gap-2 border-t border-slate-100 p-4">
+              <footer className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.04)] sm:px-6">
                 <button type="button" onClick={closeForm} disabled={saving || uploadingPhoto} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Close</button>
                 <button type="submit" disabled={saving || uploadingPhoto} className="rounded-lg bg-[#003B3B] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#008577] disabled:opacity-60">
                   {saving ? "Saving..." : editingCustomer ? "Save Changes" : "Add Customer"}
