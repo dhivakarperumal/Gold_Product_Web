@@ -391,20 +391,16 @@ const StockDetails = () => {
                     ) : viewMode === "table" ? (
                         <table className="w-full min-w-[960px] border-separate border-spacing-0 text-left">
                             <colgroup>
-                                <col className="w-[4%]" />
                                 <col className="w-[6%]" />
-                                <col className="w-[27%]" />
-                                <col className="w-[13%]" />
-                                <col className="w-[17%]" />
+                                <col className="w-[28%]" />
+                                <col className="w-[14%]" />
+                                <col className="w-[18%]" />
                                 <col className="w-[10%]" />
-                                <col className="w-[13%]" />
+                                <col className="w-[14%]" />
                                 <col className="w-[10%]" />
                             </colgroup>
                             <thead>
                                 <tr className="bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577]">
-                                    <th scope="col" className="w-12 whitespace-nowrap border-b border-white/15 px-4 py-4 text-center text-[11px] font-extrabold uppercase tracking-[0.14em] text-white">
-                                        <input type="checkbox" className="rounded border-[#F5C45E]/40 accent-[#F5C45E]" />
-                                    </th>
                                     {["S.No.", "Product", "Category", "Price", "Stock", "Status", "Actions"].map((heading) => (
                                         <th key={heading} scope="col" className="whitespace-nowrap border-b border-white/15 px-5 py-4 text-[11px] font-extrabold uppercase tracking-[0.14em] text-white">{heading}</th>
                                     ))}
@@ -418,9 +414,6 @@ const StockDetails = () => {
 
                                         return (
                                             <tr key={product.id} className="group h-[86px] odd:bg-white even:bg-slate-50/60 transition-colors hover:bg-emerald-50/70">
-                                                <td className="border-b border-slate-100 px-4 py-4 text-center">
-                                                    <input type="checkbox" className="rounded border-gray-300" />
-                                                </td>
                                                 <td className="border-b border-slate-100 px-5 py-4 text-sm font-semibold tabular-nums text-slate-500">
                                                     {(currentPage - 1) * itemsPerPage + index + 1}
                                                 </td>
@@ -485,7 +478,7 @@ const StockDetails = () => {
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="8" className="px-8 py-16 text-center">
+                                        <td colSpan="7" className="px-8 py-16 text-center">
                                             <div className="mx-auto flex max-w-sm flex-col items-center">
                                                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400"><FiBox size={22} /></span>
                                                 <p className="mt-3 text-sm font-extrabold text-slate-700">No stock data found</p>
