@@ -957,7 +957,7 @@ export default function AllGoldsShop() {
             if (!paymentSubmitting) setPaymentVerification(null);
           }}
         >
-          <form onSubmit={confirmSubscriptionPayment} className="space-y-4 p-5">
+          <form id="subscription-payment-form" onSubmit={confirmSubscriptionPayment} className="space-y-4 p-5">
             <p className="text-sm text-slate-600">Confirm only after you have verified that the payment was received. This marks the current subscription as paid and records your reference.</p>
             <section className="rounded-xl border border-slate-200 bg-white p-4">
               <h3 className="mb-3 text-sm font-bold text-slate-800">Shop details</h3>

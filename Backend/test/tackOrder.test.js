@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
+  getTackOrder,
   normalizeTackOrder,
   patchTackOrderStatus
 } = require('../src/controllers/tackOrderController');
@@ -228,6 +229,65 @@ test('only resolves products owned by the authenticated shop', async () => {
   }
   assert.match(capturedQuery.query, /WHERE id IN \(\?\) AND created_by = \?/);
   assert.deepEqual(capturedQuery.values, [12, 'shop-user-1']);
+});
+
+test('returns detailed tack-order items with catalog metal data for the authenticated owner', async () => {
+  const originalExecute = pool.execute;
+  const queries = [];
+  pool.execute = async (query, values) => {
+    queries.push({ query, values });
+    if (query.includes('FROM tack_orders t')) {
+      return [[{
+        id: 42,
+        order_no: 'TACK-20261125-AB12CD34',
+        customer: JSON.stringify({ name: 'A Customer', phone: '9876543210' }),
+        items: JSON.stringify([{ product_id: 12, product_name: 'Gold chain', quantity: 2 }]),
+        sub_total: '200.00',
+        gst_included: 1,
+        gst_rate: '10.00',
+        gst_amount: '20.00',
+        discount_type: 'Fixed',
+        discount_value: '10.00',
+        discount_amount: '10.00',
+        total_amount: '210.00',
+        order_status: 'Ready',
+        payment_status: 'Partial',
+        advance_amount: '50.00',
+        balance_due: '160.00',
+        paid_amount: '50.00',
+        created_at: '2026-11-25 10:00:00'
+      }], []];
+    }
+    if (query.includes('FROM products')) return [[{ ...product, metal_type: 'Gold' }], []];
+    return [[], []];
+  };
+  const res = {
+    statusCode: 200,
+    body: null,
+    status(statusCode) {
+      this.statusCode = statusCode;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return this;
+    }
+  };
+  try {
+    await getTackOrder({
+      params: { id: '42' },
+      adminUser: { user_id: 'shop-user-1' }
+    }, res, assert.ifError);
+  } finally {
+    pool.execute = originalExecute;
+  }
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.discount_type, 'Fixed');
+  assert.deepEqual(JSON.parse(res.body.customer), { name: 'A Customer', phone: '9876543210' });
+  assert.equal(res.body.items[0].metal_type, 'Gold');
+  assert.match(queries[0].query, /WHERE t\.id = \? AND t\.user_id = \?/);
+  assert.deepEqual(queries[0].values, [42, 'shop-user-1']);
+  assert.deepEqual(queries[1].values, [12, 'shop-user-1']);
 });
 
 test('creates tack orders with a persisted Order Placed status', async () => {

@@ -428,7 +428,40 @@ test('only returns a tack order when it belongs to the authenticated user', asyn
   } finally {
     pool.execute = originalExecute;
   }
-  assert.match(capturedQuery.query, /WHERE id = \? AND user_id = \?/);
+  assert.match(capturedQuery.query, /WHERE t\.id = \? AND t\.user_id = \?/);
+  assert.deepEqual(capturedQuery.values, [42, 'shop-user-1']);
+});
+
+test('returns complete order and current billing payment details for an owner', async () => {
+  const originalExecute = pool.execute;
+  const orderRow = {
+    id: 42,
+    order_no: 'TACK-20261125-AB12CD34',
+    customer: JSON.stringify({ name: 'A Customer' }),
+    items: JSON.stringify([{ product_id: 12, product_name: 'Gold chain' }]),
+    discount_type: 'Fixed',
+    discount_value: '10.00',
+    order_status: 'Completed',
+    payment_status: 'Partial',
+    advance_amount: '50.00',
+    balance_due: '100.00',
+    paid_amount: '110.00'
+  };
+  let capturedQuery;
+  pool.execute = async (query, values) => {
+    capturedQuery = { query, values };
+    return [[orderRow], []];
+  };
+  try {
+    assert.equal(await getTackOrderById(42, 'shop-user-1'), orderRow);
+  } finally {
+    pool.execute = originalExecute;
+  }
+  assert.match(capturedQuery.query, /t\.discount_type, t\.discount_value/);
+  assert.match(capturedQuery.query, /LEFT JOIN billings b/);
+  assert.match(capturedQuery.query, /AS paid_amount/);
+  assert.match(capturedQuery.query, /AS balance_due/);
+  assert.match(capturedQuery.query, /WHERE t\.id = \? AND t\.user_id = \?/);
   assert.deepEqual(capturedQuery.values, [42, 'shop-user-1']);
 });
 

@@ -2,6 +2,7 @@ const {
   createAccessToken,
   createSubscriptionAccessToken,
   createUser,
+  deactivateOwnAccount,
   deleteUser,
   findUserForLogin,
   getOwnProfile,
@@ -145,6 +146,28 @@ async function changeMyPassword(req, res, next) {
     }
     await updatePasswordHash(req.storeUser.user_id, await hashPassword(newPassword));
     return res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function deactivateMyAccount(req, res, next) {
+  const currentPassword = req.body?.currentPassword;
+  if (typeof currentPassword !== 'string' || !currentPassword) {
+    return res.status(400).json({ message: 'Your current password is required to deactivate your account' });
+  }
+  if (req.storeUser.role !== 'admin') {
+    return res.status(403).json({ message: 'Only admin accounts can be deactivated here' });
+  }
+
+  try {
+    const passwordHash = await getPasswordHash(req.storeUser.user_id);
+    if (!passwordHash || !(await verifyPassword(currentPassword, passwordHash))) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+    const deactivated = await deactivateOwnAccount(req.storeUser.user_id);
+    if (!deactivated) return res.status(404).json({ message: 'Account not found or already inactive' });
+    return res.json({ message: 'Account deactivated successfully' });
   } catch (error) {
     return next(error);
   }
@@ -307,6 +330,7 @@ module.exports = {
   createManagedUser,
   changeMyPassword,
   createSubscriptionAccess,
+  deactivateMyAccount,
   getUsers,
   getMyProfile,
   login,

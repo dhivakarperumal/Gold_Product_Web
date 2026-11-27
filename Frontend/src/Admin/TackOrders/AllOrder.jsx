@@ -1,7 +1,7 @@
 import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiBox, FiCalendar, FiCheckCircle, FiClock, FiFileText, FiGrid, FiList, FiMapPin, FiPhone, FiPlus, FiSearch, FiUser } from "react-icons/fi";
+import { FiBox, FiCalendar, FiCheckCircle, FiClock, FiEye, FiFileText, FiGrid, FiList, FiMapPin, FiPhone, FiPlus, FiSearch, FiUser } from "react-icons/fi";
 import { FaRupeeSign } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import api from "../../api";
@@ -402,6 +402,14 @@ export default function AllTackOrders() {
                           <span className="shrink-0 text-slate-400">Name:</span>
                           <span className="truncate">{customer.name}</span>
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/admin/tackAllOrders/${order.id}`)}
+                          aria-label={`View details for tack order ${order.order_no}`}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold text-slate-700 transition hover:border-emerald-200 hover:text-emerald-800"
+                        >
+                          <FiEye aria-hidden="true" /> Details
+                        </button>
                         {orderStatus === "Ready" && (
                           <button
                             type="button"
@@ -503,6 +511,14 @@ export default function AllTackOrders() {
                         <FiCalendar aria-hidden="true" />
                         {formatOrderDate(order.created_at)}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/admin/tackAllOrders/${order.id}`)}
+                        aria-label={`View details for tack order ${order.order_no}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-emerald-200 hover:text-emerald-800"
+                      >
+                        <FiEye aria-hidden="true" /> Details
+                      </button>
                       {orderStatus === "Ready" && (
                         <button
                           type="button"

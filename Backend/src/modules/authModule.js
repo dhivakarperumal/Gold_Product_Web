@@ -137,6 +137,14 @@ async function updateOwnProfile(userId, { username, name, email, phone, address 
   return getOwnProfile(userId);
 }
 
+async function deactivateOwnAccount(userId) {
+  const [result] = await pool.execute(
+    "UPDATE users SET status = 'inactive' WHERE user_id = ? AND status = 'active'",
+    [userId]
+  );
+  return result.affectedRows > 0;
+}
+
 async function updateOwnProfileImage(userId, imageUrl) {
   await pool.execute(
     'UPDATE users SET profile_image = ? WHERE user_id = ?',
@@ -242,6 +250,7 @@ module.exports = {
   createAccessToken,
   createSubscriptionAccessToken,
   createUser,
+  deactivateOwnAccount,
   deleteUser,
   findUserForLogin,
   getOwnProfile,
