@@ -1,11 +1,12 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity, Bell, CalendarDays, Camera, Check, ChevronRight, Eye, EyeOff,
+  Activity, Bell, CalendarDays, Camera, Check, ChevronRight, Eye, EyeOff, LogOut,
   Info, LockKeyhole, Mail, MapPin, Phone, Save, ShieldCheck, Trash2, Upload, UserRound
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { AuthContext } from "../../PrivateRouter/AuthContext";
 import api from "../../api";
+import { useNavigate } from "react-router-dom";
 
 const EMPTY_PROFILE = {
   user_id: "",
@@ -37,7 +38,8 @@ const dateTimeLabel = (value) => {
 };
 
 const Profile = () => {
-  const { user, login } = useContext(AuthContext);
+  const { user, login, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -46,6 +48,9 @@ const Profile = () => {
   const [savingPreferences, setSavingPreferences] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeSection, setActiveSection] = useState("personal-information");
+  const [showDeactivationDialog, setShowDeactivationDialog] = useState(false);
+  const [deactivationPassword, setDeactivationPassword] = useState("");
+  const [deactivating, setDeactivating] = useState(false);
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const imageInputRef = useRef(null);
@@ -83,6 +88,31 @@ const Profile = () => {
 
   const updateField = (field, value) => {
     setProfile((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  const deactivateAccount = async (event) => {
+    event.preventDefault();
+    setDeactivating(true);
+    try {
+      await api.post("/auth/me/deactivate", { currentPassword: deactivationPassword });
+      toast.success("Account deactivated. Contact an administrator if you need it reactivated.");
+      logout();
+      navigate("/login", { replace: true });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to deactivate your account.");
+    } finally {
+      setDeactivating(false);
+    }
+  };
+
+  const closeDeactivationDialog = () => {
+    setShowDeactivationDialog(false);
+    setDeactivationPassword("");
   };
 
   const saveProfile = async (event) => {
@@ -227,7 +257,6 @@ const Profile = () => {
         <h1 className="text-2xl font-black tracking-tight text-slate-900">Profile</h1>
         <p className="mt-1 text-sm text-slate-500">Manage your account details, security and preferences.</p>
       </div>
-      
     </header>
 
     <section className="grid gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:grid-cols-[1.15fr_1fr_auto] md:items-center md:px-5">
@@ -266,7 +295,8 @@ const Profile = () => {
         ["personal-information", UserRound, "Personal Information"],
         ["change-password", LockKeyhole, "Change Password"],
         ["notification-preferences", Bell, "Notifications"],
-        ["activity-log", Activity, "Activity Log"]
+        ["activity-log", Activity, "Activity Log"],
+        ["account-actions", LogOut, "Account Actions"]
       ].map(([id, Icon, label]) => <button key={id} id={`profile-tab-${id}`} type="button" role="tab" aria-selected={activeSection === id} aria-controls={`profile-panel-${id}`} onClick={() => setActiveSection(id)} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2.5 text-[11px] font-bold transition sm:px-4 ${activeSection === id ? "bg-[#00796B] text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>
         <Icon size={15} />{label}
       </button>)}
@@ -364,6 +394,49 @@ const Profile = () => {
         </div>
       </div>
     </section>}
+
+    {activeSection === "account-actions" && <section id="profile-panel-account-actions" role="tabpanel" aria-labelledby="profile-tab-account-actions" className="grid gap-4 md:grid-cols-2">
+      <article className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700"><LogOut size={17} /></span>
+          <div>
+            <h2 className="text-sm font-extrabold text-slate-900">Log out</h2>
+            <p className="mt-1 text-xs text-slate-500">End your current session on this device.</p>
+          </div>
+        </div>
+        <button type="button" onClick={handleLogout} className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50">
+          <LogOut size={15} /> Logout
+        </button>
+      </article>
+      <article className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700"><Trash2 size={17} /></span>
+          <div>
+            <h2 className="text-sm font-extrabold text-slate-900">Deactivate account</h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">You will be signed out and unable to sign in. Your account and business data will be retained; an administrator can reactivate your account.</p>
+          </div>
+        </div>
+        <button type="button" onClick={() => setShowDeactivationDialog(true)} className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-800">
+          <Trash2 size={15} /> Deactivate Account
+        </button>
+      </article>
+    </section>}
+
+    {showDeactivationDialog && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4">
+      <form onSubmit={deactivateAccount} role="alertdialog" aria-modal="true" aria-labelledby="deactivate-account-title" className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl">
+        <div>
+          <h2 id="deactivate-account-title" className="text-lg font-black text-slate-900">Deactivate your account?</h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">You will be signed out immediately. Your account and business data will be retained, and an administrator can reactivate your account later.</p>
+        </div>
+        <label className={labelClass}>Current Password
+          <input className={inputClass} type="password" value={deactivationPassword} onChange={(event) => setDeactivationPassword(event.target.value)} autoComplete="current-password" required />
+        </label>
+        <div className="flex justify-end gap-2">
+          <button type="button" disabled={deactivating} onClick={closeDeactivationDialog} className="min-h-10 rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">Cancel</button>
+          <button type="submit" disabled={deactivating} className="min-h-10 rounded-lg bg-rose-700 px-4 py-2 text-xs font-bold text-white hover:bg-rose-800 disabled:cursor-wait disabled:opacity-60">{deactivating ? "Deactivating…" : "Confirm Deactivation"}</button>
+        </div>
+      </form>
+    </div>}
   </main>;
 };
 

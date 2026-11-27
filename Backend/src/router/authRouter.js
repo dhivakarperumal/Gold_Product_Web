@@ -3,6 +3,7 @@ const {
   createManagedUser,
   changeMyPassword,
   createSubscriptionAccess,
+  deactivateMyAccount,
   getMyProfile,
   getUsers,
   login,
@@ -31,6 +32,7 @@ router.post('/subscription-access', createSubscriptionAccess);
 router.get('/me', requireUser, getMyProfile);
 router.put('/me', requireUser, updateMyProfile);
 router.put('/me/password', requireUser, changeMyPassword);
+router.post('/me/deactivate', requireUser, deactivateMyAccount);
 router.put('/me/notifications', requireUser, saveMyNotificationPreferences);
 router.post('/me/photo', requireUser, (req, res, next) => {
   uploadProfileImage.single('image')(req, res, (error) => {
