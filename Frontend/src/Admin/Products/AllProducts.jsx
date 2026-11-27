@@ -271,147 +271,194 @@ const AllProducts = () => {
             <Toaster position="top-right" />
 
             {loading ? (
-                <div className="flex flex-col items-center justify-center py-32 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="w-10 h-10 border-4 border-[#7b2cbf]/20 border-t-[#7b2cbf] rounded-full animate-spin mb-4"></div>
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white py-32 shadow-sm">
+                    <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#008577]/20 border-t-[#008577]"></div>
                     <p className="text-gray-400 font-bold text-sm">Loading products...</p>
                 </div>
             ) : (
                 <>
+                    <section className="relative isolate overflow-hidden rounded-[28px] bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577] px-6 py-7 text-white shadow-[0_20px_45px_rgba(4,78,69,0.18)] sm:px-9 sm:py-8">
+                        <div aria-hidden="true" className="pointer-events-none absolute -right-8 -top-28 -z-10 h-80 w-80 rounded-full border border-white/10">
+                            <div className="absolute inset-8 rounded-full border border-white/10" />
+                        </div>
+                        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="max-w-3xl">
+                                <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-100">
+                                    Product Management <span className="mx-1.5 text-emerald-200/70">·</span> Inventory Overview
+                                </p>
+                                <h1 className="text-3xl font-black tracking-tight sm:text-4xl">All Products</h1>
+                                <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50 sm:text-base">
+                                    Manage your jewelry catalog, stock levels, pricing, and product details.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => navigate("/admin/products/add")}
+                                className="inline-flex min-h-14 shrink-0 items-center justify-center gap-2.5 rounded-2xl bg-white px-6 py-3 text-sm font-extrabold text-[#064e45] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-white/30"
+                            >
+                                <FiPlus size={18} /> Add New Jewel
+                            </button>
+                        </div>
+                    </section>
+
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         {[
-                            { label: "Total Products", value: stats.total, sub: "All jewelry products",    icon: <FiBox size={22} />,          gradient: "from-[#240046] to-[#7b2cbf]" },
-                            { label: "Active",         value: stats.active, sub: "Active products",     icon: <FiCheckCircle />,             gradient: "from-emerald-400 to-teal-500" },
-                            { label: "Inactive",       value: stats.outOfStock || 0, sub: "Inactive products", icon: <FiAlertCircle />,      gradient: "from-orange-400 to-amber-500" },
-                            { label: "Low Stock",      value: stats.lowStock, sub: "Products low in stock", icon: <FiXCircle />,             gradient: "from-rose-400 to-pink-500" },
+                            { label: "Total Products", value: stats.total, sub: "All catalog products", icon: <FiBox size={23} />, card: "border-t-[#00b8a9] bg-gradient-to-br from-[#eefbf9] to-white", iconBg: "bg-[#009b8b]", dot: "bg-[#009b8b]", text: "text-[#007d70]" },
+                            { label: "Active Products", value: stats.active, sub: "Currently active", icon: <FiCheckCircle />, card: "border-t-emerald-500 bg-gradient-to-br from-emerald-50 to-white", iconBg: "bg-emerald-600", dot: "bg-emerald-600", text: "text-emerald-700" },
+                            { label: "Out of Stock", value: stats.outOfStock || 0, sub: "Unavailable products", icon: <FiAlertCircle />, card: "border-t-amber-500 bg-gradient-to-br from-amber-50 to-white", iconBg: "bg-amber-500", dot: "bg-amber-600", text: "text-amber-700" },
+                            { label: "Low Stock", value: stats.lowStock, sub: "Products running low", icon: <FiXCircle />, card: "border-t-rose-500 bg-gradient-to-br from-rose-50 to-white", iconBg: "bg-rose-600", dot: "bg-rose-600", text: "text-rose-700" },
                         ].map((stat, i) => (
-                            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition-all">
-                                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center text-white shadow-lg shrink-0`}>
+                            <article key={i} className={`relative flex min-h-[154px] items-center justify-between gap-3 overflow-hidden rounded-[22px] border-x border-b border-t-4 border-x-slate-200/70 border-b-slate-200/70 p-5 shadow-[0_5px_15px_rgba(15,23,42,0.055)] transition hover:-translate-y-0.5 hover:shadow-md sm:p-6 ${stat.card}`}>
+                                <div className="min-w-0">
+                                    <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">{stat.label}</p>
+                                    <p className="my-2 text-4xl font-black leading-none tabular-nums text-slate-950">{stat.value}</p>
+                                    <p className={`flex items-center gap-2 text-xs font-bold ${stat.text}`}>
+                                        <span className={`h-2 w-2 shrink-0 rounded-full ${stat.dot}`} />
+                                        <span className="truncate">{stat.sub}</span>
+                                    </p>
+                                </div>
+                                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] text-white shadow-lg shadow-slate-900/10 ${stat.iconBg}`}>
                                     {stat.icon}
                                 </div>
-                                <div>
-                                    <p className="text-xs text-gray-400 font-medium">{stat.label}</p>
-                                    <p className="text-3xl font-black text-slate-800 leading-none my-0.5">{stat.value}</p>
-                                    <p className="text-[10px] text-gray-400">{stat.sub}</p>
-                                </div>
-                            </div>
+                            </article>
                         ))}
                     </div>
 
                     {/* Filter Bar */}
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-center">
-                        <div className="relative flex-1 min-w-[220px]">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
+                    <section aria-label="Product search and filters" className="space-y-4 rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] sm:p-5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
+                        <label className="relative min-w-[260px] flex-[1_1_320px]">
+                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={17} aria-hidden="true" />
+                            <span className="sr-only">Search products by name or SKU</span>
                             <input
-                                type="text"
+                                type="search"
                                 placeholder="Search jewelry by name, SKU..."
-                                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#7b2cbf] focus:bg-white transition-all text-sm font-medium text-slate-700"
+                                className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50/60 py-2.5 pl-11 pr-4 text-sm font-medium text-slate-700 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 hover:border-slate-300 hover:bg-white focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10"
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(event) => setSearchTerm(event.target.value)}
                             />
+                        </label>
+                            <CustomSelect value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="min-h-12 rounded-[14px] border border-slate-200 bg-slate-50/60 px-3.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition hover:border-emerald-300 hover:bg-white focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10">
+                                <option value="">All categories</option>
+                                {filterOptions.categories.map((category) => <option key={category} value={category}>{category}</option>)}
+                            </CustomSelect>
+                            <CustomSelect value={purityFilter} onChange={(event) => setPurityFilter(event.target.value)} className="min-h-12 rounded-[14px] border border-slate-200 bg-slate-50/60 px-3.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition hover:border-emerald-300 hover:bg-white focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10">
+                                <option value="">All purities</option>
+                                {filterOptions.purities.map((purity) => <option key={purity} value={purity}>{purity}</option>)}
+                            </CustomSelect>
+                            <CustomSelect value={stockFilter} onChange={(event) => setStockFilter(event.target.value)} className="min-h-12 rounded-[14px] border border-slate-200 bg-slate-50/60 px-3.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition hover:border-emerald-300 hover:bg-white focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10">
+                                <option value="">All stock</option>
+                                <option value="in-stock">In stock</option>
+                                <option value="low-stock">Low stock</option>
+                                <option value="out-of-stock">Out of stock</option>
+                            </CustomSelect>
+                            <CustomSelect value={lastPriceUpdateFilter} onChange={(event) => setLastPriceUpdateFilter(event.target.value)} className="min-h-12 rounded-[14px] border border-slate-200 bg-slate-50/60 px-3.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition hover:border-emerald-300 hover:bg-white focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10">
+                                <option value="">All price updates</option>
+                                <option value="updated">Price updated</option>
+                                <option value="not-updated">Never updated</option>
+                            </CustomSelect>
+                            <CustomSelect value={`${sortBy}:${sortOrder}`} onChange={(event) => {
+                                const [nextSortBy, nextSortOrder] = event.target.value.split(":");
+                                setSortBy(nextSortBy);
+                                setSortOrder(nextSortOrder);
+                            }} className="min-h-12 rounded-[14px] border border-slate-200 bg-slate-50/60 px-3.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition hover:border-emerald-300 hover:bg-white focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10">
+                                <option value="created_at:desc">Newest first</option>
+                                <option value="name:asc">Name A–Z</option>
+                                <option value="final_selling_price:asc">Price low-high</option>
+                                <option value="final_selling_price:desc">Price high-low</option>
+                                <option value="total_stock:asc">Stock low-high</option>
+                                <option value="price_updated_at:desc">Recently price-updated</option>
+                            </CustomSelect>
                         </div>
-                       
-                    
-                        <CustomSelect value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
-                            <option value="">All categories</option>
-                            {filterOptions.categories.map((category) => <option key={category} value={category}>{category}</option>)}
-                        </CustomSelect>
-                        <CustomSelect value={purityFilter} onChange={(event) => setPurityFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
-                            <option value="">All purities</option>
-                            {filterOptions.purities.map((purity) => <option key={purity} value={purity}>{purity}</option>)}
-                        </CustomSelect>
-                        <CustomSelect value={stockFilter} onChange={(event) => setStockFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
-                            <option value="">All stock</option>
-                            <option value="in-stock">In stock</option>
-                            <option value="low-stock">Low stock</option>
-                            <option value="out-of-stock">Out of stock</option>
-                        </CustomSelect>
-                        <CustomSelect value={lastPriceUpdateFilter} onChange={(event) => setLastPriceUpdateFilter(event.target.value)} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
-                            <option value="">All price updates</option>
-                            <option value="updated">Price updated</option>
-                            <option value="not-updated">Never updated</option>
-                        </CustomSelect>
-                        <CustomSelect value={`${sortBy}:${sortOrder}`} onChange={(event) => {
-                            const [nextSortBy, nextSortOrder] = event.target.value.split(":");
-                            setSortBy(nextSortBy);
-                            setSortOrder(nextSortOrder);
-                        }} className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-600 outline-none cursor-pointer">
-                            <option value="created_at:desc">Newest first</option>
-                            <option value="name:asc">Name A–Z</option>
-                            <option value="final_selling_price:asc">Price low-high</option>
-                            <option value="final_selling_price:desc">Price high-low</option>
-                            <option value="total_stock:asc">Stock low-high</option>
-                            <option value="price_updated_at:desc">Recently price-updated</option>
-                        </CustomSelect>
-                       <div className="flex items-center gap-3">
-                    <button
-                        onClick={refreshPrices}
-                        disabled={refreshingPrices}
-                        className="inline-flex items-center gap-2 rounded-xl border border-[#7b2cbf]/30 bg-[#240046]/5 px-4 py-3 text-sm font-bold text-[#7b2cbf] disabled:opacity-60"
-                    >
-                        <FiRefreshCw className={refreshingPrices ? "animate-spin" : ""} />
-                        {refreshingPrices ? "Refreshing…" : "Refresh Prices"}
-                    </button>
-                    <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
-                        <button onClick={() => setViewMode("table")} className={`p-2 rounded-lg transition-all ${viewMode === "table" ? "bg-[#003B3B] text-white shadow-sm" : "text-gray-400 hover:text-slate-600"}`}>
-                            <FiList size={17} />
-                        </button>
-                        <button onClick={() => setViewMode("grid")} className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-[#003B3B] text-white shadow-sm" : "text-gray-400 hover:text-slate-600"}`}>
-                            <FiGrid size={17} />
-                        </button>
-                    </div>
-                    <button
-                        onClick={() => navigate("/admin/products/add")}
-                        className="flex items-center gap-2 bg-[#003B3B] hover:bg-[#008577] text-white px-5 py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-[#003B3B]/20 active:scale-95"
-                    >
-                        <FiPlus size={16} /> Add New Jewel
-                    </button>
-                </div>
-                    </div>
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                            <button
+                                type="button"
+                                onClick={refreshPrices}
+                                disabled={refreshingPrices}
+                                className="inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-wait disabled:opacity-60"
+                            >
+                                <FiRefreshCw className={refreshingPrices ? "animate-spin" : ""} />
+                                {refreshingPrices ? "Refreshing…" : "Refresh Prices"}
+                            </button>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex rounded-xl border border-slate-200 bg-slate-100/80 p-1 shadow-inner" role="group" aria-label="Product view mode">
+                                    <button type="button" onClick={() => setViewMode("table")} aria-label="Table view" aria-pressed={viewMode === "table"} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-all ${viewMode === "table" ? "bg-[#003B3B] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}>
+                                        <FiList size={17} />
+                                    </button>
+                                    <button type="button" onClick={() => setViewMode("grid")} aria-label="Grid view" aria-pressed={viewMode === "grid"} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-all ${viewMode === "grid" ? "bg-[#003B3B] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}>
+                                        <FiGrid size={17} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
 
                     {viewMode === "table" ? (
                         /* Table View */
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[700px] text-left">
+                                <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left">
+                                    <colgroup>
+                                        <col className="w-[8%]" />
+                                        <col className="w-[9%]" />
+                                        <col className="w-[22%]" />
+                                        <col className="w-[13%]" />
+                                        <col className="w-[15%]" />
+                                        <col className="w-[14%]" />
+                                        <col className="w-[19%]" />
+                                    </colgroup>
                                     <thead>
-                                        <tr className="border-b border-white/10 bg-gradient-to-r from-[#07564B] via-[#064A41] to-[#043D37]">
+                                        <tr className="bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577]">
                                             {["S No", "Image", "Product Name", "Category", "Price", "Weight (g)", "Actions"].map((heading) => (
-                                                <th key={heading} className="whitespace-nowrap px-4 py-4 text-[11px] font-bold uppercase tracking-wider text-white">{heading}</th>
+                                                <th key={heading} scope="col" className="whitespace-nowrap border-b border-white/15 px-5 py-5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-white">{heading}</th>
                                             ))}
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-200">
+                                    <tbody>
                                         {currentItems.map((product, index) => (
-                                            <tr key={product.id} className="hover:bg-[#240046]/5 transition-colors group">
-                                                <td className="px-4 py-3 text-xs font-semibold text-slate-500">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                                                <td className="px-4 py-3"><img src={getProductImage(product)} alt={product.name} loading="lazy" onError={(event) => { event.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name || "P")}&background=random`; }} className="h-11 w-11 rounded-lg border border-gray-100 object-cover" /></td>
-                                                <td className="max-w-[180px] px-4 py-3 text-sm font-bold text-slate-800">{product.name}</td>
-                                                <td className="px-4 py-3 text-xs text-slate-600">{product.category || "—"}</td>
-                                                <td className="px-4 py-3 text-sm font-black text-[#240046]">{formatMoney(product.final_selling_price)}</td>
-                                                <td className="px-4 py-3 text-xs text-slate-600">{product.gross_weight ?? "—"}</td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-2">
+                                            <tr key={product.id} className="group h-[86px] transition-colors odd:bg-white even:bg-slate-50/60 hover:bg-emerald-50/70">
+                                                <td className="border-b border-slate-100 px-5 py-4 text-sm font-semibold tabular-nums text-slate-500">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                                                <td className="border-b border-slate-100 px-5 py-4">
+                                                    <img
+                                                        src={getProductImage(product)}
+                                                        alt={product.name}
+                                                        loading="lazy"
+                                                        onError={(event) => { event.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name || "P")}&background=random`; }}
+                                                        className="h-[52px] w-[52px] rounded-xl border border-slate-200 object-cover shadow-sm"
+                                                    />
+                                                </td>
+                                                <td className="max-w-[260px] border-b border-slate-100 px-5 py-4 text-[15px] font-extrabold text-slate-900">
+                                                    <span className="block truncate">{product.name}</span>
+                                                </td>
+                                                <td className="border-b border-slate-100 px-5 py-4 text-sm font-medium text-slate-600">{product.category || "—"}</td>
+                                                <td className="border-b border-slate-100 px-5 py-4 text-[15px] font-black tabular-nums text-[#07564B]">{formatMoney(product.final_selling_price)}</td>
+                                                <td className="border-b border-slate-100 px-5 py-4 text-sm font-medium tabular-nums text-slate-600">{product.gross_weight ?? "—"}</td>
+                                                <td className="border-b border-slate-100 px-5 py-4">
+                                                    <div className="flex items-center gap-2.5">
                                                         <Link
                                                             to={`/admin/products/${product.id}`}
-                                                            className="w-8 h-8 rounded-lg bg-[#003B3B]/10 text-[#003B3B] flex items-center justify-center hover:bg-[#003B3B] hover:text-white transition-all"
+                                                            aria-label={`View ${product.name}`}
+                                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-[#07564B] transition hover:bg-[#07564B] hover:text-white focus:outline-none focus:ring-4 focus:ring-emerald-700/15"
                                                             title="View"
                                                         >
-                                                            <FiEye size={13} />
+                                                            <FiEye size={15} />
                                                         </Link>
                                                         <Link
                                                             to={`/admin/products/edit/${product.id}`}
-                                                            className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all"
+                                                            aria-label={`Edit ${product.name}`}
+                                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition hover:bg-blue-600 hover:text-white focus:outline-none focus:ring-4 focus:ring-blue-500/15"
                                                             title="Edit"
                                                         >
-                                                            <FiEdit2 size={13} />
+                                                            <FiEdit2 size={15} />
                                                         </Link>
                                                         <button
                                                             onClick={() => handleDelete(product.id)}
-                                                            className="w-8 h-8 rounded-lg bg-red-50 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
+                                                            aria-label={`Delete ${product.name}`}
+                                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-500 transition hover:bg-rose-500 hover:text-white focus:outline-none focus:ring-4 focus:ring-rose-500/15"
                                                             title="Delete"
                                                         >
-                                                            <FiTrash2 size={13} />
+                                                            <FiTrash2 size={15} />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -422,15 +469,15 @@ const AllProducts = () => {
                             </div>
 
                             {/* Table Footer / Pagination */}
-                            <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
-                                <p className="text-xs text-gray-500 font-medium">
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-4">
+                                <p className="text-sm font-medium text-slate-500">
                                     Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, pagination.total)} of {pagination.total} jewelry products
                                 </p>
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                         disabled={currentPage === 1}
-                                        className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-500 hover:border-[#7b2cbf] hover:text-[#7b2cbf] disabled:opacity-30 transition-all"
+                                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-[#008577] hover:text-[#008577] disabled:cursor-not-allowed disabled:opacity-35"
                                     >‹</button>
                                     {[...Array(Math.min(totalPages, 5))].map((_, i) => {
                                         const page = i + 1;
@@ -438,7 +485,7 @@ const AllProducts = () => {
                                             <button
                                                 key={page}
                                                 onClick={() => setCurrentPage(page)}
-                                                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all border ${currentPage === page ? "bg-[#003B3B] border-[#003B3B] text-white shadow-md shadow-[#003B3B]/20" : "bg-white border-gray-200 text-gray-500 hover:border-[#003B3B]"}`}
+                                                className={`h-10 w-10 rounded-xl text-sm font-bold transition-all border ${currentPage === page ? "bg-[#003B3B] border-[#003B3B] text-white shadow-md shadow-[#003B3B]/20" : "bg-white border-gray-200 text-gray-500 hover:border-[#003B3B]"}`}
                                             >
                                                 {page}
                                             </button>
@@ -448,7 +495,7 @@ const AllProducts = () => {
                                     {totalPages > 5 && (
                                         <button
                                             onClick={() => setCurrentPage(totalPages)}
-                                            className={`w-8 h-8 rounded-lg text-xs font-bold border ${currentPage === totalPages ? "bg-[#003B3B] border-[#003B3B] text-white" : "bg-white border-gray-200 text-gray-500 hover:border-[#003B3B]"}`}
+                                            className={`h-10 w-10 rounded-xl text-sm font-bold border ${currentPage === totalPages ? "bg-[#003B3B] border-[#003B3B] text-white" : "bg-white border-gray-200 text-gray-500 hover:border-[#003B3B]"}`}
                                         >
                                             {totalPages}
                                         </button>
@@ -456,7 +503,7 @@ const AllProducts = () => {
                                     <button
                                         onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                         disabled={currentPage === totalPages}
-                                        className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-500 hover:border-[#7b2cbf] hover:text-[#7b2cbf] disabled:opacity-30 transition-all"
+                                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-[#008577] hover:text-[#008577] disabled:cursor-not-allowed disabled:opacity-35"
                                     >›</button>
                                 </div>
                             </div>
@@ -465,7 +512,7 @@ const AllProducts = () => {
                         /* Grid View */
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                             {currentItems.map((product) => (
-                                <div key={product.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all flex flex-col">
+                                <div key={product.id} className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow-lg">
                                     <div className="relative aspect-[4/5] overflow-hidden bg-gray-100">
                                         <img
                                             src={getProductImage(product)}
@@ -490,7 +537,7 @@ const AllProducts = () => {
                                     </div>
                                     <div className="p-4">
                                         <div className="flex items-center justify-between gap-2">
-                                            <p className="text-[10px] text-[#7b2cbf] font-bold uppercase tracking-widest truncate">{product.category || "Uncategorized"}</p>
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#008577] truncate">{product.category || "Uncategorized"}</p>
                                             <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide shrink-0">
                                                 Metal: {product.metal_type || "—"}
                                             </p>
@@ -513,7 +560,7 @@ const AllProducts = () => {
 
                     {currentItems.length === 0 && (
                         <div className="text-center py-24 bg-white rounded-2xl border border-gray-100 flex flex-col items-center">
-                            <div className="w-16 h-16 bg-[#240046]/5 rounded-full flex items-center justify-center text-[#7b2cbf]/40 mb-4">
+                            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700/50">
                                 <FiBox size={32} />
                             </div>
                             <p className="text-slate-500 font-bold text-sm">No products found</p>

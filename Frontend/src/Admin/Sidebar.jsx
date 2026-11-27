@@ -164,6 +164,11 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
     const matchingChildren = item.children
       .filter(child => [child.path, ...(child.activePaths || [])].some(matchesRoute))
       .sort((first, second) => {
+        const firstDirectMatch = matchesRoute(first.path);
+        const secondDirectMatch = matchesRoute(second.path);
+        if (firstDirectMatch !== secondDirectMatch) {
+          return Number(secondDirectMatch) - Number(firstDirectMatch);
+        }
         const firstSpecificity = first.path.split("/").filter(segment => segment && !segment.startsWith(":")).length;
         const secondSpecificity = second.path.split("/").filter(segment => segment && !segment.startsWith(":")).length;
         return secondSpecificity - firstSpecificity || second.path.length - first.path.length;

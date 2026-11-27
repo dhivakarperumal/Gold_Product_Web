@@ -74,16 +74,16 @@ function DetailCard({ title, icon: Icon, fields, className = "" }) {
   if (!visibleFields.length) return null;
 
   return (
-    <section className={`overflow-hidden rounded-xl border border-[#eee8dc] bg-white shadow-sm ${className}`}>
-      <h2 className="flex items-center gap-2 border-b border-[#f1ebdf] bg-[#fffdf8] px-4 py-3 font-semibold text-[#173f38]">
-        {Icon && <Icon className="shrink-0 text-[#c99435]" />}
+    <section className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.045)] ${className}`}>
+      <h2 className="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-[#f4faf8] to-white px-5 py-4 text-base font-bold text-[#173f38]">
+        {Icon && <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><Icon /></span>}
         {title}
       </h2>
-      <dl className="divide-y divide-[#f1eee8] px-4">
+      <dl className="divide-y divide-slate-100 px-5">
         {visibleFields.map(([label, value]) => (
-          <div key={label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-3 py-2.5 text-xs sm:text-sm">
-            <dt className="text-[#7d817d]">{label}</dt>
-            <dd className="break-words font-semibold text-[#344541]">{displayValue(value)}</dd>
+          <div key={label} className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-4 py-3.5 text-xs sm:text-sm">
+            <dt className="text-slate-500">{label}</dt>
+            <dd className="break-words font-semibold text-slate-800">{displayValue(value)}</dd>
           </div>
         ))}
       </dl>
@@ -194,19 +194,26 @@ function ProductDetail() {
   };
 
   if (loading || loadedProductId !== id) {
-    return <div className="py-20 text-center text-sm font-semibold text-slate-500" role="status">Loading product details...</div>;
+    return (
+      <main className="grid min-h-[50vh] place-items-center">
+        <div className="flex flex-col items-center rounded-2xl border border-slate-200 bg-white px-10 py-8 shadow-sm" role="status">
+          <span className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-emerald-100 border-t-[#087968]" />
+          <span className="text-sm font-semibold text-slate-500">Loading product details...</span>
+        </div>
+      </main>
+    );
   }
   if (!product) {
     return (
-      <main className="mx-auto max-w-2xl rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
-        <FiPackage className="mx-auto text-3xl text-slate-300" />
+      <main className="mx-auto max-w-2xl rounded-[24px] border border-slate-200 bg-white p-8 text-center shadow-[0_12px_35px_rgba(15,23,42,0.07)]">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><FiPackage className="text-2xl" /></span>
         <h1 className="mt-3 text-xl font-bold text-[#173f38]">Product details unavailable</h1>
         <p className="mt-2 text-sm text-slate-500" role="alert">{errorMessage || "This product may have been removed."}</p>
         <div className="mt-5 flex justify-center gap-3">
-          <button type="button" onClick={refreshProduct} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <button type="button" onClick={refreshProduct} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50">
             <FiRefreshCw /> Retry
           </button>
-          <Link to="/admin/products/all" className="rounded-lg bg-[#174a3f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#10382f]">All Products</Link>
+          <Link to="/admin/products/all" className="rounded-xl bg-[#07564B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#06463e]">All Products</Link>
         </div>
       </main>
     );
@@ -272,106 +279,106 @@ function ProductDetail() {
   ];
 
   return (
-    <main className="space-y-5 pb-8 text-[#35443f]">
+    <main className="space-y-6 pb-10 text-slate-700">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs font-medium text-[#78817c] sm:text-sm">
-          <Link to="/admin/products/all" className="hover:text-[#174a3f]">Products</Link>
-          <span>›</span>
-          <Link to="/admin/products/all" className="hover:text-[#174a3f]">All Products</Link>
-          <span>›</span>
-          <span className="font-semibold text-[#34443e]">Product Details</span>
-        </div>
-        <Link to="/admin/products/all" className="inline-flex items-center gap-2 rounded-full border border-[#ece6da] bg-white px-4 py-2 text-xs font-semibold text-[#34443e] shadow-sm transition hover:border-[#174a3f]">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+          <Link to="/admin/products/all" className="transition hover:text-[#087968]">Products</Link>
+          <span className="text-slate-300">/</span>
+          <Link to="/admin/products/all" className="transition hover:text-[#087968]">All Products</Link>
+          <span className="text-slate-300">/</span>
+          <span className="font-semibold text-slate-800">Product Details</span>
+        </nav>
+        <Link to="/admin/products/all" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-[#07564B]">
           <FiArrowLeft /> Back to Products
         </Link>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-12">
-        <section className="min-w-0 rounded-2xl border border-[#eee8dc] bg-white p-3 shadow-sm xl:col-span-4">
-          <div className="relative flex aspect-[1.08/1] items-center justify-center overflow-hidden rounded-xl bg-[#f8f6ef]">
+      <div className="grid gap-5 xl:grid-cols-12">
+        <section className="min-w-0 rounded-[24px] border border-slate-200/80 bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.07)] xl:col-span-4">
+          <div className="relative flex aspect-[0.92/1] items-center justify-center overflow-hidden rounded-[18px] bg-gradient-to-br from-slate-100 to-[#f6f0e2]">
             {selectedImage ? (
               <img src={assetUrl(selectedImage)} alt={product.name || "Product"} className="h-full w-full object-cover" />
             ) : (
               <div className="text-center text-sm font-medium text-slate-400"><FiPackage className="mx-auto mb-2 text-4xl" />No product images</div>
             )}
             {(product.best_seller || product.featured) && (
-              <span className="absolute left-3 top-3 rounded-full bg-[#f5c94d] px-3 py-1.5 text-xs font-bold text-[#49350d]">
-                {product.best_seller ? "Bestseller" : "Featured"}
+              <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-100 px-3.5 py-1.5 text-xs font-extrabold text-amber-900 shadow-sm">
+                <FiStar className="fill-amber-500 text-amber-500" />{product.best_seller ? "Bestseller" : "Featured"}
               </span>
             )}
             {images.length > 1 && (
               <>
-                <button type="button" aria-label="Previous product image" onClick={() => setActiveImage((activeImage + images.length - 1) % images.length)} className="absolute left-3 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-[#174a3f] shadow transition hover:bg-white">
+                <button type="button" aria-label="Previous product image" onClick={() => setActiveImage((activeImage + images.length - 1) % images.length)} className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-white/80 bg-white/95 text-[#07564B] shadow-lg transition hover:scale-105 hover:bg-white">
                   <FiChevronLeft size={20} />
                 </button>
-                <button type="button" aria-label="Next product image" onClick={() => setActiveImage((activeImage + 1) % images.length)} className="absolute right-3 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-[#174a3f] shadow transition hover:bg-white">
+                <button type="button" aria-label="Next product image" onClick={() => setActiveImage((activeImage + 1) % images.length)} className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-white/80 bg-white/95 text-[#07564B] shadow-lg transition hover:scale-105 hover:bg-white">
                   <FiChevronRight size={20} />
                 </button>
               </>
             )}
           </div>
           {images.length > 0 && (
-            <div className="mt-2 grid grid-cols-5 gap-2">
+            <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1">
               {images.slice(0, 5).map((image, index) => (
-                <button key={`${image}-${index}`} type="button" onClick={() => setActiveImage(index)} aria-label={`Show product image ${index + 1}`} aria-pressed={activeImage === index} className={`aspect-square overflow-hidden rounded-lg border-2 bg-white transition ${activeImage === index ? "border-[#1c765d]" : "border-transparent hover:border-[#d6c59d]"}`}>
-                  <img src={assetUrl(image)} alt="" className="h-full w-full object-cover" />
+                <button key={`${image}-${index}`} type="button" onClick={() => setActiveImage(index)} aria-label={`Show product image ${index + 1}`} aria-pressed={activeImage === index} className={`h-[68px] w-[68px] shrink-0 overflow-hidden rounded-xl border-2 bg-white p-0.5 transition ${activeImage === index ? "border-[#087968] shadow-[0_0_0_3px_rgba(8,121,104,0.12)]" : "border-slate-200 hover:border-amber-300"}`}>
+                  <img src={assetUrl(image)} alt="" className="h-full w-full rounded-lg object-cover" />
                 </button>
               ))}
             </div>
           )}
         </section>
 
-        <section className="flex min-w-0 flex-col rounded-2xl border border-[#eee8dc] bg-white p-4 shadow-sm sm:p-5 xl:col-span-8">
+        <section className="flex min-w-0 flex-col rounded-[24px] border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/60 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.07)] sm:p-7 xl:col-span-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="rounded-md bg-[#f5f3f5] px-2 py-1 text-[11px] font-semibold text-[#6c6571]">PRODUCT ID: #{product.product_code || product.id}</span>
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${stockStatus.toLowerCase().includes("stock") && !stockStatus.toLowerCase().includes("out") ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-700"}`}>
+            <span className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-[11px] font-bold tracking-wide text-slate-600">PRODUCT ID: #{product.product_code || product.id}</span>
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold ${stockStatus.toLowerCase().includes("stock") && !stockStatus.toLowerCase().includes("out") ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-700"}`}>
               <span className="h-2 w-2 rounded-full bg-current" />{stockStatus}
             </span>
           </div>
-          <h1 className="mt-3 font-serif text-2xl font-bold leading-tight text-[#173f38] sm:text-3xl">{product.name || "Unnamed Product"}</h1>
+          <h1 className="mt-4 font-serif text-3xl font-bold leading-tight tracking-tight text-[#173f38] sm:text-4xl">{product.name || "Unnamed Product"}</h1>
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#64716b]">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
             {product.rating != null && (
-              <span className="inline-flex items-center gap-1 font-semibold text-[#394741]">
-                <FiStar className="fill-[#f5a900] text-[#f5a900]" />
+              <span className="inline-flex items-center gap-1.5 font-semibold text-slate-700">
+                <FiStar className="fill-amber-400 text-amber-500" />
                 {Number(product.rating).toFixed(1)}
-                {product.total_reviews != null && <span>({product.total_reviews} reviews)</span>}
+                {product.total_reviews != null && <span className="font-normal text-slate-500">({product.total_reviews} reviews)</span>}
               </span>
             )}
-            {product.total_stock != null && <span>{Number(product.total_stock).toLocaleString("en-IN")} in stock</span>}
+            {product.total_stock != null && <span className="inline-flex items-center gap-1.5 text-slate-500"><FiPackage className="text-emerald-700" />{Number(product.total_stock).toLocaleString("en-IN")} in stock</span>}
           </div>
 
           {(product.description || product.full_description) && (
-            <p className="mt-3 line-clamp-3 text-sm leading-6 text-[#59645e]">{product.description || product.full_description}</p>
+            <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">{product.description || product.full_description}</p>
           )}
 
-          <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-3xl font-extrabold text-[#c12b19] sm:text-4xl">{money(product.final_selling_price ?? offerPrice)}</span>
-            {mrp > offerPrice && <span className="text-sm text-[#858b87] line-through">{money(mrp)}</span>}
-            {discount > 0 && <span className="rounded-full bg-[#fff0ee] px-3 py-1 text-xs font-bold text-[#d33627]">{discount.toFixed(0)}% OFF</span>}
+          <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-4xl font-black tracking-tight text-[#bf3021] sm:text-[42px]">{money(product.final_selling_price ?? offerPrice)}</span>
+            {mrp > offerPrice && <span className="text-base text-slate-400 line-through">{money(mrp)}</span>}
+            {discount > 0 && <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-extrabold text-rose-700">{discount.toFixed(0)}% OFF</span>}
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#737d77]">
-            {product.purity && <span>{product.metal_type || "Gold"} ({product.purity})</span>}
-            {product.gross_weight != null && <><span>|</span><span>Weight: {product.gross_weight} g</span></>}
-            {product.making_charge != null && <><span>|</span><span>Making Charges: {product.making_charge === 0 ? "Included" : "Available"}</span></>}
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-slate-500">
+            {product.purity && <span className="rounded-lg bg-slate-100 px-2.5 py-1.5">{product.metal_type || "Gold"} ({product.purity})</span>}
+            {product.gross_weight != null && <span className="rounded-lg bg-slate-100 px-2.5 py-1.5">Weight: {product.gross_weight} g</span>}
+            {product.making_charge != null && <span className="rounded-lg bg-slate-100 px-2.5 py-1.5">Making Charges: {product.making_charge === 0 ? "Included" : "Available"}</span>}
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <Link to={`/admin/products/edit/${id}`} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#174a3f] px-3 py-3 text-sm font-bold text-white transition hover:bg-[#10382f]">
+          <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <Link to={`/admin/products/edit/${id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#07564B] px-3 py-3 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#06463e] hover:shadow-md">
               <FiEdit /> Edit Product
             </Link>
-            <button type="button" onClick={refreshProduct} className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#ece7dd] bg-[#fbfaf7] px-3 py-3 text-sm font-semibold text-[#40514a] transition hover:bg-[#f3f0e8]">
+            <button type="button" onClick={refreshProduct} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-[#07564B]">
               <FiRefreshCw /> Refresh
             </button>
-            <button type="button" onClick={handleDelete} disabled={deleting} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#fff0ee] px-3 py-3 text-sm font-bold text-[#d43125] transition hover:bg-[#ffe3df] disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="button" onClick={handleDelete} disabled={deleting} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-3 text-sm font-bold text-rose-700 transition hover:border-rose-200 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60">
               <FiTrash2 /> {deleting ? "Deleting..." : "Delete"}
             </button>
           </div>
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Link to={`/product/${id}`} target="_blank" className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#ece7dd] px-3 py-3 text-sm font-semibold text-[#40514a] transition hover:bg-[#fbfaf7]">
+          <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <Link to={`/product/${id}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-[#07564B]">
               <FiExternalLink /> View on Website
             </Link>
-            <button type="button" onClick={handleShare} className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#ece7dd] px-3 py-3 text-sm font-semibold text-[#40514a] transition hover:bg-[#fbfaf7]">
+            <button type="button" onClick={handleShare} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-[#07564B]">
               <FiShare2 /> Share Product
             </button>
           </div>
@@ -379,10 +386,10 @@ function ProductDetail() {
 
       </div>
 
-      <nav aria-label="Product details sections" className="hide-scrollbar overflow-x-auto rounded-xl border border-[#eee8dc] bg-white shadow-sm">
+      <nav aria-label="Product details sections" className="hide-scrollbar overflow-x-auto rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-[0_5px_18px_rgba(15,23,42,0.045)]">
         <div className="flex min-w-max">
           {tabs.map(({ id: tabId, label, icon: Icon }) => (
-            <button key={tabId} type="button" onClick={() => setActiveTab(tabId)} aria-current={activeTab === tabId ? "page" : undefined} className={`inline-flex items-center gap-2 border-b-2 px-4 py-3.5 text-xs font-semibold transition sm:px-5 ${activeTab === tabId ? "border-[#174a3f] bg-[#174a3f] text-white" : "border-transparent text-[#66726c] hover:bg-[#faf9f5] hover:text-[#174a3f]"}`}>
+            <button key={tabId} type="button" onClick={() => setActiveTab(tabId)} aria-current={activeTab === tabId ? "page" : undefined} className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold transition sm:px-5 ${activeTab === tabId ? "bg-[#07564B] text-white shadow-sm" : "text-slate-500 hover:bg-emerald-50 hover:text-[#07564B]"}`}>
               <Icon className="text-sm" />{label}
             </button>
           ))}
@@ -390,7 +397,7 @@ function ProductDetail() {
       </nav>
 
       {activeTab === "information" && (
-        <div className="grid items-start gap-3 lg:grid-cols-[1.35fr_0.9fr_0.9fr]">
+        <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_0.9fr_0.9fr]">
           <DetailCard title="Basic Information" icon={FiPackage} fields={productInfo} />
           <DetailCard title="Pricing Information" icon={FiDollarSign} fields={pricingInfo} />
           <DetailCard title="Additional Details" icon={FiBookmark} fields={additionalInfo} />
@@ -413,12 +420,12 @@ function ProductDetail() {
       )}
 
       {activeTab === "images" && (
-        <section className="rounded-xl border border-[#eee8dc] bg-white p-4 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 font-semibold text-[#173f38]"><FiImage className="text-[#c99435]" />Product Images</h2>
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.045)]">
+          <h2 className="mb-5 flex items-center gap-3 text-base font-bold text-[#173f38]"><span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-600"><FiImage /></span>Product Images</h2>
           {images.length ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {images.map((image, index) => (
-                <button key={`${image}-${index}`} type="button" onClick={() => { setActiveImage(index); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="aspect-square overflow-hidden rounded-lg border border-[#eee8dc] bg-[#f8f6ef]">
+                <button key={`${image}-${index}`} type="button" onClick={() => { setActiveImage(index); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition hover:border-emerald-400 hover:shadow-md">
                   <img src={assetUrl(image)} alt={`${product.name} ${index + 1}`} className="h-full w-full object-cover" />
                 </button>
               ))}
@@ -430,15 +437,15 @@ function ProductDetail() {
       )}
 
       {activeTab === "variants" && (
-        <section className="rounded-xl border border-[#eee8dc] bg-white p-4 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 font-semibold text-[#173f38]"><FiGrid className="text-[#c99435]" />Variants & Size Stock</h2>
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.045)]">
+          <h2 className="mb-5 flex items-center gap-3 text-base font-bold text-[#173f38]"><span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-600"><FiGrid /></span>Variants & Size Stock</h2>
           {variants.length ? (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {variants.map((variant, index) => {
                 const sizes = variant.sizesStock && typeof variant.sizesStock === "object" ? Object.entries(variant.sizesStock) : [];
                 const selectedSizes = parseArray(variant.selectedSizes);
                 return (
-                  <article key={`${variant.colorName || variant.color || "variant"}-${index}`} className="rounded-xl border border-[#eee8dc] bg-[#fffdf8] p-4">
+                  <article key={`${variant.colorName || variant.color || "variant"}-${index}`} className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm transition hover:shadow-md">
                     <div className="flex items-center gap-2 font-semibold text-[#34443e]">
                       {variant.color && <span className="h-5 w-5 rounded-full border border-slate-200" style={{ backgroundColor: variant.color }} />}
                       {variant.colorName || variant.color || `Variant ${index + 1}`}
@@ -477,9 +484,9 @@ function ProductDetail() {
             ["Zari Color", product.zari_color],
             ["Age", product.age]
           ]} />
-          <section className="rounded-xl border border-[#eee8dc] bg-white p-4 shadow-sm">
-            <h2 className="mb-3 flex items-center gap-2 font-semibold text-[#173f38]"><FiLayers className="text-[#c99435]" />Product Specifications</h2>
-            <p className="whitespace-pre-wrap text-sm leading-6 text-[#59645e]">{product.specifications || "No specifications have been added."}</p>
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.045)]">
+            <h2 className="mb-4 flex items-center gap-3 text-base font-bold text-[#173f38]"><span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-600"><FiLayers /></span>Product Specifications</h2>
+            <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600">{product.specifications || "No specifications have been added."}</p>
           </section>
         </div>
       )}
@@ -493,8 +500,8 @@ function ProductDetail() {
             ["Highlights", parseArray(product.highlights)]
           ]} />
           {(product.size_guide_chart || product.certificate) && (
-            <section className="rounded-xl border border-[#eee8dc] bg-white p-4 shadow-sm">
-              <h2 className="mb-3 font-semibold text-[#173f38]">Product Documents</h2>
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.045)]">
+              <h2 className="mb-4 text-base font-bold text-[#173f38]">Product Documents</h2>
               <div className="flex flex-wrap gap-3">
                 {product.size_guide_chart && <a href={assetUrl(product.size_guide_chart)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-[#174a3f]"><FiExternalLink />Size guide</a>}
                 {product.certificate && <a href={assetUrl(product.certificate)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-[#174a3f]"><FiExternalLink />Certificate</a>}
