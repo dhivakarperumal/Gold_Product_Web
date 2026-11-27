@@ -11,13 +11,12 @@ const {
 } = require('../modules/billingModule');
 const { findGoldRateForPurity, getCurrentGoldRates } = require('../modules/goldRateModule');
 const { getTackOrderById } = require('../modules/tackOrderModule');
-const { getTaxSettings } = require('../modules/taxSettingsModule');
 const { parseDateRange } = require('../utils/dateRange');
 
 const PAYMENT_TYPES = new Set(['FULL_PAYMENT', 'EXCHANGE_GOLD']);
 const PAYMENT_METHODS = new Set(['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque', 'Other']);
 const MAX_ITEMS = 100;
-const DEFAULT_TAX_SETTINGS = { gst_enabled: false, gst_rate: 0, tax_mode: 'Tax Exclusive' };
+const DEFAULT_BILL_GST = { gst_rate: 0, tax_mode: 'Tax Exclusive' };
 
 function normalizeText(value, field, maxLength, required = false) {
   if (typeof value !== 'string') return required ? { error: `${field} is required` } : { value: '' };
@@ -196,7 +195,7 @@ function normalizeExchangeItems(value, currentRateSet) {
   return { value: entries };
 }
 
-function normalizeBilling(body, currentRateSet = null, taxSettings = DEFAULT_TAX_SETTINGS, gstAmountOverride = null) {
+function normalizeBilling(body, currentRateSet = null, gstDefaults = DEFAULT_BILL_GST, gstAmountOverride = null) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'Billing details are required' };
   }
@@ -230,14 +229,21 @@ function normalizeBilling(body, currentRateSet = null, taxSettings = DEFAULT_TAX
   if (exchangeCredit > subTotal - discount.value) {
     return { error: 'Discount and exchange credit cannot exceed the purchased products subtotal' };
   }
-  const rawGstRate = taxSettings.gst_enabled ? Number(taxSettings.gst_rate) : 0;
-  if (!Number.isFinite(rawGstRate) || rawGstRate < 0 || rawGstRate > 100) {
-    return { error: 'The saved GST rate must be between 0 and 100' };
+  const rawGstRate = Object.prototype.hasOwnProperty.call(body, 'gst_rate')
+    ? body.gst_rate
+    : gstDefaults.gst_rate;
+  if ((!['number', 'string'].includes(typeof rawGstRate))
+    || (typeof rawGstRate === 'string' && !rawGstRate.trim())) {
+    return { error: 'GST rate must be between 0 and 100' };
   }
-  const gstRate = Math.round(rawGstRate * 10000) / 10000;
-  const taxMode = taxSettings.tax_mode;
+  const numericGstRate = Number(rawGstRate);
+  if (!Number.isFinite(numericGstRate) || numericGstRate < 0 || numericGstRate > 100) {
+    return { error: 'GST rate must be between 0 and 100' };
+  }
+  const gstRate = Math.round(numericGstRate * 10000) / 10000;
+  const taxMode = body.tax_mode == null ? gstDefaults.tax_mode : body.tax_mode;
   if (!['Tax Exclusive', 'Tax Inclusive'].includes(taxMode)) {
-    return { error: 'The saved tax calculation mode is invalid' };
+    return { error: 'Tax calculation mode is invalid' };
   }
   const netSubtotal = subTotal - discount.value - exchangeCredit;
   const calculatedGstAmount = gstRate === 0
@@ -388,18 +394,17 @@ async function postBilling(req, res, next) {
     const currentRateSet = req.body?.payment_type === 'EXCHANGE_GOLD'
       ? await getCurrentGoldRates(req.adminUser.user_id)
       : null;
-    const taxSettings = tackOrder
+    const gstDefaults = tackOrder
       ? {
-        gst_enabled: Boolean(tackOrder.gst_included),
-        gst_rate: Number(tackOrder.gst_rate),
+        gst_rate: tackOrder.gst_included ? Number(tackOrder.gst_rate) : 0,
         tax_mode: 'Tax Exclusive'
       }
-      : await getTaxSettings(req.adminUser.user_id);
+      : DEFAULT_BILL_GST;
     const { billing, error } = normalizeBilling(
       { ...req.body, products },
       currentRateSet,
-      taxSettings,
-      tackOrder ? tackOrder.gst_amount : null
+      gstDefaults,
+      tackOrder && req.body?.gst_rate == null ? tackOrder.gst_amount : null
     );
     if (error) return res.status(400).json({ message: error });
     billing.source_tack_order_id = tackOrder?.id ?? null;
@@ -427,6 +432,7 @@ async function postBilling(req, res, next) {
     return res.status(savedBill.already_exists ? 200 : 201).json(savedBill);
   } catch (error) {
     if (error.code === 'TACK_ORDER_NOT_FOUND') return res.status(404).json({ message: error.message });
+    if (error.code === 'TACK_ORDER_NOT_READY') return res.status(409).json({ message: error.message });
     if (error.code === 'TACK_ORDER_ADVANCE_ALREADY_TRANSFERRED') {
       return res.status(409).json({ message: 'This tack order advance has already been transferred to a bill' });
     }
@@ -459,8 +465,11 @@ async function putBilling(req, res, next) {
     const currentRateSet = req.body?.payment_type === 'EXCHANGE_GOLD'
       ? await getCurrentGoldRates(req.adminUser.user_id)
       : null;
-    const taxSettings = await getTaxSettings(req.adminUser.user_id);
-    const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet, taxSettings);
+    const gstDefaults = {
+      gst_rate: Number(existing.gst_rate) || 0,
+      tax_mode: existing.tax_mode || 'Tax Exclusive'
+    };
+    const { billing, error } = normalizeBilling({ ...req.body, products }, currentRateSet, gstDefaults);
     if (error) return res.status(400).json({ message: error });
     billing.invoice_no = existing.invoice_no;
     const updated = await updateBilling(id, billing, req.adminUser.user_id);

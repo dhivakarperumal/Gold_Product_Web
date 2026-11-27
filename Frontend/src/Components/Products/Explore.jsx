@@ -11,6 +11,7 @@ import {
 } from "react-icons/fa";
 import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
+import { getDiscountPercentage } from "../../utils/productPricing";
 import ProductCard from "../Home/ProductCard";
 import { getProductImageUrl } from "../Home/productDisplay";
 import PageHeader from "../CommenComponents/PageHeader";
@@ -39,12 +40,6 @@ const formatPriceLabel = formatCurrency;
 
 const getProductPrice = (product) =>
   Number(product.offer_price ?? product.final_selling_price ?? product.mrp ?? 0);
-
-const getDiscount = (product) => {
-  const mrp = Number(product.mrp || 0);
-  if (Number(product.discount) > 0) return Number(product.discount);
-  return mrp > 0 ? Math.max(0, Math.round(((mrp - getProductPrice(product)) / mrp) * 100)) : 0;
-};
 
 const productIsInStock = (product) =>
   Number(product.total_stock ?? product.stock ?? 0) > 0;
@@ -221,7 +216,7 @@ const Explore = () => {
       const matchesMetal = !selectedMetals.length || selectedMetals.some(
         (metal) => metal.toLowerCase() === String(product.metal_type || "").trim().toLowerCase()
       );
-      const matchesOffer = !offerThreshold || getDiscount(product) >= offerThreshold;
+      const matchesOffer = !offerThreshold || getDiscountPercentage(product) >= offerThreshold;
       const price = getProductPrice(product);
       const matchesMinPrice = minimumPrice === "" || price >= Number(minimumPrice);
       const matchesMaxPrice = maximumPrice === "" || price <= Number(maximumPrice);

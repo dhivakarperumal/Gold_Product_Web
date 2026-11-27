@@ -4,8 +4,7 @@ const { pool } = require('../config/db');
 const MANUAL_ORDER_STATUSES = Object.freeze([
   'Order Placed',
   'Confirmed',
-  'Ready',
-  'Billing Pending'
+  'Ready'
 ]);
 
 async function initializeTackOrderModule() {
@@ -54,7 +53,7 @@ async function initializeTackOrderModule() {
     SET t.payment_status = CASE WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Paid'
                                 WHEN b.paid_amount > 0 THEN 'Partial' ELSE 'Pending' END,
         t.balance_due = GREATEST(b.total_amount - b.paid_amount, 0),
-        t.order_status = CASE WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Completed' ELSE 'Billing Pending' END
+        t.order_status = 'Completed'
   `);
   await pool.query(`
     UPDATE tack_orders
@@ -67,7 +66,7 @@ async function getTackOrderProductsByIds(productIds, userId) {
   if (productIds.length === 0) return [];
   const placeholders = productIds.map(() => '?').join(', ');
   const [rows] = await pool.execute(
-    `SELECT id, name, category, purity, net_gold_weight, gold_rate_per_gram,
+    `SELECT id, name, category, metal_type, purity, net_gold_weight, gold_rate_per_gram,
        making_charge_type, making_charge, wastage_type, wastage, stone_charges,
        other_charges, gst_rate, price_includes_gst, offer_type, offer,
        fixed_discount_amount, final_selling_price, offer_price, mrp, status
@@ -119,7 +118,7 @@ async function listTackOrders(userId) {
     `SELECT t.id, t.order_no, t.customer, t.items, t.sub_total, t.gst_included, t.gst_rate, t.gst_amount,
        t.discount_type, t.discount_value, t.discount_amount, t.total_amount,
        CASE WHEN b.id IS NULL THEN t.order_status
-         WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Completed' ELSE 'Billing Pending' END AS order_status,
+         ELSE 'Completed' END AS order_status,
        CASE WHEN b.id IS NULL THEN t.payment_status
          WHEN GREATEST(b.total_amount - b.paid_amount, 0) <= 0 THEN 'Paid'
          WHEN b.paid_amount > 0 THEN 'Partial' ELSE 'Pending' END AS payment_status,
@@ -161,7 +160,7 @@ async function updateTackOrderStatus(id, status, userId) {
   const order = await getTackOrderById(id, userId);
   if (!order) return null;
   if (order.order_status === 'Completed' || order.order_status === 'Bill Completed') {
-    const error = new Error('Completed status is set automatically when the linked bill is fully paid');
+    const error = new Error('Completed status is set automatically when a bill is created for the order');
     error.code = 'TACK_ORDER_ALREADY_COMPLETED';
     throw error;
   }

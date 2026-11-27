@@ -1,55 +1,16 @@
 import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiBox, FiCalendar, FiChevronRight, FiFileText, FiGrid, FiList, FiMapPin, FiPhone, FiPlus, FiSearch, FiUser, FiUsers } from "react-icons/fi";
-import { FaCoins, FaGem, FaRupeeSign } from "react-icons/fa";
+import { FiBox, FiCalendar, FiCheckCircle, FiClock, FiFileText, FiGrid, FiList, FiMapPin, FiPhone, FiPlus, FiSearch, FiUser } from "react-icons/fi";
+import { FaRupeeSign } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import api from "../../api";
 import { formatCurrency } from "../../utils/currency";
 import DateRangeFilter from "../Components/DateRangeFilter";
 import { resolveDatePreset } from "../Components/dateRange";
 
-const SUMMARY_CARDS = [
-  {
-    id: "total_customers",
-    label: "Total Customers",
-    icon: <FiUsers />,
-    iconStyle: { backgroundColor: "#006D50", color: "#FFFFFF" },
-    cardStyle: { backgroundColor: "#123B32", borderColor: "#2C6A55" },
-    chartColor: "#6EE7B7",
-    destination: "/admin/loans/customermanagement"
-  },
-  {
-    id: "active_gold_loans",
-    label: "Active Gold Loans",
-    icon: <FaCoins />,
-    iconStyle: { background: "linear-gradient(145deg, #F7C84B, #B87500)", color: "#FFFFFF" },
-    cardStyle: { backgroundColor: "#3D3019", borderColor: "#8B6D2E" },
-    chartColor: "#FCD36B",
-    destination: "/admin/loans/allloans"
-  },
-  {
-    id: "today_collection",
-    label: "Today's Collection",
-    icon: <FaRupeeSign />,
-    iconStyle: { backgroundColor: "#006D50", color: "#FFFFFF" },
-    cardStyle: { backgroundColor: "#14324A", borderColor: "#35719A" },
-    chartColor: "#7DD3FC",
-    destination: "/admin/loans/allloans"
-  },
-  {
-    id: "gold_stock_value",
-    label: "Gold Stock Value",
-    icon: <FaGem />,
-    iconStyle: { background: "linear-gradient(145deg, #F7C84B, #B87500)", color: "#FFFFFF" },
-    cardStyle: { backgroundColor: "#482A24", borderColor: "#9A533D" },
-    chartColor: "#FDBA9A",
-    destination: "/admin/products/stock"
-  }
-];
-
-const MANUAL_ORDER_STATUSES = ["Order Placed", "Confirmed", "Ready", "Billing Pending"];
-const ORDER_STATUS_FILTERS = [...MANUAL_ORDER_STATUSES, "Completed"];
+const MANUAL_ORDER_STATUSES = ["Order Placed", "Confirmed", "Ready"];
+const ORDER_STATUS_FILTERS = ["Order Placed", "Confirmed", "Ready", "Billing Pending", "Completed"];
 
 function getOrderStatus(order) {
   return order.order_status === "Bill Completed" ? "Completed" : order.order_status || "Order Placed";
@@ -108,16 +69,13 @@ function getPaymentStatus(order) {
 export default function AllTackOrders() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
-  const [dashboardStats, setDashboardStats] = useState([]);
-  const [metricsLoading, setMetricsLoading] = useState(true);
-  const [metricsError, setMetricsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState(() => resolveDatePreset("today"));
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [orderStatusFilter, setOrderStatusFilter] = useState("ALL");
-  const [viewMode, setViewMode] = useState("list");
+  const [viewMode, setViewMode] = useState("grid");
   const [retryCount, setRetryCount] = useState(0);
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
 
@@ -136,34 +94,6 @@ export default function AllTackOrders() {
       setUpdatingOrderId(null);
     }
   };
-
-  useEffect(() => {
-    let active = true;
-    const loadDashboardStats = async () => {
-      setMetricsLoading(true);
-      setMetricsError(false);
-      try {
-        const { data } = await api.get("/dashboard", { params: { datePreset: "all" } });
-        if (!Array.isArray(data?.stats)) {
-          throw new TypeError("The server returned invalid dashboard metrics.");
-        }
-        if (active) setDashboardStats(data.stats);
-      } catch (loadError) {
-        console.error("Failed to load dashboard summary cards:", loadError);
-        if (active) {
-          setDashboardStats([]);
-          setMetricsError(true);
-        }
-      } finally {
-        if (active) setMetricsLoading(false);
-      }
-    };
-
-    void loadDashboardStats();
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -221,57 +151,85 @@ export default function AllTackOrders() {
     });
   }, [orders, search, dateRange, paymentFilter, orderStatusFilter]);
 
-  return (
-    <section className="min-h-full p-2 sm:p-2">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 grid grid-cols-1 gap-x-2 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
-          {SUMMARY_CARDS.map((card) => {
-            const stat = dashboardStats.find((item) => item.id === card.id);
-            const value = stat?.value ?? (metricsLoading ? "Loading..." : metricsError ? "Unavailable" : "—");
-            const trend = stat?.trend || (metricsError ? "Live metric unavailable" : "Dashboard metric");
+  const pendingOrders = orders.filter((order) => ["Order Placed", "Confirmed"].includes(getOrderStatus(order))).length;
+  const billingOrders = orders.filter((order) => getOrderStatus(order) === "Ready").length;
+  const outstandingBalance = orders.reduce((total, order) => {
+    const balance = Number(order.balance_due);
+    return total + (Number.isFinite(balance) ? Math.max(0, balance) : 0);
+  }, 0);
+  const summaryCards = [
+    {
+      label: "Total orders",
+      value: loading ? "—" : orders.length,
+      detail: "All pre-orders",
+      icon: <FiBox aria-hidden="true" />,
+      iconStyle: "bg-emerald-700 text-white shadow-lg shadow-emerald-900/15",
+      detailStyle: "text-emerald-700",
+      accentStyle: "border-emerald-100 border-t-4 border-t-emerald-500 bg-gradient-to-br from-white to-emerald-50"
+    },
+    {
+      label: "Awaiting confirmation",
+      value: loading ? "—" : pendingOrders,
+      detail: "Placed or confirmed",
+      icon: <FiClock aria-hidden="true" />,
+      iconStyle: "bg-amber-500 text-white shadow-lg shadow-amber-900/15",
+      detailStyle: "text-amber-700",
+      accentStyle: "border-amber-100 border-t-4 border-t-amber-500 bg-gradient-to-br from-white to-amber-50"
+    },
+    {
+      label: "Ready for billing",
+      value: loading ? "—" : billingOrders,
+      detail: "Orders marked ready",
+      icon: <FiCheckCircle aria-hidden="true" />,
+      iconStyle: "bg-sky-700 text-white shadow-lg shadow-sky-900/15",
+      detailStyle: "text-sky-700",
+      accentStyle: "border-sky-100 border-t-4 border-t-sky-500 bg-gradient-to-br from-white to-sky-50"
+    },
+    {
+      label: "Outstanding balance",
+      value: loading ? "—" : formatCurrency(outstandingBalance),
+      detail: "Across all tack orders",
+      icon: <FaRupeeSign aria-hidden="true" />,
+      iconStyle: "bg-rose-600 text-white shadow-lg shadow-rose-900/15",
+      detailStyle: "text-rose-700",
+      accentStyle: "border-rose-100 border-t-4 border-t-rose-500 bg-gradient-to-br from-white to-rose-50"
+    }
+  ];
 
-            return (
-              <article
-                key={card.id}
-                style={card.cardStyle}
-                className="relative flex h-40 min-w-0 items-center gap-3 overflow-hidden rounded-xl border-l-4 border-y border-r p-3 shadow-[0_3px_12px_rgba(30,41,59,0.1)] transition-all hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div style={card.iconStyle} className="z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl shadow-md">
-                  {card.icon}
-                </div>
-                <div className="relative z-10 min-w-0 self-center">
-                  <p className="truncate text-[11px] font-semibold text-slate-200">{card.label}</p>
-                  <p className="mt-1 truncate text-[19px] font-black leading-none tracking-tight text-white">
-                    {card.id === "gold_stock_value" && Number.isFinite(Number(value))
-                      ? formatCurrency(value)
-                      : value}
-                  </p>
-                  <div className={`mt-2 flex items-center gap-1 text-[11px] font-extrabold ${
-                    card.id === "today_collection" ? "text-amber-300" : metricsError ? "text-rose-300" : "text-emerald-300"
-                  }`}>
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-                    <span className="truncate">{trend}</span>
-                  </div>
-                  <p className="mt-0.5 text-[9px] font-medium text-slate-300">
-                    {metricsLoading ? "Loading live API data..." : "Shared dashboard metric"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label={`View ${card.label}`}
-                  onClick={() => navigate(card.destination)}
-                  className="absolute right-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-black/5 bg-white/65 text-[10px] text-slate-700 transition hover:bg-white"
-                >
-                  <FiChevronRight aria-hidden="true" />
-                </button>
-                <div style={{ color: card.chartColor }} className="absolute bottom-3 right-3 flex h-7 items-end gap-[3px]">
-                  {[11, 17, 13, 23].map((height, index) => (
-                    <span key={index} className="w-[4px] rounded-t-sm bg-current" style={{ height: `${height}px` }} />
-                  ))}
-                </div>
-              </article>
-            );
-          })}
+  return (
+    <section className="min-h-full bg-slate-50/70 p-3 sm:p-4">
+      <div className="mx-auto max-w-[1600px] space-y-4">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#063f36] via-[#075348] to-[#0b6b5b] px-5 py-5 text-white shadow-[0_14px_32px_rgba(6,63,54,0.18)] sm:px-7">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-emerald-200">Order management</p>
+            <h1 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">Tack order overview</h1>
+            <p className="mt-1 text-xs text-white/70 sm:text-sm">Manage customer pre-orders, status, and billing progress.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/admin/tack-orders")}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-[#075348] shadow-sm transition hover:bg-emerald-50"
+          >
+            <FiPlus size={18} aria-hidden="true" /> New tack order
+          </button>
+        </header>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {summaryCards.map((card) => (
+            <article key={card.label} className={`flex min-h-[148px] items-center justify-between gap-4 rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.accentStyle}`}>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">{card.label}</p>
+                <p className="mt-2 truncate text-3xl font-black leading-none text-slate-950" title={String(card.value)}>{card.value}</p>
+                <p className={`mt-4 flex min-w-0 items-center gap-2 text-xs font-bold ${card.detailStyle}`}>
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
+                  <span className="truncate">{card.detail}</span>
+                </p>
+              </div>
+              <span className={`flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-2xl text-2xl ${card.iconStyle}`}>
+                {card.icon}
+              </span>
+            </article>
+          ))}
         </div>
 
         <section aria-label="Search and filter tack orders" className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
@@ -335,15 +293,31 @@ export default function AllTackOrders() {
                 <FiGrid size={18} />
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => navigate("/admin/tack-orders")}
-              className="inline-flex h-[52px] items-center gap-2 rounded-xl bg-[#004D40] px-5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(0,77,64,0.2)] transition hover:bg-[#00695C]"
-            >
-              <FiPlus size={18} /> New Tack Order
-            </button>
           </div>
         </section>
+
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-extrabold text-slate-800">Recent tack orders</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {loading ? "Loading orders..." : `${filteredOrders.length} order${filteredOrders.length === 1 ? "" : "s"} found`}
+            </p>
+          </div>
+          {(search || paymentFilter !== "ALL" || orderStatusFilter !== "ALL") && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setPaymentFilter("ALL");
+                setOrderStatusFilter("ALL");
+                setDateRange(resolveDatePreset("today"));
+              }}
+              className="rounded-lg px-3 py-1.5 text-xs font-bold text-[#087768] transition hover:bg-emerald-50"
+            >
+              Reset filters
+            </button>
+          )}
+        </div>
 
         {error ? (
           <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
@@ -357,9 +331,9 @@ export default function AllTackOrders() {
             </button>
           </div>
         ) : loading ? (
-          <div className="grid gap-4">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="h-48 animate-pulse rounded-2xl border border-orange-100 bg-white" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            {[1, 2, 3, 4, 5].map((item) => (
+              <div key={item} className="h-52 animate-pulse rounded-xl border border-orange-100 bg-white" />
             ))}
           </div>
         ) : filteredOrders.length === 0 ? (
@@ -373,7 +347,12 @@ export default function AllTackOrders() {
             </p>
           </div>
         ) : (
-          <div className={viewMode === "list" ? "space-y-4" : "grid grid-cols-1 gap-4 xl:grid-cols-2"}>
+          <div
+            className={viewMode === "list" ? "space-y-4" : "grid gap-3"}
+            style={viewMode === "grid"
+              ? { gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 230px), 1fr))" }
+              : undefined}
+          >
             {filteredOrders.map((order) => {
               const customer = order.customer;
               const location = [customer.city, customer.district, customer.state, customer.pincode]
@@ -385,6 +364,106 @@ export default function AllTackOrders() {
               const paidAmount = Number.isFinite(Number(order.paid_amount))
                 ? Number(order.paid_amount)
                 : Math.max(0, Number(order.total_amount) - Number(order.balance_due));
+
+              if (viewMode === "grid") {
+                return (
+                  <article key={order.id} className="@container flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                    <header className="space-y-2 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-amber-50 p-3">
+                      <div className="flex min-w-0 items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-orange-600">Tack order</p>
+                          <h2 className="truncate text-sm font-black text-slate-800">{order.order_no}</h2>
+                        </div>
+                        <CustomSelect
+                          aria-label={`Order status for ${order.order_no}`}
+                          value={orderStatus}
+                          onChange={(event) => void updateOrderStatus(order.id, event.target.value)}
+                          disabled={orderStatus === "Completed" || orderStatus === "Bill Completed" || updatingOrderId === order.id}
+                          className={`max-w-[116px] rounded-full border px-2 py-1 text-[10px] font-bold outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 ${
+                            orderStatus === "Completed" || orderStatus === "Bill Completed"
+                              ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                              : "border-slate-200 bg-white text-slate-700"
+                          }`}
+                        >
+                          {!MANUAL_ORDER_STATUSES.includes(orderStatus) && orderStatus !== "Completed" && orderStatus !== "Bill Completed" && (
+                            <option value={orderStatus}>{orderStatus}</option>
+                          )}
+                          {MANUAL_ORDER_STATUSES.map((status) => (
+                            <option key={status} value={status}>{status}</option>
+                          ))}
+                          <option value="Completed" disabled={orderStatus !== "Completed" && orderStatus !== "Bill Completed"}>
+                            Completed (automatic)
+                          </option>
+                        </CustomSelect>
+                      </div>
+                      <div className="flex min-w-0 items-center justify-between gap-2">
+                        <p className="flex min-w-0 items-center gap-1 truncate text-[11px] font-semibold text-slate-700" title={customer.name}>
+                          <FiUser className="shrink-0 text-orange-500" aria-hidden="true" />
+                          <span className="shrink-0 text-slate-400">Name:</span>
+                          <span className="truncate">{customer.name}</span>
+                        </p>
+                        {orderStatus === "Ready" && (
+                          <button
+                            type="button"
+                            onClick={() => navigate("/admin/billings", { state: { tackOrderToBill: order } })}
+                            aria-label={`Create a bill from tack order ${order.order_no}`}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#00695C] px-2 py-1.5 text-[10px] font-bold text-white transition hover:bg-[#008577]"
+                          >
+                            <FiFileText aria-hidden="true" />
+                            Bill
+                          </button>
+                        )}
+                      </div>
+                    </header>
+
+                    <section
+                      className="grid flex-1 gap-2 p-3"
+                      style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 210px), 1fr))" }}
+                    >
+                      {order.items.map((item, index) => {
+                        const quantity = Number(item.quantity);
+                        const hasUnitPrice = item.price !== null
+                          && item.price !== undefined
+                          && item.price !== ""
+                          && Number.isFinite(Number(item.price));
+                        const unitPrice = hasUnitPrice
+                          ? Number(item.price)
+                          : Number(item.total_price) / (Number.isFinite(quantity) && quantity > 0 ? quantity : 1);
+
+                        return (
+                          <div key={`${item.product_id}-${index}`} className="@container rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+                            <div className="grid gap-2 @lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-medium text-slate-400">Product</p>
+                                <p className="mt-0.5 truncate text-sm font-bold text-slate-800" title={item.product_name}>
+                                  {item.product_name || "Unnamed product"}
+                                </p>
+                                <p className="mt-0.5 truncate text-[10px] text-slate-500">
+                                  ID: <span className="font-semibold text-slate-700">{item.product_id || "—"}</span>
+                                </p>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-medium text-slate-400">Price</p>
+                                <p className="mt-0.5 truncate text-xs font-bold text-slate-700">
+                                  {Number.isFinite(unitPrice) ? formatCurrency(unitPrice) : "—"}
+                                </p>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-medium text-slate-400">Metal</p>
+                                <p className="mt-0.5 truncate text-xs font-bold text-slate-700">{item.metal_type || "—"}</p>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-medium text-slate-400">Purity</p>
+                                <p className="mt-0.5 truncate text-xs font-bold text-slate-700">{item.purity || "—"}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </section>
+                  </article>
+                );
+              }
 
               return (
                 <article key={order.id} className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
@@ -424,15 +503,17 @@ export default function AllTackOrders() {
                         <FiCalendar aria-hidden="true" />
                         {formatOrderDate(order.created_at)}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => navigate("/admin/billings", { state: { tackOrderToBill: order } })}
-                        aria-label={`Create a bill from tack order ${order.order_no}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#00695C] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#008577]"
-                      >
-                        <FiFileText aria-hidden="true" />
-                        Bill
-                      </button>
+                      {orderStatus === "Ready" && (
+                        <button
+                          type="button"
+                          onClick={() => navigate("/admin/billings", { state: { tackOrderToBill: order } })}
+                          aria-label={`Create a bill from tack order ${order.order_no}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#00695C] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#008577]"
+                        >
+                          <FiFileText aria-hidden="true" />
+                          Bill
+                        </button>
+                      )}
                     </div>
                   </header>
 

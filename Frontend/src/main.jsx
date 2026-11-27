@@ -52,7 +52,6 @@ const Settings = React.lazy(() => import("./Admin/Pages/Settings.jsx"));
 const FundManagement = React.lazy(() => import("./Admin/Pages/FundManagement.jsx"));
 const DailyGoldRate = React.lazy(() => import("./Admin/Pages/DailyGoldRate.jsx"));
 const ReceiptSettings = React.lazy(() => import("./Admin/Pages/ReceiptSettings.jsx"));
-const TaxSettings = React.lazy(() => import("./Admin/Pages/TaxSettings.jsx"));
 const HomeSections = React.lazy(() => import("./Admin/Pages/HomeSections.jsx"));
 const Profile = React.lazy(() => import("./Admin/Pages/Profile.jsx"));
 const Dealers = React.lazy(() => import("./Admin/Dealers/Dealers.jsx"));
@@ -153,7 +152,6 @@ const router = createHashRouter([
       },
       { path: "settings/daily-gold-rate", element: <DailyGoldRate /> },
       { path: "settings/receipt", element: <ReceiptSettings /> },
-      { path: "settings/tax", element: <TaxSettings /> },
       { path: "settings/home-sections", element: <HomeSections /> },
       { path: "profile", element: <Profile /> },
       { path: "enquiries", element: <Enquiries /> },

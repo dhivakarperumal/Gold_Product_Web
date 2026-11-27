@@ -18,6 +18,15 @@ function catalogPrice(product) {
       : Number(product.mrp ?? product.price ?? 0);
 }
 
+export function getDiscountPercentage(product) {
+  const mrp = Number(product?.mrp);
+  const price = Number(product?.offer_price ?? product?.final_selling_price ?? product?.mrp ?? 0);
+  if (!Number.isFinite(mrp) || mrp <= 0 || !Number.isFinite(price) || price < 0 || price >= mrp) {
+    return 0;
+  }
+  return Math.min(100, Math.round(((mrp - price) / mrp) * 100));
+}
+
 export function calculatePriceForNetWeight(product, netGoldWeight) {
   const weight = Number(netGoldWeight);
   if (!Number.isFinite(weight) || weight <= 0 || weight > 999999999.999

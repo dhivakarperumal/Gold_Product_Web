@@ -7,7 +7,7 @@ function getPaymentState(totalAmount, paidAmount) {
   return {
     balanceDue,
     paymentStatus: balanceDue <= 0 ? 'Paid' : Number(paidAmount) > 0 ? 'Partial' : 'Pending',
-    orderStatus: balanceDue <= 0 ? 'Completed' : 'Billing Pending'
+    orderStatus: 'Completed'
   };
 }
 
@@ -248,6 +248,33 @@ async function createBilling(billing, userId, initialPayment = null) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    if (billing.source_tack_order_id != null) {
+      const [tackOrders] = await connection.execute(
+        'SELECT id, order_status FROM tack_orders WHERE id = ? AND user_id = ? FOR UPDATE',
+        [billing.source_tack_order_id, userId]
+      );
+      if (!tackOrders.length) {
+        const error = new Error('Tack order not found');
+        error.code = 'TACK_ORDER_NOT_FOUND';
+        throw error;
+      }
+      if (tackOrders[0].order_status !== 'Ready') {
+        const [existingBills] = await connection.execute(
+          `SELECT id FROM billings
+           WHERE source_tack_order_id = ? AND user_id = ?
+           ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+          [billing.source_tack_order_id, userId]
+        );
+        if (existingBills.length) {
+          await connection.commit();
+          const existingBill = await getBillingById(existingBills[0].id, userId);
+          return { ...existingBill, already_exists: true };
+        }
+        const error = new Error('Only Ready tack orders can be billed');
+        error.code = 'TACK_ORDER_NOT_READY';
+        throw error;
+      }
+    }
     if (initialPayment) {
       await getFundBalance(connection, initialPayment.created_by_user_id, true);
     }
@@ -499,7 +526,7 @@ async function deleteBilling(id, userId) {
   try {
     await connection.beginTransaction();
     const [bills] = await connection.execute(
-      'SELECT id FROM billings WHERE id = ? AND user_id = ? FOR UPDATE',
+      'SELECT id, source_tack_order_id FROM billings WHERE id = ? AND user_id = ? FOR UPDATE',
       [id, userId]
     );
     if (!bills.length) {
@@ -521,6 +548,23 @@ async function deleteBilling(id, userId) {
       'DELETE FROM billings WHERE id = ? AND user_id = ?',
       [id, userId]
     );
+    if (result.affectedRows > 0 && bills[0].source_tack_order_id != null) {
+      const [remainingBills] = await connection.execute(
+        'SELECT id FROM billings WHERE source_tack_order_id = ? AND user_id = ? LIMIT 1',
+        [bills[0].source_tack_order_id, userId]
+      );
+      if (!remainingBills.length) {
+        await connection.execute(
+          `UPDATE tack_orders
+           SET order_status = 'Ready',
+               payment_status = CASE WHEN advance_amount >= total_amount THEN 'Paid'
+                 WHEN advance_amount > 0 THEN 'Partial' ELSE 'Pending' END,
+               balance_due = GREATEST(total_amount - advance_amount, 0)
+           WHERE id = ? AND user_id = ?`,
+          [bills[0].source_tack_order_id, userId]
+        );
+      }
+    }
     await connection.commit();
     return result.affectedRows > 0;
   } catch (error) {

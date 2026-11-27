@@ -97,7 +97,6 @@ const pageTitles = {
   "/admin/settings": "Settings",
   "/admin/funds": "Fund Management",
   "/admin/settings/daily-gold-rate": "Daily Gold Rate",
-  "/admin/settings/tax": "Tax & GST Settings",
   "/admin/settings/receipt": "Receipt Settings",
   "/admin/profile": "Profile",
   "/admin/settings/profile": "Profile",
