@@ -90,6 +90,17 @@ test('marks a tack order Paid when its full total is paid in advance', () => {
   assert.equal(result.tackOrder.payment_status, 'Paid');
 });
 
+test('stores a product image snapshot on tack-order items', () => {
+  const result = normalizeTackOrder(orderInput(), [{
+    ...product,
+    images: ['/uploads/products/catalog.jpg'],
+    variants: JSON.stringify([{ images: ['/uploads/products/variant.jpg'] }])
+  }]);
+
+  assert.equal(result.error, undefined);
+  assert.equal(result.tackOrder.items[0].image, '/uploads/products/variant.jpg');
+});
+
 test('uses the GST selection and rate entered for the tack order', () => {
   const enabledResult = normalizeTackOrder(orderInput({
     gst_included: true,
@@ -258,7 +269,14 @@ test('returns detailed tack-order items with catalog metal data for the authenti
         created_at: '2026-11-25 10:00:00'
       }], []];
     }
-    if (query.includes('FROM products')) return [[{ ...product, metal_type: 'Gold' }], []];
+    if (query.includes('FROM products')) {
+      return [[{
+        ...product,
+        metal_type: 'Gold',
+        images: ['/uploads/products/gold-chain.jpg'],
+        variants: []
+      }], []];
+    }
     return [[], []];
   };
   const res = {
@@ -285,8 +303,10 @@ test('returns detailed tack-order items with catalog metal data for the authenti
   assert.equal(res.body.discount_type, 'Fixed');
   assert.deepEqual(JSON.parse(res.body.customer), { name: 'A Customer', phone: '9876543210' });
   assert.equal(res.body.items[0].metal_type, 'Gold');
+  assert.equal(res.body.items[0].image, '/uploads/products/gold-chain.jpg');
   assert.match(queries[0].query, /WHERE t\.id = \? AND t\.user_id = \?/);
   assert.deepEqual(queries[0].values, [42, 'shop-user-1']);
+  assert.match(queries[1].query, /images, variants/);
   assert.deepEqual(queries[1].values, [12, 'shop-user-1']);
 });
 

@@ -1,6 +1,7 @@
 const {
   createTackOrder,
   getTackOrderProductsByIds,
+  getFirstProductImage,
   getTackOrderById,
   listTackOrders,
   MANUAL_ORDER_STATUSES,
@@ -32,19 +33,22 @@ function parseTackOrderItems(value) {
   return items;
 }
 
-async function addCatalogMetalTypes(orders, userId) {
+async function addCatalogMetalTypes(orders, userId, { includeImages = false } = {}) {
   const itemsByOrder = orders.map((order) => parseTackOrderItems(order.items));
   const productIds = [...new Set(itemsByOrder
     .flat()
     .map((item) => Number(item.product_id))
     .filter((id) => Number.isSafeInteger(id) && id > 0))];
-  const catalogProducts = await getTackOrderProductsByIds(productIds, userId);
+  const catalogProducts = await getTackOrderProductsByIds(productIds, userId, { includeMedia: includeImages });
   const productsById = new Map(catalogProducts.map((product) => [Number(product.id), product]));
   return orders.map((order, orderIndex) => ({
     ...order,
     items: itemsByOrder[orderIndex].map((item) => ({
       ...item,
-      metal_type: item.metal_type || productsById.get(Number(item.product_id))?.metal_type || ''
+      metal_type: item.metal_type || productsById.get(Number(item.product_id))?.metal_type || '',
+      ...(!item.image && includeImages && productsById.has(Number(item.product_id))
+        ? { image: getFirstProductImage(productsById.get(Number(item.product_id))) }
+        : {})
     }))
   }));
 }
@@ -153,6 +157,8 @@ function normalizeTackOrder(body, catalogProducts) {
       price,
       total_price: roundMoney(price * quantity)
     };
+    const image = getFirstProductImage(product);
+    if (image) item.image = image;
     if (hasNetGoldWeight) item.net_gold_weight = netGoldWeight;
     items.push(item);
   }
@@ -229,7 +235,8 @@ async function postTackOrder(req, res, next) {
   try {
     const catalogProducts = await getTackOrderProductsByIds(
       [...new Set(productIds)],
-      req.adminUser.user_id
+      req.adminUser.user_id,
+      { includeMedia: true }
     );
     const { tackOrder, error } = normalizeTackOrder(req.body, catalogProducts);
     if (error) return res.status(400).json({ message: error });
@@ -259,7 +266,7 @@ async function getTackOrder(req, res, next) {
   try {
     const order = await getTackOrderById(id, req.adminUser.user_id);
     if (!order) return res.status(404).json({ message: 'Tack order not found' });
-    const [orderWithMetal] = await addCatalogMetalTypes([order], req.adminUser.user_id);
+    const [orderWithMetal] = await addCatalogMetalTypes([order], req.adminUser.user_id, { includeImages: true });
     return res.json(orderWithMetal);
   } catch (error) {
     return next(error);

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, CalendarDays, FileText, UserRound, Wallet } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api";
+import { getProductImageUrl } from "../../Components/Home/productDisplay";
 import { formatCurrency } from "../../utils/currency";
 
 function parseCustomer(value) {
@@ -193,9 +194,10 @@ export default function OrdersViewdetails() {
           <DetailCard title={`Products (${order.items.length})`} icon={FileText}>
             {order.items.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                <table className="w-full min-w-[800px] border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      <th className="w-16 px-2 py-3"><span className="sr-only">Image</span></th>
                       <th className="px-2 py-3">Product</th>
                       <th className="px-2 py-3">Options</th>
                       <th className="px-2 py-3 text-right">Qty</th>
@@ -217,8 +219,23 @@ export default function OrdersViewdetails() {
                         item.variant_size,
                         item.net_gold_weight ? `${item.net_gold_weight} g` : ""
                       ].filter(Boolean).join(" · ");
+                      const imageUrl = getProductImageUrl({ images: item.image ? [item.image] : [] });
                       return (
                         <tr key={`${item.product_id || "product"}-${index}`} className="align-top">
+                          <td className="px-2 py-3">
+                            <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-lg font-black text-slate-400">
+                              {(item.product_name || "P").charAt(0)}
+                              {imageUrl && (
+                                <img
+                                  src={imageUrl}
+                                  alt={item.product_name || "Product"}
+                                  loading="lazy"
+                                  onError={(event) => { event.currentTarget.style.display = "none"; }}
+                                  className="absolute inset-0 h-full w-full object-cover"
+                                />
+                              )}
+                            </div>
+                          </td>
                           <td className="px-2 py-3">
                             <p className="font-bold text-slate-800">{item.product_name || "Unnamed product"}</p>
                             <p className="mt-0.5 text-xs text-slate-500">Product ID: {item.product_id || "—"}</p>

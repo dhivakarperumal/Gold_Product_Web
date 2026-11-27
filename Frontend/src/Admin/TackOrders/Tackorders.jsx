@@ -106,8 +106,8 @@ function OrderSummary({
   const balanceDue = total - advance;
 
   return (
-    <aside className="mb-4 flex min-h-0 flex-col rounded-2xl border border-emerald-900/10 bg-gradient-to-br from-[#073f38] via-[#064a40] to-[#14534a] p-3 text-white shadow-[0_18px_50px_rgba(5,59,48,0.2)] sm:p-5 xl:min-h-[89vh]">
-      <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+    <aside className="mb-4 flex min-h-0 flex-col rounded-2xl border border-emerald-900/10 bg-gradient-to-br from-[#073f38] via-[#064a40] to-[#14534a] p-3 text-white shadow-[0_18px_50px_rgba(5,59,48,0.2)] sm:p-5 xl:mb-0 xl:min-h-0">
+      <div className="mb-4 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 pb-4">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-amber-200">
             <FiBox aria-hidden="true" size={18} />
@@ -120,7 +120,7 @@ function OrderSummary({
         <span className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-xs font-bold">{cart.length} products</span>
       </div>
 
-      <div className="space-y-3 pr-1">
+      <div className="space-y-3 pr-1 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
         {cart.length === 0 ? (
           <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/[0.04] px-5 py-8 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300/20 to-white/10 text-amber-200">
