@@ -99,21 +99,21 @@ const EMPTY_PRODUCT = {
   best_seller: false
 };
 
-const inputClass = "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10";
-const labelClass = "block text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-500";
+const inputClass = "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.06)] outline-none transition placeholder:font-normal placeholder:text-slate-400 hover:border-slate-300 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10";
+const labelClass = "block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500";
 
 const Section = ({ title, children }) => {
   const sectionNumber = title.match(/^\d+/)?.[0];
   const sectionTitle = title.replace(/^\d+\.\s*/, "");
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/50 px-5 py-4 sm:px-6">
+    <section className="mb-5 inline-block w-full break-inside-avoid rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.045)] transition-shadow hover:shadow-md">
+      <div className="flex items-center justify-between gap-3 rounded-t-[21px] border-b border-slate-100 bg-gradient-to-r from-emerald-50/90 via-white to-amber-50/40 px-5 py-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 to-teal-600 text-sm font-black text-white shadow-sm">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 to-teal-600 text-sm font-black text-white shadow-md shadow-emerald-900/15 ring-1 ring-white/80">
             {sectionNumber || <FiBox aria-hidden="true" />}
           </span>
-          <h2 className="truncate text-sm font-extrabold text-slate-900 sm:text-base">{sectionTitle}</h2>
+          <h2 className="truncate text-sm font-extrabold tracking-tight text-slate-900 sm:text-base">{sectionTitle}</h2>
         </div>
         {sectionNumber && <span className="hidden shrink-0 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 sm:inline">Section {sectionNumber}</span>}
       </div>
@@ -126,7 +126,7 @@ const Field = ({ label, name, value, onChange, type = "text", placeholder = "", 
   <label className={labelClass}>
     {label}{required && <span className="ml-1 text-red-500">*</span>}
     <input
-      className={`${inputClass} ${readOnly ? "cursor-not-allowed bg-gray-100" : ""}`}
+      className={`${inputClass} ${readOnly ? "cursor-not-allowed bg-slate-50 text-slate-600" : ""}`}
       type={type}
       name={name}
       value={value ?? ""}
@@ -469,11 +469,11 @@ const AddProducts = () => {
     return <div className="py-20 text-center text-sm font-semibold text-gray-500">Loading product details...</div>;
   }
 
-  const uploadButton = (field, label, accept, multiple = false) => (
-    <label className="group flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-white p-5 text-center transition hover:border-emerald-500 hover:from-emerald-50/70 hover:to-white">
-      <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition group-hover:bg-emerald-700 group-hover:text-white"><FiUploadCloud className="text-xl" /></span>
+  const uploadButton = (field, label, accept, multiple = false, compact = false) => (
+    <label className={`group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-white text-center transition hover:border-emerald-500 hover:from-emerald-50/70 hover:to-white ${compact ? "min-h-20 gap-1 px-4 py-3" : "min-h-36 p-5"}`}>
+      <span className={`flex items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition group-hover:bg-emerald-700 group-hover:text-white ${compact ? "h-8 w-8" : "mb-2 h-11 w-11"}`}><FiUploadCloud className={compact ? "text-base" : "text-xl"} /></span>
       <span className="text-sm font-bold text-slate-700">{uploading ? "Uploading..." : label}</span>
-      <span className="mt-1 text-xs text-slate-500">{accept}</span>
+      <span className={`text-xs text-slate-500 ${compact ? "" : "mt-1"}`}>{accept}</span>
       <input type="file" accept={field === "video" ? "video/mp4" : "image/png,image/jpeg,application/pdf"} multiple={multiple} disabled={uploading} onChange={(event) => handleUpload(event, field)} className="sr-only" />
     </label>
   );
@@ -491,8 +491,8 @@ const AddProducts = () => {
             </button>
             <div className="min-w-0">
               <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-emerald-200">Catalog management</p>
-              <h1 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">{isEdit ? "Edit product" : "Create a product"}</h1>
-              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-white/75 sm:text-sm">Set up product details, precious-metal pricing, media, and inventory in one place.</p>
+              <h1 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">{isEdit ? "Edit Product" : "Add Product"}</h1>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-white/75 sm:text-sm">Build a complete catalog listing with verified pricing, product media, and inventory details.</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -505,8 +505,8 @@ const AddProducts = () => {
         </div>
       </header>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="columns-1 gap-5 lg:columns-2">
           <Section title="1. Basic Information">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Product Name" name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Classic Gold Chain" required />
@@ -528,7 +528,7 @@ const AddProducts = () => {
           </Section>
 
           <Section title={`2. ${isDiamond ? "Diamond" : "Metal"} Details`}>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <SelectField label={isDiamond ? "Diamond Grade" : "Purity"} name="purity" value={formData.purity} onChange={handleChange} options={puritySelectOptions} />
               <Field label="Gross Weight (g)" name="gross_weight" type="number" min="0" step="0.001" value={formData.gross_weight} onChange={handleChange} placeholder="10" />
               <Field
@@ -578,7 +578,7 @@ const AddProducts = () => {
           </Section>
 
           <Section title="3. Size & Dimensions">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Available Sizes" name="available_sizes_text" value={formData.available_sizes.join(", ")} onChange={(event) => updateFormField("available_sizes", event.target.value.split(",").map((size) => size.trim()).filter(Boolean))} placeholder="12, 14, 16, 18 inches" />
               <SelectField label="Product Size" name="product_size" value={formData.product_size} onChange={handleChange} options={[
                 { value: "", label: "Select size" }, "Small", "Medium", "Large", "Free Size"
@@ -612,12 +612,12 @@ const AddProducts = () => {
                     <button type="button" onClick={() => updateFormField("size_guide_chart", "")} aria-label="Remove size guide" className="text-red-500"><FiX /></button>
                   </div>
                 </div>
-              ) : uploadButton("size_guide_chart", "Upload size chart image or PDF", "PNG, JPG, PDF up to 5 MB")}
+              ) : uploadButton("size_guide_chart", "Upload size chart image or PDF", "PNG, JPG, PDF up to 5 MB", false, true)}
             </div>
           </Section>
 
           <Section title="4. Pricing & Offers">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <span className={labelClass}>MRP (₹)<span className="ml-1 text-red-500">*</span></span>
                 <div className="relative">
@@ -673,7 +673,7 @@ const AddProducts = () => {
             <div>
               <p className={`${labelClass} mb-2`}>Main Product Images</p>
               {formData.images.length > 0 && (
-                <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {formData.images.map((image, index) => (
                     <div key={`${image}-${index}`} className="group relative aspect-square overflow-hidden rounded-xl border border-gray-200">
                       <img src={resolveBackendImageUrl(image)} alt={`Product ${index + 1}`} className="h-full w-full object-cover" />
@@ -732,7 +732,7 @@ const AddProducts = () => {
           </Section>
 
           <Section title="8. Inventory & Publishing">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Stock Quantity" name="total_stock" type="number" min="0" step="1" value={formData.total_stock} onChange={handleChange} placeholder="5" />
               <SelectField label="Stock Status" name="stock_status" value={formData.stock_status} onChange={handleChange} options={["In Stock", "Out of Stock", "Low Stock"]} />
               <Field label="Warehouse / Location" name="warehouse" value={formData.warehouse} onChange={handleChange} placeholder="Main Shop" />
@@ -753,8 +753,8 @@ const AddProducts = () => {
           </Section>
         </div>
 
-        <aside className="space-y-4 xl:sticky xl:top-5">
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+          <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
             <header className="flex items-center justify-between gap-3 bg-gradient-to-r from-[#063f36] to-[#0b6b5b] px-5 py-4 text-white">
               <div className="flex items-center gap-2.5">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10"><FiImage size={18} aria-hidden="true" /></span>
@@ -765,15 +765,15 @@ const AddProducts = () => {
               </div>
               <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white">{isEdit ? "Editing" : "New"}</span>
             </header>
-            <div className="space-y-4 p-5">
-              <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-emerald-50">
+            <div className="space-y-3 p-4">
+              <div className="relative h-40 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-100 via-emerald-50 to-teal-100 sm:h-48">
                 {formData.images[0] ? (
                   <img src={resolveBackendImageUrl(formData.images[0])} alt={formData.name || "Product preview"} className="h-full w-full object-contain p-2" />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center text-slate-400">
-                    <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm"><FiImage size={27} /></span>
-                    <span className="mt-3 text-xs font-bold text-slate-500">Your product image appears here</span>
-                    <span className="mt-1 text-[11px] text-slate-400">Upload photos in Media & Uploads</span>
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/80 bg-white/80 text-slate-400 shadow-sm"><FiImage size={22} /></span>
+                    <span className="mt-2 text-xs font-bold text-slate-600">Your product image appears here</span>
+                    <span className="mt-1 text-[11px] text-slate-500">Upload photos in Media & Uploads</span>
                   </div>
                 )}
                 <span className="absolute left-3 top-3 rounded-full border border-white/80 bg-white/90 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-600 shadow-sm">Catalog preview</span>
@@ -782,20 +782,20 @@ const AddProducts = () => {
               <div className="min-w-0">
                 <p className="truncate text-base font-extrabold text-slate-900">{formData.name || "Product name"}</p>
                 <p className="mt-1 truncate text-xs font-medium text-slate-500">{formData.product_code || "SKU will appear here"}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   {formData.category && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800">{formData.category}</span>}
                   {formData.metal_type && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-800">{formData.metal_type}</span>}
                   {formData.purity && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">{formData.purity}</span>}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 p-4">
+              <div className="rounded-xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 p-3">
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-emerald-800">Final selling price</p>
                 <p className="mt-1 text-2xl font-black tracking-tight text-emerald-950">{formatCurrency(pricing.finalPrice)}</p>
                 <p className="mt-1 text-[11px] text-emerald-800/80">Based on metal rate, charges, and selected offer.</p>
               </div>
 
-              <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+              <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-2">
                 <div>
                   <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Inventory</p>
                   <p className="mt-1 text-sm font-bold text-slate-800">{formData.total_stock || 0} units</p>
@@ -806,7 +806,7 @@ const AddProducts = () => {
               </div>
             </div>
           </section>
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.045)]">
             <p className="text-sm font-extrabold text-slate-900">Ready to save?</p>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">Review the product details and save to update your catalog.</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
@@ -817,7 +817,7 @@ const AddProducts = () => {
               </button>
             </div>
           </section>
-        </aside>
+          </div>
       </form>
     </div>
   );
