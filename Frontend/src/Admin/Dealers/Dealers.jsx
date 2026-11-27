@@ -2,7 +2,7 @@ import CustomSelect from "../../Components/CustomSelect.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
-  AlertTriangle, ArrowLeft, ArrowRightLeft, Building2, Check, ChevronRight,
+  AlertTriangle, ArrowLeft, ArrowRightLeft, Building2, Check,
   ClipboardList, Coins, Download, FileText, LoaderCircle, Plus, Printer,
   LayoutGrid, List, Search, ShieldCheck, Truck, Wallet, X
 } from "lucide-react";
@@ -489,102 +489,118 @@ const Dealers = () => {
   }, [purchases, search]);
   const openJobs = jobs.filter((job) => !["Reconciled", "Cancelled"].includes(job.status));
 
-  return <div className="space-y-6">
+  return <div className="space-y-5">
     {!["dealers", "purchases"].includes(section) && <DateRangeFilter onApply={(range) => { setPage(1); setDateRange(range); }} />}
 
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {[
-        { label: "Active dealers", value: summary?.dealers?.active ?? "—", note: "Currently active", Icon: Truck, theme: "border-emerald-700 bg-[#103d34]", accent: "text-emerald-300" },
-        { label: "Supplier payables", value: summary ? currency(summary.payables) : "—", note: "Outstanding balance", Icon: Wallet, theme: "border-amber-700 bg-[#40331b]", accent: "text-amber-300" },
-        { label: "Dealer receivables", value: summary ? currency(summary.receivables) : "—", note: "Amount to receive", Icon: ArrowRightLeft, theme: "border-sky-700 bg-[#15354b]", accent: "text-sky-300" },
-        { label: "Purchases this month", value: summary ? currency(summary.purchases_this_month) : "—", note: "Monthly total", Icon: Coins, theme: "border-orange-700 bg-[#4a2a22]", accent: "text-orange-300" },
-        { label: "Overdue invoices", value: summary ? `${summary.overdue.count} · ${currency(summary.overdue.amount)}` : "—", note: "Invoices past due", Icon: AlertTriangle, theme: "border-rose-700 bg-[#422333]", accent: "text-rose-300" },
-        { label: "Open job orders", value: summary?.pending_jobs ?? "—", note: "Awaiting completion", Icon: ClipboardList, theme: "border-teal-700 bg-[#173c46]", accent: "text-teal-300" }
-      ].map(({ label, value, note, Icon, theme, accent }) => <article key={label} className={`relative flex min-h-32 items-center gap-4 overflow-hidden rounded-2xl border-l-4 p-4 text-white shadow-md transition duration-200 hover:-translate-y-0.5 hover:shadow-lg ${theme}`}>
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-black/20 text-white shadow-inner">
-          <Icon size={24} aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-bold text-white/80">{label}</p>
-          <p className="mt-1 truncate text-xl font-black text-white">{value}</p>
-          <p className={`mt-1 truncate text-[11px] font-bold ${accent}`}>{note}</p>
+    {section === "dealers" && <section className="relative isolate overflow-hidden rounded-[28px] bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577] px-6 py-7 text-white shadow-[0_20px_45px_rgba(4,78,69,0.18)] sm:px-9 sm:py-8">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-8 -top-28 -z-10 h-80 w-80 rounded-full border border-white/10">
+        <div className="absolute inset-8 rounded-full border border-white/10" />
+      </div>
+      <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="max-w-3xl">
+          <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-100">
+            Dealer Management <span className="mx-1.5 text-emerald-200/70">·</span> Trade Partners
+          </p>
+          <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Dealer Directory</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50 sm:text-base">
+            Manage supplier accounts, balances, contacts, and business documents.
+          </p>
         </div>
-        <span aria-hidden="true" className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/60 text-slate-700">
-          <ChevronRight size={15} />
-        </span>
-        <span aria-hidden="true" className={`absolute bottom-3 right-4 flex h-7 items-end gap-1 opacity-70 ${accent}`}>
-          <i className="h-2 w-1.5 rounded-t-sm bg-current" />
-          <i className="h-4 w-1.5 rounded-t-sm bg-current" />
-          <i className="h-3 w-1.5 rounded-t-sm bg-current" />
-          <i className="h-6 w-1.5 rounded-t-sm bg-current" />
-        </span>
+        <button type="button" onClick={() => startDealerEdit()} className="inline-flex min-h-14 shrink-0 items-center justify-center gap-2.5 rounded-2xl bg-white px-6 py-3 text-sm font-extrabold text-[#064e45] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-white/30">
+          <Plus size={18} /> Register Dealer
+        </button>
+      </div>
+    </section>}
+
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {[
+        { label: "Active dealers", value: summary?.dealers?.active ?? "—", note: "Currently active", Icon: Truck, card: "border-t-[#00b8a9] bg-gradient-to-br from-[#eefbf9] to-white", iconBg: "bg-[#009b8b]", dot: "bg-[#009b8b]", text: "text-[#007d70]" },
+        { label: "Supplier payables", value: summary ? currency(summary.payables) : "—", note: "Outstanding balance", Icon: Wallet, card: "border-t-amber-500 bg-gradient-to-br from-amber-50 to-white", iconBg: "bg-amber-500", dot: "bg-amber-600", text: "text-amber-700" },
+        { label: "Dealer receivables", value: summary ? currency(summary.receivables) : "—", note: "Amount to receive", Icon: ArrowRightLeft, card: "border-t-sky-500 bg-gradient-to-br from-sky-50 to-white", iconBg: "bg-sky-600", dot: "bg-sky-600", text: "text-sky-700" },
+        { label: "Purchases this month", value: summary ? currency(summary.purchases_this_month) : "—", note: "Monthly total", Icon: Coins, card: "border-t-orange-500 bg-gradient-to-br from-orange-50 to-white", iconBg: "bg-orange-500", dot: "bg-orange-600", text: "text-orange-700" },
+        { label: "Overdue invoices", value: summary ? `${summary.overdue.count} · ${currency(summary.overdue.amount)}` : "—", note: "Invoices past due", Icon: AlertTriangle, card: "border-t-rose-500 bg-gradient-to-br from-rose-50 to-white", iconBg: "bg-rose-600", dot: "bg-rose-600", text: "text-rose-700" },
+        { label: "Open job orders", value: summary?.pending_jobs ?? "—", note: "Awaiting completion", Icon: ClipboardList, card: "border-t-teal-500 bg-gradient-to-br from-teal-50 to-white", iconBg: "bg-teal-600", dot: "bg-teal-600", text: "text-teal-700" }
+      ].map(({ label, value, note, Icon, card, iconBg, dot, text }) => <article key={label} className={`relative flex min-h-[142px] items-center justify-between gap-3 overflow-hidden rounded-[22px] border-x border-b border-t-4 border-x-slate-200/70 border-b-slate-200/70 p-5 shadow-[0_5px_15px_rgba(15,23,42,0.055)] transition hover:-translate-y-0.5 hover:shadow-md sm:p-6 ${card}`}>
+        <div className="min-w-0">
+          <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+          <p className="my-2 truncate text-2xl font-black leading-tight tabular-nums text-slate-950 sm:text-3xl">{value}</p>
+          <p className={`flex items-center gap-2 text-xs font-bold ${text}`}>
+            <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
+            <span className="truncate">{note}</span>
+          </p>
+        </div>
+        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] text-white shadow-lg shadow-slate-900/10 ${iconBg}`}>
+          <Icon size={23} aria-hidden="true" />
+        </div>
       </article>)}
     </div>
 
     <ErrorBox message={error} retry={() => void fetchAll()} />
     {loading ? <div className="flex min-h-64 items-center justify-center gap-3 rounded-xl border border-slate-100 bg-white text-sm font-bold text-slate-500"><LoaderCircle className="animate-spin" /> Loading dealer records...</div> : <>
       {section === "dealers" && <>
-        <section aria-label="Dealer filters and display options" className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center">
-          <label className="relative min-w-0 flex-1 md:max-w-md">
+        <section aria-label="Dealer search and filters" className="space-y-4 rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] sm:p-5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
+          <label className="relative min-w-[240px] flex-[1_1_320px]">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <span className="sr-only">Search dealers</span>
-            <input value={search} onChange={(event) => { setPage(1); setSearch(event.target.value); }} placeholder="Search dealers by name, ID, contact..." className="w-full rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 pl-12 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#008577] focus:bg-white" />
+            <input value={search} onChange={(event) => { setPage(1); setSearch(event.target.value); }} placeholder="Search dealers by name, ID, contact..." className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50/60 py-2.5 pl-11 pr-4 text-sm font-medium text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10" />
           </label>
-          <div className="flex flex-wrap items-center gap-2 md:ml-auto">
-            <CustomSelect aria-label="Filter dealers by status" value={statusFilter} onChange={(event) => { setPage(1); setStatusFilter(event.target.value); }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 outline-none focus:border-[#008577]">
+            <CustomSelect aria-label="Filter dealers by status" value={statusFilter} onChange={(event) => { setPage(1); setStatusFilter(event.target.value); }} className="min-h-12 rounded-[14px] border border-slate-200 bg-slate-50/60 px-3.5 text-sm font-semibold text-slate-700 shadow-sm outline-none transition hover:border-emerald-300 hover:bg-white focus:border-[#008577] focus:bg-white focus:ring-4 focus:ring-emerald-700/10">
               <option value="All">Select Status</option><option>Active</option><option>Inactive</option><option>On Hold</option>
             </CustomSelect>
             <DateRangeFilter className="shrink-0" onApply={(range) => { setPage(1); setDateRange(range); }} />
-            <div role="group" aria-label="Dealer display mode" className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-              <button type="button" onClick={() => setViewMode("table")} aria-label="List view" aria-pressed={viewMode === "table"} className={`rounded-lg p-2.5 transition ${viewMode === "table" ? "bg-[#003B3B] text-white" : "text-slate-400 hover:text-slate-700"}`}><List size={18} /></button>
-              <button type="button" onClick={() => setViewMode("grid")} aria-label="Card view" aria-pressed={viewMode === "grid"} className={`rounded-lg p-2.5 transition ${viewMode === "grid" ? "bg-[#003B3B] text-white" : "text-slate-400 hover:text-slate-700"}`}><LayoutGrid size={18} /></button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            <p className="text-sm font-semibold text-slate-500"><span className="font-black text-slate-800">{pagination.total}</span> dealer records</p>
+            <div role="group" aria-label="Dealer display mode" className="flex items-center rounded-xl border border-slate-200 bg-slate-100/80 p-1 shadow-inner">
+              <button type="button" onClick={() => setViewMode("table")} aria-label="List view" aria-pressed={viewMode === "table"} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-all ${viewMode === "table" ? "bg-[#003B3B] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><List size={18} /></button>
+              <button type="button" onClick={() => setViewMode("grid")} aria-label="Card view" aria-pressed={viewMode === "grid"} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-all ${viewMode === "grid" ? "bg-[#003B3B] text-white shadow-sm" : "text-slate-400 hover:text-slate-700"}`}><LayoutGrid size={18} /></button>
             </div>
-            <button type="button" onClick={() => startDealerEdit()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#003B3B] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#008577]"><Plus size={17} /> Register Dealer</button>
           </div>
         </section>
-        {viewMode === "table" ? <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+        {viewMode === "table" ? <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
         <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left">
-          <thead><tr className="bg-gradient-to-r from-[#003B3B] to-[#008577] text-xs uppercase tracking-wide text-white">
-            <th className="px-4 py-4">S No</th><th className="px-4 py-4">Dealer</th><th className="px-4 py-4">Category / GSTIN</th><th className="px-4 py-4">Contact</th><th className="px-4 py-4 text-right">Payable</th><th className="px-4 py-4 text-right">Receivable</th><th className="px-4 py-4">Status</th><th className="px-4 py-4 text-right">Actions</th>
+          <thead><tr className="bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577]">
+            {["S No", "Dealer", "Category / GSTIN", "Contact", "Payable", "Receivable", "Status", "Actions"].map((heading) => <th key={heading} scope="col" className={`whitespace-nowrap border-b border-white/15 px-5 py-4 text-[11px] font-extrabold uppercase tracking-[0.14em] text-white ${["Payable", "Receivable", "Actions"].includes(heading) ? "text-right" : ""}`}>{heading}</th>)}
           </tr></thead>
-          <tbody>{visibleDealers.length === 0 ? <tr><td colSpan="8" className="p-10 text-center text-sm text-slate-400">No dealer records match your search.</td></tr> : visibleDealers.map((dealer, index) => <tr key={dealer.id} className="border-b border-slate-100 hover:bg-emerald-50/30">
-            <td className="px-4 py-3 text-sm text-slate-500">{(page - 1) * 25 + index + 1}</td>
-            <td className="px-4 py-3"><button type="button" onClick={() => void openDealerDocs(dealer)} className="text-left font-bold text-[#003B3B] hover:underline">{dealer.name}</button><p className="text-xs text-slate-400">{dealer.dealer_code}</p></td>
-            <td className="px-4 py-3 text-sm text-slate-700">{dealer.category_name}<p className="text-xs text-slate-400">{dealer.gstin || "GSTIN not recorded"}</p></td>
-            <td className="px-4 py-3 text-sm text-slate-700">{dealer.contact_person}<p className="text-xs text-slate-400">{dealer.phone} · {dealer.email || "No email"}</p></td>
-            <td className="px-4 py-3 text-right font-bold text-slate-800">{currency(dealer.payable_balance)}</td>
-            <td className="px-4 py-3 text-right font-bold text-slate-800">{currency(dealer.receivable_balance)}</td>
-            <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${dealer.status === "Active" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}>{dealer.status}</span></td>
-            <td className="px-4 py-3"><div className="flex justify-end gap-2"><button type="button" onClick={() => void openStatement(dealer)} className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700">Statement</button><button type="button" onClick={() => startDealerEdit(dealer)} className="rounded-md bg-[#003B3B] px-2.5 py-1.5 text-xs font-bold text-white">Edit</button></div></td>
+          <tbody>{visibleDealers.length === 0 ? <tr><td colSpan="8" className="px-6 py-16 text-center text-sm font-medium text-slate-400">No dealer records match your search.</td></tr> : visibleDealers.map((dealer, index) => <tr key={dealer.id} className="group h-[82px] transition-colors odd:bg-white even:bg-slate-50/60 hover:bg-emerald-50/70">
+            <td className="border-b border-slate-100 px-5 py-4 text-sm font-semibold tabular-nums text-slate-500">{(page - 1) * 25 + index + 1}</td>
+            <td className="border-b border-slate-100 px-5 py-4"><button type="button" onClick={() => void openDealerDocs(dealer)} className="text-left text-sm font-extrabold text-slate-900 hover:text-[#007d70] hover:underline">{dealer.name}</button><p className="mt-1 text-xs font-medium text-slate-400">{dealer.dealer_code}</p></td>
+            <td className="border-b border-slate-100 px-5 py-4 text-sm font-medium text-slate-700">{dealer.category_name || "—"}<p className="mt-1 text-xs text-slate-400">{dealer.gstin || "GSTIN not recorded"}</p></td>
+            <td className="border-b border-slate-100 px-5 py-4 text-sm font-medium text-slate-700">{dealer.contact_person || "—"}<p className="mt-1 text-xs text-slate-400">{dealer.phone || "No phone"} · {dealer.email || "No email"}</p></td>
+            <td className="border-b border-slate-100 px-5 py-4 text-right text-sm font-extrabold tabular-nums text-slate-800">{currency(dealer.payable_balance)}</td>
+            <td className="border-b border-slate-100 px-5 py-4 text-right text-sm font-extrabold tabular-nums text-slate-800">{currency(dealer.receivable_balance)}</td>
+            <td className="border-b border-slate-100 px-5 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${dealer.status === "Active" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}>{dealer.status}</span></td>
+            <td className="border-b border-slate-100 px-5 py-4"><div className="flex justify-end gap-2"><button type="button" onClick={() => void openStatement(dealer)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50">Statement</button><button type="button" onClick={() => startDealerEdit(dealer)} className="rounded-lg bg-[#003B3B] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#008577]">Edit</button></div></td>
           </tr>)}</tbody>
         </table></div>
-        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
-          <span>{pagination.total} dealer records</span><div className="flex items-center gap-2"><button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded border px-2 py-1 disabled:opacity-40">Previous</button><span>Page {page} of {pagination.totalPages}</span><button type="button" disabled={page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)} className="rounded border px-2 py-1 disabled:opacity-40">Next</button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 text-xs text-slate-500">
+          <span className="font-medium">{pagination.total} dealer records</span><div className="flex items-center gap-2"><button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Previous</button><span className="px-1">Page {page} of {pagination.totalPages}</span><button type="button" disabled={page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Next</button></div>
         </div>
         </section> : <section aria-label="Dealers in card view" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visibleDealers.length === 0
-            ? <div className="rounded-2xl border border-slate-100 bg-white p-10 text-center text-sm text-slate-400 sm:col-span-2 xl:col-span-3">No dealer records match your search.</div>
-            : visibleDealers.map((dealer) => <article key={dealer.id} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            ? <div className="rounded-[22px] border border-slate-200 bg-white p-10 text-center text-sm text-slate-400 shadow-sm sm:col-span-2 xl:col-span-3">No dealer records match your search.</div>
+            : visibleDealers.map((dealer) => <article key={dealer.id} className="rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_5px_15px_rgba(15,23,42,0.055)] transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <button type="button" onClick={() => void openDealerDocs(dealer)} className="break-words text-left font-bold text-[#003B3B] hover:underline">{dealer.name}</button>
-                  <p className="mt-1 text-xs text-slate-400">{dealer.dealer_code}</p>
+                  <button type="button" onClick={() => void openDealerDocs(dealer)} className="break-words text-left font-extrabold text-slate-900 hover:text-[#007d70] hover:underline">{dealer.name}</button>
+                  <p className="mt-1 text-xs font-medium text-slate-400">{dealer.dealer_code}</p>
                 </div>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${dealer.status === "Active" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}>{dealer.status}</span>
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 text-sm">
-                <div><dt className="text-[10px] font-bold uppercase text-slate-400">Category / GSTIN</dt><dd className="mt-1 text-slate-700">{dealer.category_name || "—"}<span className="block text-xs text-slate-400">{dealer.gstin || "GSTIN not recorded"}</span></dd></div>
-                <div><dt className="text-[10px] font-bold uppercase text-slate-400">Contact</dt><dd className="mt-1 text-slate-700">{dealer.contact_person || "—"}<span className="block text-xs text-slate-400">{dealer.phone || "No phone"}</span></dd></div>
-                <div><dt className="text-[10px] font-bold uppercase text-slate-400">Payable</dt><dd className="mt-1 font-bold text-slate-800">{currency(dealer.payable_balance)}</dd></div>
-                <div><dt className="text-[10px] font-bold uppercase text-slate-400">Receivable</dt><dd className="mt-1 font-bold text-slate-800">{currency(dealer.receivable_balance)}</dd></div>
+                <div><dt className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Category / GSTIN</dt><dd className="mt-1 font-medium text-slate-700">{dealer.category_name || "—"}<span className="block text-xs text-slate-400">{dealer.gstin || "GSTIN not recorded"}</span></dd></div>
+                <div><dt className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Contact</dt><dd className="mt-1 font-medium text-slate-700">{dealer.contact_person || "—"}<span className="block text-xs text-slate-400">{dealer.phone || "No phone"}</span></dd></div>
+                <div><dt className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Payable</dt><dd className="mt-1 font-extrabold tabular-nums text-slate-800">{currency(dealer.payable_balance)}</dd></div>
+                <div><dt className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Receivable</dt><dd className="mt-1 font-extrabold tabular-nums text-slate-800">{currency(dealer.receivable_balance)}</dd></div>
               </dl>
               <div className="mt-4 flex justify-end gap-2 border-t border-slate-100 pt-4">
                 <button type="button" onClick={() => void openStatement(dealer)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700">Statement</button>
                 <button type="button" onClick={() => startDealerEdit(dealer)} className="rounded-lg bg-[#003B3B] px-3 py-2 text-xs font-bold text-white">Edit</button>
               </div>
             </article>)}
-          <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-xs text-slate-500 sm:col-span-2 xl:col-span-3">
-            <span>{pagination.total} dealer records</span><div className="flex items-center gap-2"><button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded border px-2 py-1 disabled:opacity-40">Previous</button><span>Page {page} of {pagination.totalPages}</span><button type="button" disabled={page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)} className="rounded border px-2 py-1 disabled:opacity-40">Next</button></div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-slate-200/80 bg-white px-5 py-4 text-xs text-slate-500 shadow-sm sm:col-span-2 xl:col-span-3">
+            <span className="font-medium">{pagination.total} dealer records</span><div className="flex items-center gap-2"><button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Previous</button><span className="px-1">Page {page} of {pagination.totalPages}</span><button type="button" disabled={page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Next</button></div>
           </div>
         </section>}
       </>}

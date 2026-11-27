@@ -57,6 +57,32 @@ const Category = () => {
         return response.data;
     }, []);
 
+    const {
+        data: products,
+        loading: productsLoading,
+        error: productsError
+    } = useAdminCachedList(`admin:category-product-counts:${user?.user_id || "current"}`, async () => {
+        const allProducts = [];
+        let page = 1;
+        let totalPages = 1;
+
+        do {
+            const response = await api.get("/products/mine", { params: { page, limit: 100 } });
+            const pageProducts = response.data?.products;
+            if (!Array.isArray(pageProducts)) {
+                throw new TypeError("Product list response did not contain a products array");
+            }
+            allProducts.push(...pageProducts);
+            const reportedTotalPages = Number(response.data?.pagination?.totalPages);
+            totalPages = Number.isSafeInteger(reportedTotalPages) && reportedTotalPages > 0
+                ? reportedTotalPages
+                : 1;
+            page += 1;
+        } while (page <= totalPages);
+
+        return allProducts;
+    }, []);
+
     // ---- View & Pagination State ----
     const [viewMode, setViewMode] = useState("table"); 
     const [searchQuery, setSearchQuery] = useState("");
@@ -88,6 +114,21 @@ const Category = () => {
             return matchesSearch && matchesStatus;
         });
     }, [categories, searchQuery, statusFilter]);
+
+    const productCountsByCategory = useMemo(() => products.reduce((counts, product) => {
+        const categoryName = String(product.category || "").trim().toLocaleLowerCase();
+        if (categoryName) counts[categoryName] = (counts[categoryName] || 0) + 1;
+        return counts;
+    }, {}), [products]);
+
+    const getCategoryProductCount = (category) => {
+        const savedCount = Number(category.totalProducts);
+        const hasSavedCount = Number.isSafeInteger(savedCount) && savedCount >= 0;
+        if (productsError) return hasSavedCount ? savedCount : "—";
+        if (productsLoading) return savedCount > 0 ? savedCount : "…";
+        const key = String(category.name || "").trim().toLocaleLowerCase();
+        return productCountsByCategory[key] || 0;
+    };
 
     const totalPages = Math.ceil(filteredCategories.length / itemsPerPage) || 1;
     const currentCategories = filteredCategories.slice(
@@ -363,6 +404,9 @@ const Category = () => {
                     <div>
                         <h2 className="text-sm font-extrabold text-slate-900">Category Directory</h2>
                         <p className="mt-0.5 text-xs text-slate-500">Manage collections, product counts, and category status.</p>
+                        {productsError && (
+                            <p role="alert" className="mt-1 text-[11px] font-medium text-amber-700">Product counts could not be refreshed; showing saved counts where available.</p>
+                        )}
                     </div>
                     <span className="inline-flex w-fit items-center rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
                         {filteredCategories.length} categories
@@ -406,7 +450,7 @@ const Category = () => {
                                 {currentCategories.map((cat, index) => {
                                     const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
                                     const status = cat.status || "Active";
-                                    const totalProducts = cat.totalProducts ?? 0;
+                                    const totalProducts = getCategoryProductCount(cat);
                                     const imageUrl = getCategoryImageUrl(cat.images);
 
                                     return (
@@ -465,7 +509,7 @@ const Category = () => {
                     <div className="grid grid-cols-1 gap-5 p-5 sm:grid-cols-2 xl:grid-cols-3">
                         {currentCategories.map((cat) => {
                             const status = cat.status || "Active";
-                            const totalProducts = cat.totalProducts ?? 0;
+                            const totalProducts = getCategoryProductCount(cat);
                             const imageUrl = getCategoryImageUrl(cat.images);
 
                             return (

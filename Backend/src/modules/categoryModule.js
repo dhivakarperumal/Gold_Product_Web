@@ -4,6 +4,10 @@ const CATEGORY_COLUMNS = `
   c.id, c.catId, c.name, c.description, c.subcategory, c.images, c.user_id,
   c.status, c.created_at, c.updated_at
 `;
+const CATEGORY_PRODUCT_COUNT = `
+  (SELECT COUNT(*) FROM products p
+   WHERE p.category = c.name AND p.created_by = c.user_id) AS totalProducts
+`;
 const CATEGORY_AUDIT_COLUMNS = `
   c.created_by, creator.username AS created_by_name,
   c.updated_by, updater.username AS updated_by_name
@@ -181,10 +185,11 @@ async function listCategories({ includeAudit = false, userId } = {}) {
     ? `LEFT JOIN users creator ON creator.user_id = c.created_by
        LEFT JOIN users updater ON updater.user_id = c.updated_by`
     : '';
+  const productCountColumn = includeAudit ? `, ${CATEGORY_PRODUCT_COUNT}` : '';
   const where = includeAudit ? 'WHERE c.user_id = ?' : '';
   const params = includeAudit ? [userId] : [];
   const [categories] = await pool.query(
-    `SELECT ${CATEGORY_COLUMNS}${auditColumns}
+    `SELECT ${CATEGORY_COLUMNS}${productCountColumn}${auditColumns}
      FROM categories c ${auditJoins}
      ${where}
      ORDER BY c.created_at DESC, c.id DESC`,
@@ -195,7 +200,7 @@ async function listCategories({ includeAudit = false, userId } = {}) {
 
 async function selectCategoryById(connection, catId, userId) {
   const [categories] = await connection.execute(
-    `SELECT ${CATEGORY_COLUMNS}, ${CATEGORY_AUDIT_COLUMNS}
+    `SELECT ${CATEGORY_COLUMNS}, ${CATEGORY_PRODUCT_COUNT}, ${CATEGORY_AUDIT_COLUMNS}
      FROM categories c
      LEFT JOIN users creator ON creator.user_id = c.created_by
      LEFT JOIN users updater ON updater.user_id = c.updated_by

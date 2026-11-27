@@ -6,6 +6,9 @@ const DEFAULT_CATEGORIES = [
   'Gold Supplier', 'Bullion Dealer', 'Jewellery Wholesaler', 'Goldsmith',
   'Job Worker', 'Old-Gold Dealer', 'Refiner', 'Manufacturer'
 ];
+const OVERDUE_INVOICE_CONDITION = `p.document_type = 'invoice'
+  AND COALESCE(p.due_date, DATE_ADD(p.document_date, INTERVAL d.payment_terms_days DAY)) < CURDATE()
+  AND p.total > p.paid_amount`;
 
 async function initializeDealerModule() {
   const schemas = [
@@ -534,7 +537,8 @@ async function getDealerSummary() {
     COALESCE(SUM(receivable_delta), 0) AS receivables
     FROM dealer_financial_ledger`);
   const [[overdue]] = await pool.query(`SELECT COUNT(*) AS count, COALESCE(SUM(p.total - p.paid_amount), 0) AS amount
-    FROM dealer_purchases p WHERE p.document_type = 'invoice' AND p.due_date < CURDATE() AND p.total > p.paid_amount`);
+    FROM dealer_purchases p JOIN dealers d ON d.id = p.dealer_id
+    WHERE ${OVERDUE_INVOICE_CONDITION}`);
   const [[jobs]] = await pool.query("SELECT COUNT(*) AS count FROM dealer_jobs WHERE status NOT IN ('Reconciled','Cancelled')");
   const [[periodPurchases]] = await pool.query(`SELECT COALESCE(SUM(total), 0) AS total
     FROM dealer_purchases WHERE document_type = 'invoice'
@@ -650,9 +654,9 @@ async function createPurchase(input, userId) {
     const rates = new Map(rateRows.filter(([, rate]) => rate).map(([key, rate]) => [key, rate]));
     const totals = calculatePurchaseLines(input.lines, rates);
     let dueDate = input.due_date;
-    if (!dueDate && input.document_type === 'invoice' && Number(dealer.payment_terms_days) > 0) {
+    if (!dueDate && input.document_type === 'invoice') {
       const calculatedDue = new Date(`${input.document_date}T00:00:00.000Z`);
-      calculatedDue.setUTCDate(calculatedDue.getUTCDate() + Number(dealer.payment_terms_days));
+      calculatedDue.setUTCDate(calculatedDue.getUTCDate() + Number(dealer.payment_terms_days || 0));
       dueDate = calculatedDue.toISOString().slice(0, 10);
     }
     if (input.document_type === 'invoice' && Number(dealer.credit_limit) > 0) {
@@ -740,7 +744,7 @@ async function listPurchases({ dealerId, page, limit, search, overdue, dateRange
   addDateRangeCondition(clauses, values, 'p.document_date', dateRange);
   if (dealerId) { clauses.push('p.dealer_id = ?'); values.push(dealerId); }
   if (search) { clauses.push('(p.document_number LIKE ? OR p.supplier_invoice_number LIKE ? OR d.name LIKE ?)'); const term = `%${search}%`; values.push(term, term, term); }
-  if (overdue) clauses.push("p.document_type = 'invoice' AND p.due_date < CURDATE() AND p.total > p.paid_amount");
+  if (overdue) clauses.push(OVERDUE_INVOICE_CONDITION);
   const where = `WHERE ${clauses.join(' AND ')}`;
   const [[{ total }]] = await pool.execute(
     `SELECT COUNT(*) AS total FROM dealer_purchases p JOIN dealers d ON d.id = p.dealer_id ${where}`,
