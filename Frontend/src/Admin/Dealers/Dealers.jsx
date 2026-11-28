@@ -652,37 +652,132 @@ const Dealers = () => {
       </div>}
     </>}
 
-    {dialog === "dealer" && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4">
-      <form onSubmit={submitDealer} className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4"><div><h2 className="text-xl font-black text-slate-900">{editingDealer ? "Update dealer profile" : "Register jewellery trade partner"}</h2><p className="text-xs text-slate-500">Financial and metal opening balances post once to separate ledgers.</p></div><button type="button" onClick={() => setDialog("")} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X /></button></div>
-        <div className="grid gap-5 p-6 md:grid-cols-3">
-          <Field label="Dealer / firm name" required value={form.name} onChange={(e) => setDealerField("name", e.target.value)} />
-          <SelectField label="Dealer category" required value={form.category_id} onChange={(e) => setDealerField("category_id", e.target.value)}><option value="">Choose category</option>{categories.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectField>
-          <SelectField label="Status" value={form.status} onChange={(e) => setDealerField("status", e.target.value)}><option>Active</option><option>Inactive</option><option>On Hold</option></SelectField>
-          <Field label="Contact person" required value={form.contact_person} onChange={(e) => setDealerField("contact_person", e.target.value)} />
-          <Field label="Phone" required value={form.phone} onChange={(e) => setDealerField("phone", e.target.value)} />
-          <Field label="Alternate phone" value={form.alternate_phone} onChange={(e) => setDealerField("alternate_phone", e.target.value)} />
-          <Field label="Email" type="email" value={form.email} onChange={(e) => setDealerField("email", e.target.value)} />
-          <Field label="GSTIN" value={form.gstin} onChange={(e) => setDealerField("gstin", e.target.value.toUpperCase())} />
-          <Field label="PAN" value={form.pan} onChange={(e) => setDealerField("pan", e.target.value.toUpperCase())} />
-          <Field label="Billing address" value={form.billing_address_line1} onChange={(e) => setDealerField("billing_address_line1", e.target.value)} />
-          <Field label="Billing city" value={form.billing_city} onChange={(e) => setDealerField("billing_city", e.target.value)} />
-          <Field label="Billing state" value={form.billing_state} onChange={(e) => setDealerField("billing_state", e.target.value)} />
-          <Field label="Billing pincode" value={form.billing_pincode} onChange={(e) => setDealerField("billing_pincode", e.target.value)} />
-          <Field label="Shipping address" value={form.shipping_address_line1} onChange={(e) => setDealerField("shipping_address_line1", e.target.value)} />
-          <Field label="Shipping city" value={form.shipping_city} onChange={(e) => setDealerField("shipping_city", e.target.value)} />
-          <Field label="Shipping state" value={form.shipping_state} onChange={(e) => setDealerField("shipping_state", e.target.value)} />
-          <Field label="Shipping pincode" value={form.shipping_pincode} onChange={(e) => setDealerField("shipping_pincode", e.target.value)} />
-          <Field label="Credit limit (₹)" type="number" min="0" step="0.01" value={form.credit_limit} onChange={(e) => setDealerField("credit_limit", e.target.value)} />
-          <Field label="Payment terms (days)" type="number" min="0" step="1" value={form.payment_terms_days} onChange={(e) => setDealerField("payment_terms_days", e.target.value)} />
-          <Field label="Bank name" value={form.bank_name} onChange={(e) => setDealerField("bank_name", e.target.value)} />
-          <Field label="Account holder" value={form.bank_account_name} onChange={(e) => setDealerField("bank_account_name", e.target.value)} />
-          <Field label="Account number" value={form.bank_account_number} onChange={(e) => setDealerField("bank_account_number", e.target.value)} />
-          <Field label="IFSC" value={form.bank_ifsc} onChange={(e) => setDealerField("bank_ifsc", e.target.value.toUpperCase())} />
-          {!editingDealer && <><SelectField label="Opening financial balance side" value={form.opening_balance_side} onChange={(e) => setDealerField("opening_balance_side", e.target.value)}><option value="payable">Payable to dealer</option><option value="receivable">Receivable from dealer</option></SelectField><Field label="Opening financial balance (₹)" type="number" min="0" step="0.01" value={form.opening_balance} onChange={(e) => setDealerField("opening_balance", e.target.value)} /><SelectField label="Opening metal type" value={form.opening_metal_type} onChange={(e) => setDealerField("opening_metal_type", e.target.value)}><option>Gold</option><option>Silver</option></SelectField><SelectField label="Opening metal purity" value={form.opening_metal_purity} onChange={(e) => setDealerField("opening_metal_purity", e.target.value)}>{PURITIES.map((purity) => <option key={purity}>{purity}</option>)}</SelectField><Field label="Opening metal weight (g, optional)" type="number" min="0.001" step="0.001" value={form.opening_metal_weight} onChange={(e) => setDealerField("opening_metal_weight", e.target.value)} /></>}
-          <label className="block space-y-1.5 md:col-span-3"><span className="text-[11px] font-bold uppercase text-slate-500">Account notes</span><textarea value={form.notes} onChange={(e) => setDealerField("notes", e.target.value)} rows="3" className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-[#008577]" /></label>
+    {dialog === "dealer" && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm sm:p-5">
+      <form onSubmit={submitDealer} className="max-h-[94vh] w-full max-w-6xl overflow-y-auto rounded-[26px] border border-white/50 bg-white shadow-[0_30px_90px_rgba(2,20,19,0.35)]">
+        <div className="sticky top-0 z-20 overflow-hidden bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577] px-5 py-5 text-white sm:px-8 sm:py-6">
+          <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-32 h-72 w-72 rounded-full border border-white/10">
+            <div className="absolute inset-8 rounded-full border border-white/10" />
+          </div>
+          <div className="relative flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-4">
+              <span className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-inner sm:flex"><Building2 size={26} /></span>
+              <div className="min-w-0">
+                <p className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-emerald-100">Dealer management · Business account</p>
+                <h2 className="text-xl font-black tracking-tight sm:text-2xl">{editingDealer ? "Update dealer profile" : "Register jewellery trade partner"}</h2>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-emerald-50 sm:text-sm">Manage contact details, account terms, opening balances, and settlement information.</p>
+              </div>
+            </div>
+            <button type="button" onClick={() => setDialog("")} aria-label="Close dealer form" className="shrink-0 rounded-xl border border-white/20 bg-white/10 p-2.5 text-white transition hover:bg-white/20"><X size={19} /></button>
+          </div>
         </div>
-        <div className="flex justify-end gap-2 border-t border-gray-200 bg-slate-50 p-4"><button type="button" onClick={() => setDialog("")} className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-bold">Cancel</button><button disabled={saving} className="rounded-lg border border-gray-200 bg-[#003B3B] px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{saving ? "Saving…" : editingDealer ? "Save profile" : "Create dealer"}</button></div>
+
+        <div className="space-y-4 bg-slate-50/80 p-4 sm:p-6">
+          <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-sm font-black text-emerald-800">01</span>
+              <div><h3 className="text-sm font-extrabold text-slate-900">Business & contact</h3><p className="text-xs text-slate-500">Identity, category, and primary contact details.</p></div>
+            </div>
+            <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3 sm:p-5">
+              <Field label="Dealer / firm name" required value={form.name} onChange={(e) => setDealerField("name", e.target.value)} />
+              <SelectField label="Dealer category" required value={form.category_id} onChange={(e) => setDealerField("category_id", e.target.value)}><option value="">Choose category</option>{categories.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectField>
+              <SelectField label="Status" value={form.status} onChange={(e) => setDealerField("status", e.target.value)}><option>Active</option><option>Inactive</option><option>On Hold</option></SelectField>
+              <Field label="Contact person" required value={form.contact_person} onChange={(e) => setDealerField("contact_person", e.target.value)} />
+              <Field label="Phone" required value={form.phone} onChange={(e) => setDealerField("phone", e.target.value)} />
+              <Field label="Alternate phone" value={form.alternate_phone} onChange={(e) => setDealerField("alternate_phone", e.target.value)} />
+              <Field label="Email" type="email" value={form.email} onChange={(e) => setDealerField("email", e.target.value)} />
+              <Field label="GSTIN" value={form.gstin} onChange={(e) => setDealerField("gstin", e.target.value.toUpperCase())} />
+              <Field label="PAN" value={form.pan} onChange={(e) => setDealerField("pan", e.target.value.toUpperCase())} />
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sm font-black text-sky-800">02</span>
+              <div><h3 className="text-sm font-extrabold text-slate-900">Business addresses</h3><p className="text-xs text-slate-500">Billing and delivery locations for this dealer.</p></div>
+            </div>
+            <div className="grid gap-4 p-4 xl:grid-cols-2 sm:p-5">
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-4">
+                <h4 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-slate-700">Billing address</h4>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="sm:col-span-3"><Field label="Address" value={form.billing_address_line1} onChange={(e) => setDealerField("billing_address_line1", e.target.value)} /></div>
+                  <Field label="City" value={form.billing_city} onChange={(e) => setDealerField("billing_city", e.target.value)} />
+                  <Field label="State" value={form.billing_state} onChange={(e) => setDealerField("billing_state", e.target.value)} />
+                  <Field label="Pincode" value={form.billing_pincode} onChange={(e) => setDealerField("billing_pincode", e.target.value)} />
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-4">
+                <h4 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-slate-700">Shipping address</h4>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="sm:col-span-3"><Field label="Address" value={form.shipping_address_line1} onChange={(e) => setDealerField("shipping_address_line1", e.target.value)} /></div>
+                  <Field label="City" value={form.shipping_city} onChange={(e) => setDealerField("shipping_city", e.target.value)} />
+                  <Field label="State" value={form.shipping_state} onChange={(e) => setDealerField("shipping_state", e.target.value)} />
+                  <Field label="Pincode" value={form.shipping_pincode} onChange={(e) => setDealerField("shipping_pincode", e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-sm font-black text-amber-800">03</span>
+              <div><h3 className="text-sm font-extrabold text-slate-900">Financial terms</h3><p className="text-xs text-slate-500">{editingDealer ? "Update credit exposure and payment terms without changing posted balances." : "Configure the dealer’s credit and opening account balance."}</p></div>
+            </div>
+            <div className={`grid gap-4 p-4 sm:grid-cols-2 sm:p-5 ${editingDealer ? "xl:grid-cols-2" : "xl:grid-cols-4"}`}>
+              <Field label="Credit limit (₹)" type="number" min="0" step="0.01" value={form.credit_limit} onChange={(e) => setDealerField("credit_limit", e.target.value)} />
+              <Field label="Payment terms (days)" type="number" min="0" step="1" value={form.payment_terms_days} onChange={(e) => setDealerField("payment_terms_days", e.target.value)} />
+              {!editingDealer && <>
+                <SelectField label="Opening balance side" value={form.opening_balance_side} onChange={(e) => setDealerField("opening_balance_side", e.target.value)}><option value="payable">Payable to dealer</option><option value="receivable">Receivable from dealer</option></SelectField>
+                <Field label="Opening balance (₹)" type="number" min="0" step="0.01" value={form.opening_balance} onChange={(e) => setDealerField("opening_balance", e.target.value)} />
+              </>}
+            </div>
+          </section>
+
+          {!editingDealer && <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-sm font-black text-violet-800">04</span>
+              <div><h3 className="text-sm font-extrabold text-slate-900">Opening metal balance</h3><p className="text-xs text-slate-500">Optional starting metal held by or owed to the dealer.</p></div>
+            </div>
+            <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3 sm:p-5">
+              <SelectField label="Metal type" value={form.opening_metal_type} onChange={(e) => setDealerField("opening_metal_type", e.target.value)}><option>Gold</option><option>Silver</option></SelectField>
+              <SelectField label="Metal purity" value={form.opening_metal_purity} onChange={(e) => setDealerField("opening_metal_purity", e.target.value)}>{PURITIES.map((purity) => <option key={purity}>{purity}</option>)}</SelectField>
+              <Field label="Metal weight (g, optional)" type="number" min="0.001" step="0.001" value={form.opening_metal_weight} onChange={(e) => setDealerField("opening_metal_weight", e.target.value)} />
+            </div>
+          </section>}
+
+          <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-sm font-black text-teal-800">{editingDealer ? "04" : "05"}</span>
+              <div><h3 className="text-sm font-extrabold text-slate-900">Bank details & notes</h3><p className="text-xs text-slate-500">Optional settlement information and internal account notes.</p></div>
+            </div>
+            <div className="space-y-4 p-4 sm:p-5">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <Field label="Bank name" value={form.bank_name} onChange={(e) => setDealerField("bank_name", e.target.value)} />
+                <Field label="Account holder" value={form.bank_account_name} onChange={(e) => setDealerField("bank_account_name", e.target.value)} />
+                <Field label="Account number" value={form.bank_account_number} onChange={(e) => setDealerField("bank_account_number", e.target.value)} />
+                <Field label="IFSC" value={form.bank_ifsc} onChange={(e) => setDealerField("bank_ifsc", e.target.value.toUpperCase())} />
+              </div>
+              <label className="block space-y-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Account notes</span>
+                <textarea value={form.notes} onChange={(e) => setDealerField("notes", e.target.value)} rows="3" placeholder="Add internal notes for this dealer account…" className="w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#008577] focus:ring-2 focus:ring-emerald-800/10" />
+              </label>
+            </div>
+          </section>
+          <div className="flex items-start gap-2 rounded-xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 text-xs leading-5 text-emerald-900">
+            <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-700" />
+            {editingDealer ? "Profile updates do not alter opening balances already posted to the financial and metal ledgers." : "Opening balances are posted once to separate financial and metal ledgers."}
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur sm:px-6">
+          <p className="hidden items-center gap-2 text-xs font-medium text-slate-500 sm:flex"><span className="h-2 w-2 rounded-full bg-rose-500" /> Required fields are marked with an asterisk.</p>
+          <div className="ml-auto flex gap-2">
+            <button type="button" onClick={() => setDialog("")} className="min-h-11 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50">Cancel</button>
+            <button disabled={saving} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-[#064e45] to-[#008577] px-5 py-2.5 text-sm font-extrabold text-white shadow-md shadow-emerald-900/15 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50">
+              {saving ? <LoaderCircle size={16} className="animate-spin" /> : <Check size={16} />}
+              {saving ? "Saving…" : editingDealer ? "Save profile" : "Create dealer"}
+            </button>
+          </div>
+        </div>
       </form>
     </div>}
 

@@ -25,30 +25,38 @@ const STAT_CARDS = [
   {
     id: "total_customers",
     icon: UsersRound,
-    cardStyle: "border-[#2C6A55] bg-[#123B32]",
-    iconStyle: "bg-[#006D50] text-white",
-    accent: "#6EE7B7"
+    cardStyle: "border-t-[#00b8a9] bg-gradient-to-br from-[#eefbf9] to-white",
+    iconStyle: "bg-[#009b8b] text-white",
+    dotStyle: "bg-[#009b8b]",
+    trendStyle: "text-[#007d70]",
+    accent: "#009b8b"
   },
   {
     id: "active_gold_loans",
     icon: Wallet,
-    cardStyle: "border-[#8B6D2E] bg-[#3D3019]",
-    iconStyle: "bg-gradient-to-br from-[#F7C84B] to-[#B87500] text-white",
-    accent: "#FCD36B"
+    cardStyle: "border-t-amber-500 bg-gradient-to-br from-amber-50 to-white",
+    iconStyle: "bg-amber-500 text-white",
+    dotStyle: "bg-amber-600",
+    trendStyle: "text-amber-700",
+    accent: "#d97706"
   },
   {
     id: "total_products",
     icon: Package,
-    cardStyle: "border-[#546E7A] bg-[#263238]",
-    iconStyle: "bg-[#00838F] text-white",
-    accent: "#80DEEA"
+    cardStyle: "border-t-sky-500 bg-gradient-to-br from-sky-50 to-white",
+    iconStyle: "bg-sky-600 text-white",
+    dotStyle: "bg-sky-600",
+    trendStyle: "text-sky-700",
+    accent: "#0284c7"
   },
   {
     id: "gold_stock_value",
     icon: Gem,
-    cardStyle: "border-[#9A533D] bg-[#482A24]",
-    iconStyle: "bg-gradient-to-br from-[#F7C84B] to-[#B87500] text-white",
-    accent: "#FDBA9A"
+    cardStyle: "border-t-rose-500 bg-gradient-to-br from-rose-50 to-white",
+    iconStyle: "bg-rose-600 text-white",
+    dotStyle: "bg-rose-600",
+    trendStyle: "text-rose-700",
+    accent: "#e11d48"
   }
 ];
 
@@ -267,59 +275,68 @@ const Reports = () => {
 
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-5 pb-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
-            Admin insights
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Reports</h1>
-          <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Sales trends, customers, inventory and gold loan activity from your dashboard data.
-          </p>
+      <header className="relative isolate overflow-hidden rounded-[26px] bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577] px-5 py-6 text-white shadow-[0_20px_45px_rgba(4,78,69,0.18)] sm:px-8 sm:py-7">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-32 h-80 w-80 rounded-full border border-white/10">
+          <div className="absolute inset-8 rounded-full border border-white/10" />
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <DateRangeFilter onApply={setDateRange} />
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => reportsData && downloadExcel(reportsData, exportRange)}
-              disabled={!reportsData || loading}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-800 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
-            >
-              <FileSpreadsheet size={16} />
-              Excel
-            </button>
-            <button
-              type="button"
-              onClick={() => reportsData && openPdfReport(reportsData, exportRange)}
-              disabled={!reportsData || loading}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-700 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
-            >
-              <FileText size={16} />
-              PDF
-            </button>
-            <button
-              type="button"
-              onClick={() => reportsData && shareReport(reportsData, exportRange)}
-              disabled={!reportsData || loading}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
-            >
-              <Share2 size={16} />
-              Share
-            </button>
+        <div className="relative flex flex-wrap items-center justify-between gap-5">
+          <div>
+            <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.2em] text-emerald-100">
+              Admin insights <span className="mx-1.5 text-emerald-200/70">·</span> Business overview
+            </p>
+            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Reports</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50 sm:text-base">
+              Track sales trends, customers, inventory, and gold loan activity from your dashboard.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white shadow-inner">
+            <span className="h-2 w-2 rounded-full bg-emerald-300" />
+            Live dashboard data
           </div>
         </div>
-      </div>
+      </header>
+
+      <section aria-label="Report date range and export actions" className="flex flex-col gap-3 rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <DateRangeFilter onApply={setDateRange} />
+          <span className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">{selectedRange}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => reportsData && downloadExcel(reportsData, exportRange)}
+            disabled={!reportsData || loading}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 text-xs font-extrabold text-white shadow-sm transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+          >
+            <FileSpreadsheet size={16} /> Excel
+          </button>
+          <button
+            type="button"
+            onClick={() => reportsData && openPdfReport(reportsData, exportRange)}
+            disabled={!reportsData || loading}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-rose-700 px-4 text-xs font-extrabold text-white shadow-sm transition hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+          >
+            <FileText size={16} /> PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => reportsData && shareReport(reportsData, exportRange)}
+            disabled={!reportsData || loading}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-extrabold text-slate-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+          >
+            <Share2 size={16} /> Share
+          </button>
+        </div>
+      </section>
 
       {error && !reportsData ? (
-        <section className="rounded-2xl border border-rose-200 bg-white p-8 text-center shadow-sm">
+        <section className="rounded-[22px] border border-rose-200 bg-white p-8 text-center shadow-sm">
           <p className="font-semibold text-slate-800">Reports couldn’t be loaded.</p>
           <p className="mt-1 text-sm text-slate-500">Check your connection and try again.</p>
           <button
             type="button"
             onClick={() => setRetryKey((key) => key + 1)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-900"
           >
             <RefreshCw size={15} />
             Try again
@@ -327,160 +344,163 @@ const Reports = () => {
         </section>
       ) : (
         <>
-          <section aria-label="Report summary" className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-            {STAT_CARDS.map(({ id, icon: Icon, cardStyle, iconStyle, accent }) => {
+          <section aria-label="Report summary" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {STAT_CARDS.map(({ id, icon: Icon, cardStyle, iconStyle, dotStyle, trendStyle, accent }) => {
               const stat = statById.get(id);
               return (
                 <article
                   key={id}
-                  className={`relative flex min-h-[164px] min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-l-4 p-4 pr-10 shadow-[0_3px_12px_rgba(30,41,59,0.1)] transition duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:p-5 sm:pr-11 ${cardStyle}`}
+                  className={`relative flex min-h-[150px] min-w-0 items-center justify-between gap-3 overflow-hidden rounded-[22px] border-x border-b border-t-4 border-x-slate-200/70 border-b-slate-200/70 p-4 shadow-[0_5px_15px_rgba(15,23,42,0.055)] transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-5 2xl:p-6 ${cardStyle}`}
                 >
-                  <div className={`z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl shadow-md ring-1 ring-white/10 ${iconStyle}`}>
-                    <Icon size={22} strokeWidth={2.2} />
-                  </div>
-                  <div className="relative z-10 min-w-0">
-                    <p className="truncate text-xs font-semibold leading-5 text-slate-200">{stat?.label || "Loading metric"}</p>
-                    <p className="mt-1 truncate text-2xl font-black leading-tight tracking-tight text-white tabular-nums">
-                      {loading && !stat ? "—" : stat?.value || "—"}
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">{stat?.label || "Loading metric"}</p>
+                    <p className="my-2 truncate text-2xl font-black leading-tight tracking-tight text-slate-950 tabular-nums sm:text-3xl 2xl:text-4xl">
+                      {loading && !stat ? "—" : stat?.value ?? "—"}
                     </p>
-                    <div className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] font-bold leading-4 text-emerald-300">
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-current" />
+                    <p className={`flex min-w-0 items-center gap-2 text-xs font-bold ${trendStyle}`}>
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${dotStyle}`} />
                       <span className="truncate">{stat?.trend || "From dashboard data"}</span>
-                    </div>
-                    <p className="mt-1 truncate text-[10px] font-medium leading-4 text-slate-300">
-                      {selectedRange} · Dashboard report
                     </p>
+                    <p className="mt-1 truncate text-[10px] font-medium text-slate-500">{selectedRange} · Dashboard report</p>
                   </div>
-                  <TrendingUp
-                    aria-hidden="true"
-                    size={30}
-                    strokeWidth={2.5}
-                    style={{ color: accent }}
-                    className="absolute bottom-3 right-3 opacity-90"
-                  />
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] text-white shadow-lg shadow-slate-900/10 xl:h-10 xl:w-10 2xl:h-14 2xl:w-14 ${iconStyle}`}>
+                    <Icon size={23} strokeWidth={2.2} />
+                  </div>
+                  <TrendingUp aria-hidden="true" size={26} strokeWidth={2.5} style={{ color: accent }} className="absolute bottom-3 right-3 opacity-15" />
                 </article>
               );
             })}
           </section>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-            <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5 xl:col-span-3">
+            <section className="rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] sm:p-6 xl:col-span-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-bold text-slate-900">Sales overview</h2>
-                  <p className="mt-1 text-xs text-slate-500">{selectedRange} · Values returned by the dashboard API</p>
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800"><TrendingUp size={18} /></span>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900">Sales overview</h2>
+                    <p className="mt-1 text-xs text-slate-500">{selectedRange} · Values returned by the dashboard API</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-slate-500">Period total</p>
-                  <p className="font-bold text-slate-900">{formatCurrency(chartTotal)}</p>
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-2.5 text-right">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">Period total</p>
+                  <p className="mt-0.5 text-base font-black tabular-nums text-slate-900">{formatCurrency(chartTotal)}</p>
                 </div>
               </div>
 
               {chartValues.length ? (
-                <div className="mt-5 overflow-x-auto pb-1">
-                  <div className="relative flex h-56 min-w-[560px] items-end gap-2 border-b border-l border-slate-200 px-3 pb-7 pt-3 sm:gap-3">
-                    <div className="pointer-events-none absolute inset-x-0 top-3 bottom-7 flex flex-col justify-between">
-                      {[0, 1, 2, 3].map((line) => (
-                        <div key={line} className="border-t border-dashed border-slate-100" />
-                      ))}
-                    </div>
-                    {chartValues.map((item, index) => {
-                      const amount = Number(item.revenue) || 0;
-                      const height = Math.max((amount / chartMax) * 100, amount > 0 ? 4 : 0);
-                      const labelStep = Math.max(1, Math.ceil(chartValues.length / 8));
-                      const showLabel = index % labelStep === 0 || index === chartValues.length - 1;
-                      return (
-                        <div
-                          key={`${item.label}-${index}`}
-                          className="relative z-10 flex h-full min-w-0 flex-1 flex-col justify-end"
-                          title={`${item.date || item.label}: ${formatCurrency(amount)}`}
-                        >
-                          <div className="flex h-full items-end">
-                            <div
-                              className="w-full rounded-t-md bg-gradient-to-t from-emerald-700 to-teal-500 transition-[height] duration-300"
-                              style={{ height: `${height}%` }}
-                            />
+                <div className="mt-5 overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50/80 to-white p-3 sm:p-4">
+                  <div className="overflow-x-auto pb-1">
+                    <div className="relative flex h-56 min-w-[560px] items-end gap-2 border-b border-l border-slate-200 px-3 pb-7 pt-3 sm:gap-3">
+                      <div className="pointer-events-none absolute inset-x-0 top-3 bottom-7 flex flex-col justify-between">
+                        {[0, 1, 2, 3].map((line) => (
+                          <div key={line} className="border-t border-dashed border-slate-200/80" />
+                        ))}
+                      </div>
+                      {chartValues.map((item, index) => {
+                        const amount = Number(item.revenue) || 0;
+                        const height = Math.max((amount / chartMax) * 100, amount > 0 ? 4 : 0);
+                        const labelStep = Math.max(1, Math.ceil(chartValues.length / 8));
+                        const showLabel = index % labelStep === 0 || index === chartValues.length - 1;
+                        return (
+                          <div
+                            key={`${item.label}-${index}`}
+                            className="relative z-10 flex h-full min-w-0 flex-1 flex-col justify-end"
+                            title={`${item.date || item.label}: ${formatCurrency(amount)}`}
+                          >
+                            <div className="flex h-full items-end">
+                              <div
+                                className="w-full rounded-t-lg bg-gradient-to-t from-[#087968] to-[#25c6ae] shadow-[0_4px_12px_rgba(8,121,104,0.16)] transition-[height] duration-300"
+                                style={{ height: `${height}%` }}
+                              />
+                            </div>
+                            {showLabel && (
+                              <span className="absolute -bottom-6 left-1/2 w-12 -translate-x-1/2 truncate text-center text-[10px] font-semibold text-slate-500">
+                                {item.label}
+                              </span>
+                            )}
                           </div>
-                          {showLabel && (
-                            <span className="absolute -bottom-6 left-1/2 w-12 -translate-x-1/2 truncate text-center text-[10px] font-medium text-slate-500">
-                              {item.label}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="mt-5 flex h-56 items-center justify-center rounded-xl bg-slate-50 text-sm text-slate-500">
+                <div className="mt-5 flex h-56 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm font-medium text-slate-500">
                   No sales trend data is available for this period.
                 </div>
               )}
             </section>
 
-            <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5 xl:col-span-2">
+            <section className="rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] sm:p-6 xl:col-span-2">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-bold text-slate-900">Gold loan report</h2>
-                  <p className="mt-1 text-xs text-slate-500">Current loan counts from the dashboard</p>
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Wallet size={18} /></span>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900">Gold loan report</h2>
+                    <p className="mt-1 text-xs text-slate-500">Current loan counts from the dashboard</p>
+                  </div>
                 </div>
-                <div className="rounded-lg bg-amber-50 px-3 py-1.5 text-right">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-amber-800">Total loans</p>
-                  <p className="font-bold text-amber-900">{reportsData?.totalLoansCount ?? "—"}</p>
+                <div className="rounded-xl border border-amber-100 bg-amber-50 px-3.5 py-2 text-right">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wide text-amber-800">Total loans</p>
+                  <p className="text-lg font-black tabular-nums text-amber-950">{reportsData?.totalLoansCount ?? "—"}</p>
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-2 gap-2">
                 {displayedStatuses.map((status) => (
-                  <div key={status} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3">
-                    <span className="text-xs font-medium text-slate-600">{status}</span>
-                    <span className="text-sm font-bold text-slate-900">{loanStatuses[status] ?? 0}</span>
+                  <div key={status} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/70 bg-gradient-to-r from-slate-50 to-white px-3 py-3">
+                    <span className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                      <span className={`h-2 w-2 rounded-full ${status === "Active" ? "bg-emerald-500" : status === "Processing" ? "bg-sky-500" : status === "Pending" ? "bg-amber-500" : "bg-rose-500"}`} />
+                      {status}
+                    </span>
+                    <span className="text-sm font-black tabular-nums text-slate-900">{loanStatuses[status] ?? 0}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-3 text-xs text-emerald-900">
-                <BarChart3 size={16} className="shrink-0" />
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3.5 py-3 text-xs font-medium text-emerald-900">
+                <BarChart3 size={16} className="shrink-0 text-emerald-700" />
                 <span>Loan status counts reflect the latest dashboard response.</span>
               </div>
             </section>
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-            <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm xl:col-span-3">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
-                <div>
-                  <h2 className="font-bold text-slate-900">Recent loan activity</h2>
-                  <p className="mt-1 text-xs text-slate-500">Latest loan records in the dashboard response</p>
+            <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.06)] xl:col-span-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><BarChart3 size={18} /></span>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900">Recent loan activity</h2>
+                    <p className="mt-1 text-xs text-slate-500">Latest loan records in the dashboard response</p>
+                  </div>
                 </div>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{loans.length} records</span>
+                <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-800">{loans.length} records</span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[650px] text-left text-xs">
-                  <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold sm:px-5">Loan ID</th>
-                      <th className="px-4 py-3 font-semibold">Customer</th>
-                      <th className="px-4 py-3 font-semibold">Jewellery</th>
-                      <th className="px-4 py-3 font-semibold">Amount</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
-                      <th className="px-4 py-3 font-semibold">Date</th>
+                <table className="w-full min-w-[700px] border-separate border-spacing-0 text-left text-sm">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-[#064e45] via-[#087968] to-[#008577]">
+                      {["Loan ID", "Customer", "Jewellery", "Amount", "Status", "Date"].map((heading) => (
+                        <th key={heading} scope="col" className="whitespace-nowrap border-b border-white/15 px-5 py-4 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white">{heading}</th>
+                      ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody>
                     {loans.map((loan, index) => (
-                      <tr key={loan.rawId || loan.id || index} className="text-slate-700">
-                        <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-800 sm:px-5">{loan.id || "—"}</td>
-                        <td className="whitespace-nowrap px-4 py-3">{loan.customer || "—"}</td>
-                        <td className="px-4 py-3">{loan.jewellery || "—"}</td>
-                        <td className="whitespace-nowrap px-4 py-3 font-semibold">{loan.amount || "—"}</td>
-                        <td className="whitespace-nowrap px-4 py-3">
-                          <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-800">{loan.status || "—"}</span>
+                      <tr key={loan.rawId || loan.id || index} className="group transition-colors odd:bg-white even:bg-slate-50/60 hover:bg-emerald-50/70">
+                        <td className="whitespace-nowrap border-b border-slate-100 px-5 py-4 text-sm font-extrabold tabular-nums text-slate-800">{loan.id || "—"}</td>
+                        <td className="whitespace-nowrap border-b border-slate-100 px-5 py-4 text-sm font-semibold text-slate-800">{loan.customer || "—"}</td>
+                        <td className="border-b border-slate-100 px-5 py-4 text-sm text-slate-600">{loan.jewellery || "—"}</td>
+                        <td className="whitespace-nowrap border-b border-slate-100 px-5 py-4 text-sm font-extrabold tabular-nums text-slate-800">{loan.amount || "—"}</td>
+                        <td className="whitespace-nowrap border-b border-slate-100 px-5 py-4">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${loan.status === "Active" ? "bg-emerald-100 text-emerald-800" : loan.status === "Overdue" ? "bg-rose-100 text-rose-800" : loan.status === "Pending" ? "bg-amber-100 text-amber-800" : "bg-sky-100 text-sky-800"}`}>{loan.status || "—"}</span>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-slate-500">{loan.date || "—"}</td>
+                        <td className="whitespace-nowrap border-b border-slate-100 px-5 py-4 text-xs font-medium text-slate-500">{loan.date || "—"}</td>
                       </tr>
                     ))}
                     {!loans.length && (
                       <tr>
-                        <td colSpan="6" className="px-4 py-8 text-center text-slate-500">No loan activity is available.</td>
+                        <td colSpan="6" className="px-6 py-14 text-center text-sm font-medium text-slate-500">No loan activity is available.</td>
                       </tr>
                     )}
                   </tbody>
@@ -488,28 +508,31 @@ const Reports = () => {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5 xl:col-span-2">
-              <div>
-                <h2 className="font-bold text-slate-900">Product price snapshot</h2>
-                <p className="mt-1 text-xs text-slate-500">Products returned by the dashboard API</p>
+            <section className="rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] sm:p-6 xl:col-span-2">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Gem size={18} /></span>
+                <div>
+                  <h2 className="text-base font-black text-slate-900">Product price snapshot</h2>
+                  <p className="mt-1 text-xs text-slate-500">Products returned by the dashboard API</p>
+                </div>
               </div>
-              <div className="mt-4 divide-y divide-slate-100">
+              <div className="mt-2 divide-y divide-slate-100">
                 {products.slice(0, 5).map((product, index) => (
-                  <div key={product.id || `${product.name}-${index}`} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div key={product.id || `${product.name}-${index}`} className="flex items-center justify-between gap-3 rounded-xl px-2 py-3 transition hover:bg-amber-50/50 first:pt-3 last:pb-0">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100">
                         <Gem size={17} />
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-slate-800">{product.name || "Product"}</p>
-                        <p className="truncate text-[11px] text-slate-500">{product.cat || "Jewellery"}</p>
+                        <p className="truncate text-sm font-extrabold text-slate-800">{product.name || "Product"}</p>
+                        <p className="mt-0.5 truncate text-xs text-slate-500">{product.cat || "Jewellery"}</p>
                       </div>
                     </div>
-                    <p className="shrink-0 text-xs font-bold text-slate-800">{product.amount || "—"}</p>
+                    <p className="shrink-0 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-extrabold tabular-nums text-slate-800">{product.amount || "—"}</p>
                   </div>
                 ))}
                 {!products.length && (
-                  <p className="py-8 text-center text-sm text-slate-500">No product data is available.</p>
+                  <p className="py-10 text-center text-sm font-medium text-slate-500">No product data is available.</p>
                 )}
               </div>
             </section>

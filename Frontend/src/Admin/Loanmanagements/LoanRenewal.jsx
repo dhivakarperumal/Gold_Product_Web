@@ -523,10 +523,12 @@ export default function LoanRenewal() {
 
   return (
     <main className="mx-auto max-w-[1500px] space-y-5 p-4 sm:p-6">
-      <Link to="/admin/loans/loanreniwel" className="inline-flex items-center gap-2 text-sm font-semibold text-[#008577]"><FiArrowLeft /> All loans for renewal</Link>
-      <header className="flex flex-col justify-between gap-4 rounded-2xl bg-gradient-to-br from-[#064A41] to-[#087568] p-5 text-white shadow-lg sm:flex-row sm:items-center sm:p-6">
-        <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">Loan Renewal</p><h1 className="mt-1 text-2xl font-extrabold">{loan.loan_number}</h1><p className="mt-1 text-sm text-white/75">{loan.customer_name} · {loan.customer_mobile || "No mobile"}</p></div>
-        <span className={`w-fit rounded-full px-3 py-1.5 text-xs font-bold ${active ? "bg-emerald-300/20 text-emerald-50" : "bg-white/15 text-white"}`}>{loan.loan_status}</span>
+      <header className="space-y-4 rounded-2xl bg-gradient-to-br from-[#064A41] to-[#087568] p-5 text-white shadow-lg sm:p-6">
+        <Link to="/admin/loans/loanreniwel" className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/20"><FiArrowLeft /> All loans for renewal</Link>
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">Loan Renewal</p><h1 className="mt-1 text-2xl font-extrabold">{loan.loan_number}</h1><p className="mt-1 text-sm text-white/75">{loan.customer_name} · {loan.customer_mobile || "No mobile"}</p></div>
+          <span className={`w-fit rounded-full px-3 py-1.5 text-xs font-bold ${active ? "bg-emerald-300/20 text-emerald-50" : "bg-white/15 text-white"}`}>{loan.loan_status}</span>
+        </div>
       </header>
       {manualReviewDue && <section role="alert" className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900"><FiCalendar className="mt-0.5 shrink-0" /><div><p className="font-bold">15-month account review required</p><p className="mt-1 text-sm">This unpaid loan has passed its maturity and reached {dateText(loanReviewDate(loan))}. Refer it for authorized manual review. This flag does not authorize automatic collateral seizure or forfeiture.</p></div></section>}
       {manualReviewDue && (

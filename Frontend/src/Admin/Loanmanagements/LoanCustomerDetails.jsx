@@ -129,9 +129,6 @@ export default function LoanCustomerDetails() {
   return (
     <main className="mx-auto max-w-[1400px] space-y-5 p-3 text-slate-800 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link to="/admin/loans/customermanagement" className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-bold text-[#008577] transition hover:bg-emerald-50 hover:text-[#003B3B]">
-          <FiArrowLeft /> Customer Management
-        </Link>
         <button
           type="button"
           onClick={() => navigate("/admin/loans/customermanagement", { state: { editCustomerId: customer.id } })}
@@ -142,6 +139,9 @@ export default function LoanCustomerDetails() {
       </div>
 
       <section className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-r from-white via-white to-emerald-50/80 p-5 shadow-[0_8px_28px_rgba(15,23,42,0.06)] sm:p-7">
+        <Link to="/admin/loans/customermanagement" className="relative z-10 mb-5 inline-flex min-h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-white/70 px-3.5 py-2 text-sm font-semibold text-[#064A41] transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-700/15">
+          <FiArrowLeft /> Customer Management
+        </Link>
         <div className="pointer-events-none absolute -right-12 -top-20 h-56 w-56 rounded-full bg-emerald-100/50 blur-3xl" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
           <div className="relative flex h-24 w-24 shrink-0 items-center justify-center self-start rounded-3xl bg-gradient-to-br from-emerald-100 to-teal-50 text-4xl font-black text-[#008577] ring-4 ring-white shadow-md sm:self-auto">

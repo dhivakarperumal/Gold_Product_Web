@@ -42,11 +42,11 @@ const navItems = [
  
 
   {
-    label: "Take Order",
+    label: "Tack Order",
     icon: ClipboardList,
     children: [
-     { path: "/admin/tack-orders", label: "Take Order", icon: ClipboardList },
-     { path: "/admin/tackAllOrders", label: "All Take Orders", icon: ClipboardList },
+     { path: "/admin/tack-orders", label: "Tack Order", icon: ClipboardList },
+     { path: "/admin/tackAllOrders", label: "All Tack Orders", icon: ClipboardList },
     ],
   },
   
