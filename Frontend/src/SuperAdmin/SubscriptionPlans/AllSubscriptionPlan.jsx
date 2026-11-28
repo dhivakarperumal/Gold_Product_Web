@@ -3,9 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { CalendarDays, Copy, Eye, Filter, Layers3, LayoutGrid, List, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import api from "../../api";
+import { formatCurrency } from "../../utils/currency";
 import AddSubScription from "./AddSubScription";
 
-const formatAmount = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
+const formatAmount = formatCurrency;
 const formatDate = (value) => value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const PAGE_SIZE = 10;
 

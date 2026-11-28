@@ -212,8 +212,9 @@ async function getBillingProductsByIds(productIds, createdByUserId) {
   return rows;
 }
 
-async function createBilling(billing, userId, initialPayment = null) {
-  const paidAmount = initialPayment ? Number(initialPayment.amount) : 0;
+async function createBilling(billing, userId, initialPayment = null, cashCollectionPayment = null) {
+  const initialPayments = [initialPayment, cashCollectionPayment].filter(Boolean);
+  const paidAmount = initialPayments.reduce((total, payment) => total + Number(payment.amount), 0);
   const { balanceDue } = getPaymentState(billing.total_amount, paidAmount);
   const values = [
     billing.invoice_no,
@@ -240,7 +241,7 @@ async function createBilling(billing, userId, initialPayment = null) {
      source_tack_order_id, updated_at)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
 
-  if (!initialPayment && billing.source_tack_order_id == null) {
+  if (initialPayments.length === 0 && billing.source_tack_order_id == null) {
     const [result] = await pool.execute(insertQuery, values);
     return getBillingById(result.insertId, userId);
   }
@@ -275,8 +276,8 @@ async function createBilling(billing, userId, initialPayment = null) {
         throw error;
       }
     }
-    if (initialPayment) {
-      await getFundBalance(connection, initialPayment.created_by_user_id, true);
+    if (initialPayments.length > 0) {
+      await getFundBalance(connection, initialPayments[0].created_by_user_id, true);
     }
     const [result] = await connection.execute(insertQuery, values);
     if (initialPayment) {
@@ -288,7 +289,7 @@ async function createBilling(billing, userId, initialPayment = null) {
            VALUES (?, 'PAYMENT', ?, ?, ?, ?, ?, ?)`,
           [
             result.insertId,
-            paidAmount.toFixed(2),
+            Number(initialPayment.amount).toFixed(2),
             initialPayment.payment_method,
             initialPayment.reference_number || null,
             initialPayment.payment_date,
@@ -350,7 +351,7 @@ async function createBilling(billing, userId, initialPayment = null) {
       await insertFundRecordOnce(connection, {
         transaction_type: 'CREDIT',
         transaction_date: initialPayment.payment_date,
-        amount: paidAmount.toFixed(2),
+        amount: Number(initialPayment.amount).toFixed(2),
         payment_method: initialPayment.payment_method,
         description: `Billing collection ${billing.invoice_no}${customerName ? ` · ${customerName}` : ''}`,
         admin_name: initialPayment.admin_name,
@@ -358,6 +359,36 @@ async function createBilling(billing, userId, initialPayment = null) {
         idempotency_key: initialPayment.idempotency_key,
         created_by: initialPayment.created_by_user_id,
         updated_by: initialPayment.created_by_user_id
+      });
+    }
+    if (cashCollectionPayment) {
+      await connection.execute(
+        `INSERT INTO billing_payments
+          (billing_id, payment_kind, amount, payment_method, reference_number,
+           payment_date, idempotency_key, created_by)
+         VALUES (?, 'PAYMENT', ?, ?, ?, ?, ?, ?)`,
+        [
+          result.insertId,
+          Number(cashCollectionPayment.amount).toFixed(2),
+          cashCollectionPayment.payment_method,
+          cashCollectionPayment.reference_number || null,
+          cashCollectionPayment.payment_date,
+          cashCollectionPayment.idempotency_key,
+          cashCollectionPayment.created_by || null
+        ]
+      );
+      const customerName = billing.customers.map((customer) => customer.name).filter(Boolean).join(', ');
+      await insertFundRecordOnce(connection, {
+        transaction_type: 'CREDIT',
+        transaction_date: cashCollectionPayment.payment_date,
+        amount: Number(cashCollectionPayment.amount).toFixed(2),
+        payment_method: cashCollectionPayment.payment_method,
+        description: `Billing collection ${billing.invoice_no}${customerName ? ` · ${customerName}` : ''}`,
+        admin_name: cashCollectionPayment.admin_name,
+        related_reference: billing.invoice_no,
+        idempotency_key: cashCollectionPayment.idempotency_key,
+        created_by: cashCollectionPayment.created_by_user_id,
+        updated_by: cashCollectionPayment.created_by_user_id
       });
     }
     if (billing.source_tack_order_id != null) {

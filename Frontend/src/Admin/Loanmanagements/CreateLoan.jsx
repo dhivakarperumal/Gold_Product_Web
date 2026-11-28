@@ -8,16 +8,10 @@ import api, { getPrivateFile } from "../../api";
 import { formatRateDate, getRateForPurity } from "../../PrivateRouter/goldRateUtils";
 import useGoldRates from "../../PrivateRouter/useGoldRates";
 import { printLoanAgreement, printLoanDraft } from "./loanPrint";
-
-const loanCurrencyFormatter = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0
-});
+import { formatCurrency } from "../../utils/currency";
 
 function formatLoanCurrency(value) {
-  if (value == null || value === "" || !Number.isFinite(Number(value))) return "—";
-  return loanCurrencyFormatter.format(Number(value));
+  return formatCurrency(value);
 }
 
 const INTEREST_FREQUENCIES = [

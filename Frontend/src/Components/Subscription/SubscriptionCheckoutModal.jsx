@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LoaderCircle, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import api from "../../api";
+import { formatCurrency } from "../../utils/currency";
 
 let razorpayScriptPromise;
 
@@ -23,9 +24,7 @@ function loadRazorpayCheckout() {
   return razorpayScriptPromise;
 }
 
-const formatAmount = (value) => Number.isFinite(Number(value))
-  ? `₹${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`
-  : "—";
+const formatAmount = formatCurrency;
 
 export default function SubscriptionCheckoutModal({
   token,

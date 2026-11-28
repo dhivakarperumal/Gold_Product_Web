@@ -18,6 +18,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import api from "../../api";
+import { formatCurrency } from "../../utils/currency";
 
 const TABS = [
   { id: "overview", label: "Shop overview", icon: Store },
@@ -49,9 +50,7 @@ function formatDate(value) {
     : date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function formatAmount(value) {
-  return Number.isFinite(Number(value)) ? `₹${Number(value).toLocaleString("en-IN")}` : "—";
-}
+const formatAmount = formatCurrency;
 
 function StatusBadge({ value }) {
   const status = String(value || "pending").toLowerCase();

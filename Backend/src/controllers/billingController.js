@@ -255,9 +255,10 @@ function normalizeBilling(body, currentRateSet = null, gstDefaults = DEFAULT_BIL
   if (!Number.isFinite(gstAmount) || gstAmount < 0 || gstAmount > 9999999999.99) {
     return { error: 'GST amount is invalid' };
   }
-  const totalAmount = taxMode === 'Tax Inclusive'
+  const calculatedTotalAmount = taxMode === 'Tax Inclusive'
     ? netSubtotal
     : Math.round((netSubtotal + gstAmount) * 100) / 100;
+  const totalAmount = Math.round(calculatedTotalAmount);
   if (subTotal > 9999999999.99 || totalAmount > 9999999999.99) {
     return { error: 'Bill total exceeds the supported limit' };
   }
@@ -408,6 +409,20 @@ async function postBilling(req, res, next) {
     );
     if (error) return res.status(400).json({ message: error });
     billing.source_tack_order_id = tackOrder?.id ?? null;
+    const collectedAmountResult = normalizeMoney(
+      req.body?.cash_collected_amount,
+      'Cash collected',
+      false
+    );
+    if (collectedAmountResult.error) return res.status(400).json({ message: collectedAmountResult.error });
+    const cashCollectedAmount = collectedAmountResult.value;
+    const advanceAmount = Number(tackOrder?.advance_amount || 0);
+    if (advanceAmount + cashCollectedAmount > billing.total_amount) {
+      return res.status(400).json({ message: 'Tack order advance and cash collected cannot exceed the bill total' });
+    }
+    if (cashCollectedAmount > 0 && !PAYMENT_METHODS.has(req.body?.cash_collection_method)) {
+      return res.status(400).json({ message: 'Select a valid payment method for the cash collected' });
+    }
     let initialPayment = null;
     if (tackOrder && Number(tackOrder.advance_amount) > 0) {
       if (Number(tackOrder.advance_amount) > billing.total_amount) {
@@ -428,7 +443,23 @@ async function postBilling(req, res, next) {
         admin_name: req.adminUser.name || req.adminUser.username
       };
     }
-    const savedBill = await createBilling(billing, req.adminUser.user_id, initialPayment);
+    const cashCollectionPayment = cashCollectedAmount > 0 ? {
+      amount: cashCollectedAmount,
+      payment_method: req.body.cash_collection_method,
+      payment_date: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      reference_number: billing.invoice_no,
+      idempotency_key: `billing-cash-collection:${randomUUID()}`,
+      created_by: req.adminUser.id,
+      updated_by: req.adminUser.user_id,
+      created_by_user_id: req.adminUser.user_id,
+      admin_name: req.adminUser.name || req.adminUser.username
+    } : null;
+    const savedBill = await createBilling(
+      billing,
+      req.adminUser.user_id,
+      initialPayment,
+      cashCollectionPayment
+    );
     return res.status(savedBill.already_exists ? 200 : 201).json(savedBill);
   } catch (error) {
     if (error.code === 'TACK_ORDER_NOT_FOUND') return res.status(404).json({ message: error.message });

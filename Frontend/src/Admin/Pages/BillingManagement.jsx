@@ -7,7 +7,7 @@ import api from "../../api";
 import DateRangeFilter from "../Components/DateRangeFilter";
 import useGoldRates from "../../PrivateRouter/useGoldRates";
 import { getReceiptSettings } from "./receiptSettings";
-import { formatCompactCurrency as compactCurrency, formatCurrency as currency } from "../../utils/currency";
+import { formatCompactCurrency as compactCurrency, formatCurrency as currency, roundCurrencyAmount } from "../../utils/currency";
 import { resolveBackendImageUrl } from "../../Components/Home/productDisplay";
 
 const EMPTY_CUSTOMER = { name: "", phone: "", email: "", address: "" };
@@ -485,8 +485,10 @@ export default function BillingManagement() {
   const [tackOrderSourceNo, setTackOrderSourceNo] = useState(tackOrderPrefill?.sourceNo || "");
   const [tackOrderAdvanceAmount, setTackOrderAdvanceAmount] = useState(tackOrderPrefill?.advanceAmount || "0");
   const [advancePaymentMethod, setAdvancePaymentMethod] = useState("Other");
+  const [cashCollectedAmount, setCashCollectedAmount] = useState("0");
+  const [cashCollectedManuallyEdited, setCashCollectedManuallyEdited] = useState(false);
+  const [cashCollectionMethod, setCashCollectionMethod] = useState("Cash");
   const [viewingBill, setViewingBill] = useState(null);
-  const [billPayment, setBillPayment] = useState(null);
   const [billSearch, setBillSearch] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [billView, setBillView] = useState("list");
@@ -641,9 +643,19 @@ export default function BillingManagement() {
       : Math.round(taxableSubtotal * gstRate) / 100
     : 0;
   const gst = calculatedGst;
-  const total = taxMode === "Tax Inclusive"
+  const total = roundCurrencyAmount(taxMode === "Tax Inclusive"
     ? taxableSubtotal
-    : Math.round((taxableSubtotal + gst) * 100) / 100;
+    : Math.round((taxableSubtotal + gst) * 100) / 100);
+  const advanceAmount = tackOrderSourceId ? Number(tackOrderAdvanceAmount) || 0 : 0;
+  const validAdvanceAmount = Number.isFinite(advanceAmount) && advanceAmount >= 0 && advanceAmount <= total;
+  const maxCashCollected = Math.max(0, total - advanceAmount);
+  const effectiveCashCollectedAmount = cashCollectedManuallyEdited
+    ? cashCollectedAmount
+    : String(maxCashCollected);
+  const parsedCashCollected = Number(effectiveCashCollectedAmount);
+  const validCashCollected = Number.isFinite(parsedCashCollected)
+    && parsedCashCollected >= 0
+    && parsedCashCollected <= maxCashCollected;
   const totalBilled = bills.reduce((sum, bill) => sum + (Number(bill.total_amount) || 0), 0);
   const todayBilled = bills.reduce((sum, bill) => {
     if (!bill.created_at || new Date(bill.created_at).toLocaleDateString("en-CA") !== todayKey) return sum;
@@ -874,6 +886,9 @@ export default function BillingManagement() {
     setTackOrderSourceNo("");
     setTackOrderAdvanceAmount("0");
     setAdvancePaymentMethod("Other");
+    setCashCollectedAmount("0");
+    setCashCollectedManuallyEdited(false);
+    setCashCollectionMethod("Cash");
     setCustomers([{ ...EMPTY_CUSTOMER }]);
     setProducts([]);
     setProductToAdd({ ...EMPTY_PRODUCT });
@@ -899,6 +914,9 @@ export default function BillingManagement() {
     setTackOrderSourceNo("");
     setTackOrderAdvanceAmount("0");
     setAdvancePaymentMethod("Other");
+    setCashCollectedAmount("0");
+    setCashCollectedManuallyEdited(false);
+    setCashCollectionMethod("Cash");
     setProductToAdd({ ...EMPTY_PRODUCT });
     setExchanges(billExchanges.map((exchange) => ({
       ...EMPTY_EXCHANGE,
@@ -928,40 +946,6 @@ export default function BillingManagement() {
     } catch (error) {
       console.error("Failed to delete bill:", error);
       toast.error(error.response?.data?.message || "Could not delete bill.");
-    }
-  };
-
-  const openBillPayment = (bill, paymentKind = "PAYMENT") => {
-    setBillPayment({
-      bill,
-      payment_kind: paymentKind,
-      amount: paymentKind === "PAYMENT" ? String(Number(bill.balance_due || 0)) : String(Number(bill.paid_amount || 0)),
-      payment_method: "Cash",
-      payment_date: new Date().toLocaleString("sv-SE").replace(" ", "T").slice(0, 16),
-      reference_number: ""
-    });
-  };
-
-  const saveBillPayment = async (event) => {
-    event.preventDefault();
-    if (!billPayment) return;
-    setSaving(true);
-    try {
-      const { bill, ...payment } = billPayment;
-      const { data } = await api.post(`/billings/${bill.id}/payments`, {
-        ...payment,
-        amount: Number(payment.amount),
-        idempotency_key: crypto.randomUUID()
-      });
-      setBills((current) => current.map((item) => item.id === data.id ? data : item));
-      if (viewingBill?.id === data.id) setViewingBill(data);
-      setBillPayment(null);
-      toast.success(payment.payment_kind === "PAYMENT" ? "Payment recorded and added to the fund ledger." : "Refund recorded and deducted from the fund ledger.");
-    } catch (error) {
-      console.error("Failed to record bill payment:", error);
-      toast.error(error.response?.data?.message || "Could not record this bill payment.");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -1044,8 +1028,18 @@ export default function BillingManagement() {
       toast.error("Exchange amount cannot exceed the purchased products subtotal.");
       return;
     }
-    if (Number(tackOrderAdvanceAmount) > total) {
+    const advanceAmount = tackOrderSourceId ? Number(tackOrderAdvanceAmount) || 0 : 0;
+    const cashCollected = parsedCashCollected;
+    if (!Number.isFinite(cashCollected) || cashCollected < 0) {
+      toast.error("Enter a valid non-negative cash collected amount.");
+      return;
+    }
+    if (!validAdvanceAmount) {
       toast.error("Tack order advance cannot exceed the bill total.");
+      return;
+    }
+    if (advanceAmount + cashCollected > total) {
+      toast.error("Tack order advance and cash collected cannot exceed the bill total.");
       return;
     }
     if (!validDiscount) {
@@ -1065,6 +1059,10 @@ export default function BillingManagement() {
         ...(tackOrderSourceId && Number(tackOrderAdvanceAmount) > 0
           ? { advance_payment_method: advancePaymentMethod || "Other" }
           : {}),
+        ...(!editingBillId ? {
+          cash_collected_amount: cashCollected,
+          cash_collection_method: cashCollectionMethod
+        } : {}),
         exchanges: paymentType === "EXCHANGE_GOLD"
           ? exchanges.map((exchange) => ({
             product_name: `${exchange.metal_type || "Gold"} ${exchange.purity || ""} exchange item`.trim(),
@@ -1302,8 +1300,6 @@ export default function BillingManagement() {
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex justify-end gap-0.5">
-                            {Number(bill.balance_due) > 0 && <button type="button" onClick={() => openBillPayment(bill)} className="rounded-md px-2 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50" aria-label={`Collect payment for ${bill.invoice_no}`} title="Collect payment">Collect</button>}
-                            {Number(bill.paid_amount) > 0 && <button type="button" onClick={() => openBillPayment(bill, "REFUND")} className="rounded-md px-2 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50" aria-label={`Refund bill ${bill.invoice_no}`} title="Refund">Refund</button>}
                             <button type="button" onClick={() => setViewingBill(bill)} className="rounded-md p-2 text-sky-700 hover:bg-sky-50" aria-label={`View bill ${bill.invoice_no}`} title="View"><FiEye /></button>
                             <button type="button" onClick={() => printBill(bill)} className="rounded-md p-2 text-[#00695C] hover:bg-emerald-50" aria-label={`Print bill ${bill.invoice_no}`} title="Print"><FiPrinter /></button>
                             {Number(bill.paid_amount) === 0 && <button type="button" onClick={() => editBill(bill)} className="rounded-md p-2 text-amber-700 hover:bg-amber-50" aria-label={`Edit bill ${bill.invoice_no}`} title="Edit"><FiEdit2 /></button>}
@@ -1367,8 +1363,6 @@ export default function BillingManagement() {
                             <p className={`mt-1 font-semibold ${Number(bill.balance_due) > 0 ? "text-rose-600" : "text-slate-400"}`}>Due {currency(bill.balance_due)}</p>
                           </div>
                           <div className="flex shrink-0 items-center gap-1 border-l border-slate-100 pl-2">
-                            {Number(bill.balance_due) > 0 && <button type="button" onClick={() => openBillPayment(bill)} className="rounded-lg px-2 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50" aria-label={`Collect payment for ${bill.invoice_no}`} title="Collect payment">Collect</button>}
-                            {Number(bill.paid_amount) > 0 && <button type="button" onClick={() => openBillPayment(bill, "REFUND")} className="rounded-lg px-2 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-50" aria-label={`Refund bill ${bill.invoice_no}`} title="Refund">Refund</button>}
                             <button type="button" onClick={() => setViewingBill(bill)} className="rounded-lg p-2 text-sky-700 transition hover:bg-sky-50" aria-label={`View bill ${bill.invoice_no}`} title="View"><FiEye /></button>
                             <button type="button" onClick={() => printBill(bill)} className="rounded-lg p-2 text-[#00695C] transition hover:bg-emerald-50" aria-label={`Print bill ${bill.invoice_no}`} title="Print"><FiPrinter /></button>
                             {Number(bill.paid_amount) === 0 && <button type="button" onClick={() => editBill(bill)} className="rounded-lg p-2 text-amber-700 transition hover:bg-amber-50" aria-label={`Edit bill ${bill.invoice_no}`} title="Edit"><FiEdit2 /></button>}
@@ -1572,6 +1566,41 @@ export default function BillingManagement() {
                 <span className="mt-1 block text-xs font-normal text-slate-500">The Tack Order doesn’t store a payment method, so this defaults to Other.</span>
               </label>
             )}
+            {!editingBillId && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className={labelClass}>
+                  Amount collected now (₹)
+                  <input
+                    className={inputClass}
+                    type="number"
+                    min="0"
+                    max={maxCashCollected}
+                    step="0.01"
+                    value={effectiveCashCollectedAmount}
+                    onFocus={(event) => {
+                      if (!cashCollectedManuallyEdited) event.currentTarget.select();
+                    }}
+                    onChange={(event) => {
+                      setCashCollectedAmount(event.target.value);
+                      setCashCollectedManuallyEdited(true);
+                    }}
+                    aria-invalid={!validCashCollected}
+                  />
+                  <span className="mt-1 block text-xs font-normal text-slate-500">Prefilled with the remaining balance; enter the actual amount received (0 if none).</span>
+                </label>
+                <label className={labelClass}>
+                  Payment method
+                  <CustomSelect
+                    className={inputClass}
+                    value={cashCollectionMethod}
+                    onChange={(event) => setCashCollectionMethod(event.target.value)}
+                  >
+                    {PAYMENT_METHOD_OPTIONS.map((method) => <option key={method} value={method}>{method}</option>)}
+                  </CustomSelect>
+                </label>
+                {!validCashCollected && <p className="text-xs font-semibold text-rose-600 sm:col-span-2">Collected amount cannot exceed the remaining bill balance.</p>}
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               {[["FULL_PAYMENT", "Full payment", "Record payment without gold exchange."], ["EXCHANGE_GOLD", "Exchange gold", "Apply gold exchange credit to the bill."]].map(([value, label, description]) => (
                 <label key={value} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${paymentType === value ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-600/10" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"}`}>
@@ -1690,18 +1719,19 @@ export default function BillingManagement() {
               <span className="text-xl font-black tracking-tight text-emerald-900">{validDiscount && validGst ? currency(total) : "—"}</span>
             </div>
             {tackOrderSourceId && Number(tackOrderAdvanceAmount) > 0 && (
-              <>
-                <div className="flex justify-between text-sm text-emerald-700"><span>Advance Paid</span><span>−{currency(tackOrderAdvanceAmount)}</span></div>
-                <div className="flex justify-between text-sm font-bold text-slate-800"><span>Balance Due</span><span>{validDiscount && validGst ? currency(Math.max(0, total - Number(tackOrderAdvanceAmount))) : "—"}</span></div>
-              </>
+              <div className="flex justify-between text-sm text-emerald-700"><span>Advance Paid</span><span>−{currency(tackOrderAdvanceAmount)}</span></div>
             )}
+            {!editingBillId && <>
+              <div className="flex justify-between text-sm text-emerald-700"><span>Cash collected now</span><span>{currency(parsedCashCollected || 0)}</span></div>
+              <div className="flex justify-between text-sm font-bold text-slate-800"><span>Balance Due</span><span>{validDiscount && validGst && validCashCollected ? currency(Math.max(0, total - advanceAmount - parsedCashCollected)) : "—"}</span></div>
+            </>}
             {paymentType === "EXCHANGE_GOLD" && exchangeCredit > subtotal && <p className="text-xs font-semibold text-rose-600">Exchange amount cannot exceed subtotal.</p>}
             </div>
           </section>
           </div>
           <footer className="flex flex-col-reverse items-stretch justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:px-5">
             <p className="text-center text-xs text-slate-500 sm:text-left">Please review customer, item, tax, and payment details before saving.</p>
-            <button type="submit" disabled={saving || !validGst || !validDiscount || Number(tackOrderAdvanceAmount) > total || (paymentType === "EXCHANGE_GOLD" && exchangeCredit > subtotal)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00695C] to-[#008577] px-6 py-3 text-sm font-extrabold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"><FiSave />{saving ? (editingBillId ? "Updating Bill..." : "Saving Bill...") : (editingBillId ? "Update Bill" : "Save Bill")}</button>
+            <button type="submit" disabled={saving || !validGst || !validDiscount || !validAdvanceAmount || !validCashCollected || (paymentType === "EXCHANGE_GOLD" && exchangeCredit > subtotal)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00695C] to-[#008577] px-6 py-3 text-sm font-extrabold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"><FiSave />{saving ? (editingBillId ? "Updating Bill..." : "Saving Bill...") : (editingBillId ? "Update Bill" : "Save Bill")}</button>
           </footer>
         </form>
       )}
@@ -1815,48 +1845,6 @@ export default function BillingManagement() {
               <div className="flex justify-between font-bold text-rose-700"><span>Balance due</span><span>{currency(viewingBill.balance_due)}</span></div>
             </div>
           </section>
-        </div>
-      )}
-      {billPayment && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setBillPayment(null);
-        }}>
-          <form onSubmit={saveBillPayment} className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-            <header className="flex items-center justify-between border-b border-slate-100 p-5">
-              <div>
-                <p className={`text-xs font-bold uppercase tracking-widest ${billPayment.payment_kind === "PAYMENT" ? "text-emerald-700" : "text-rose-700"}`}>
-                  {billPayment.payment_kind === "PAYMENT" ? "Billing collection" : "Bill refund"}
-                </p>
-                <h2 className="mt-1 text-xl font-black">{billPayment.bill.invoice_no}</h2>
-                <p className="mt-1 text-xs text-slate-500">Paid {currency(billPayment.bill.paid_amount)} · Due {currency(billPayment.bill.balance_due)}</p>
-              </div>
-              <button type="button" onClick={() => setBillPayment(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Close payment dialog"><FiX /></button>
-            </header>
-            <div className="grid gap-4 p-5 sm:grid-cols-2">
-              <label className={labelClass}>Amount received (₹)
-                <input className={inputClass} type="number" required min="0.01" max={billPayment.payment_kind === "REFUND" ? Number(billPayment.bill.paid_amount) : Number(billPayment.bill.balance_due)} step="0.01" value={billPayment.amount} onChange={(event) => setBillPayment({ ...billPayment, amount: event.target.value })} />
-              </label>
-              <label className={labelClass}>Payment method
-                <CustomSelect className={inputClass} value={billPayment.payment_method} onChange={(event) => setBillPayment({ ...billPayment, payment_method: event.target.value })}>
-                  {["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Other"].map((method) => <option key={method}>{method}</option>)}
-                </CustomSelect>
-              </label>
-              <label className={labelClass}>Date and time
-                <input className={inputClass} type="datetime-local" required value={billPayment.payment_date} onChange={(event) => setBillPayment({ ...billPayment, payment_date: event.target.value })} />
-              </label>
-              <label className={`${labelClass} sm:col-span-2`}>Reference number / transaction ID
-                <input className={inputClass} maxLength={100} value={billPayment.reference_number} onChange={(event) => setBillPayment({ ...billPayment, reference_number: event.target.value })} />
-              </label>
-              {billPayment.payment_kind === "PAYMENT" && Number(billPayment.amount) > Number(billPayment.bill.balance_due) && <p className="text-xs text-rose-700 sm:col-span-2">Amount cannot exceed the remaining balance.</p>}
-              <p className="text-xs text-slate-500 sm:col-span-2">The invoice and fund ledger are updated together after confirmation. Unpaid invoice amounts are not counted as received funds.</p>
-            </div>
-            <footer className="flex justify-end gap-2 border-t border-slate-100 p-5">
-              <button type="button" onClick={() => setBillPayment(null)} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold">Cancel</button>
-              <button disabled={saving} className={`rounded-lg px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50 ${billPayment.payment_kind === "PAYMENT" ? "bg-[#00695C]" : "bg-rose-700"}`}>
-                {saving ? "Saving…" : billPayment.payment_kind === "PAYMENT" ? "Confirm Collection" : "Confirm Refund"}
-              </button>
-            </footer>
-          </form>
         </div>
       )}
     </main>

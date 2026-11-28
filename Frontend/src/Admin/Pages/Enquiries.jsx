@@ -10,6 +10,7 @@ import { toast } from "react-hot-toast";
 import api from "../../api";
 import useGoldRates from "../../PrivateRouter/useGoldRates";
 import { formatRateDate, getRateForPurity } from "../../PrivateRouter/goldRateUtils";
+import { formatCurrency } from "../../utils/currency";
 
 const STATUSES = ["New Enquiry", "In Progress", "Quotation Sent", "Converted", "Closed", "Not Interested"];
 const TYPES = ["Gold Jewellery", "Gold Coin / Bar", "Gold Loan", "Old Gold Exchange", "Other"];
@@ -411,7 +412,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
               <div className="min-w-0 text-[11px] font-semibold text-slate-700">
                 Daily Rate
                 <div className="mt-1.5 flex min-h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">
-                  {ratesLoading ? "Loading daily rates…" : ratesError ? "Daily rates unavailable" : selectedRate ? `₹${Number(selectedRate.rate_per_unit ?? selectedRate.rate_per_gram).toLocaleString("en-IN")} / ${selectedRate.rate_unit || "gram"}` : activeRateSet ? "Select a purity" : "No active daily rate"}
+                  {ratesLoading ? "Loading daily rates…" : ratesError ? "Daily rates unavailable" : selectedRate ? `${formatCurrency(selectedRate.rate_per_unit ?? selectedRate.rate_per_gram)} / ${selectedRate.rate_unit || "gram"}` : activeRateSet ? "Select a purity" : "No active daily rate"}
                 </div>
                 {ratesError
                   ? <p role="alert" className="mt-1 text-[10px] font-normal text-rose-600">{ratesError}</p>
@@ -542,7 +543,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
                   <td className="px-4 py-3 text-xs font-medium tabular-nums text-slate-500">{(page - 1) * pagination.limit + index + 1}</td>
                   <td className="px-3 py-2.5"><div className="flex items-center gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-fuchsia-100 text-xs font-bold text-fuchsia-700">{enquiry.customer_name?.slice(0, 1)?.toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-[11px] text-slate-800">{enquiry.customer_name}</strong><span className="block text-[10px] font-semibold text-[#00796B]">{enquiry.enquiry_code}</span><a href={`tel:${enquiry.phone}`} className="block text-[10px] text-slate-500 hover:text-emerald-700">{enquiry.phone}</a><span className="block max-w-32 truncate text-[10px] text-slate-400">{enquiry.email || "No email"}</span></span></div></td>
                   <td className="max-w-40 px-3 py-2.5">{enquiry.message && enquiry.message !== enquiry.enquiry_type && <p className="line-clamp-2 text-[11px] text-slate-700">{enquiry.message}</p>}<span className="text-[10px] font-semibold text-slate-500">{enquiry.enquiry_type}</span></td>
-                  <td className="px-3 py-2.5"><div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><Package size={16} /></span><span><strong className="block max-w-32 truncate text-[11px] text-slate-800">{enquiry.product_name || enquiry.product_category || enquiry.enquiry_type}</strong><span className="block text-[10px] text-slate-400">{enquiry.purity ? `${enquiry.metal_type || "Metal"} · ${purityLabelForEnquiry(enquiry)}` : enquiry.product_category || "Product inquiry"}</span>{enquiry.daily_rate != null && <span className="block text-[10px] font-semibold text-emerald-700">₹{Number(enquiry.daily_rate).toLocaleString("en-IN")} / {enquiry.rate_unit || "gram"}</span>}</span></div></td>
+                  <td className="px-3 py-2.5"><div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><Package size={16} /></span><span><strong className="block max-w-32 truncate text-[11px] text-slate-800">{enquiry.product_name || enquiry.product_category || enquiry.enquiry_type}</strong><span className="block text-[10px] text-slate-400">{enquiry.purity ? `${enquiry.metal_type || "Metal"} · ${purityLabelForEnquiry(enquiry)}` : enquiry.product_category || "Product inquiry"}</span>{enquiry.daily_rate != null && <span className="block text-[10px] font-semibold text-emerald-700">{formatCurrency(enquiry.daily_rate)} / {enquiry.rate_unit || "gram"}</span>}</span></div></td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-[10px] text-slate-600">{dateTime(enquiry.created_at)}</td>
                   <td className="px-3 py-2.5"><CustomSelect aria-label={`Change status for enquiry ${enquiry.id}`} value={enquiry.status} onChange={(event) => void updateStatus(enquiry, event.target.value)} className={`max-w-32 rounded-full border-0 px-2.5 py-1.5 text-[10px] font-bold ${statusStyle[enquiry.status] || statusStyle["New Enquiry"]}`}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</CustomSelect></td>
                   <td className="max-w-32 truncate px-3 py-2.5 text-[10px] text-slate-600">{enquiry.created_by_name || (enquiry.source === "Website" ? "Website" : "—")}</td>
@@ -579,7 +580,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
                     <div className="min-w-0">
                       <p className="truncate text-xs font-bold text-slate-800">{enquiry.product_name || enquiry.product_category || enquiry.enquiry_type}</p>
                       <p className="text-[10px] text-slate-500">{enquiry.purity ? `${enquiry.metal_type || "Metal"} · ${purityLabelForEnquiry(enquiry)}` : enquiry.product_category || "Product inquiry"}</p>
-                      {enquiry.daily_rate != null && <p className="mt-0.5 text-[10px] font-semibold text-emerald-700">₹{Number(enquiry.daily_rate).toLocaleString("en-IN")} / {enquiry.rate_unit || "gram"}</p>}
+                      {enquiry.daily_rate != null && <p className="mt-0.5 text-[10px] font-semibold text-emerald-700">{formatCurrency(enquiry.daily_rate)} / {enquiry.rate_unit || "gram"}</p>}
                     </div>
                   </div>
                   <p className="mt-3 line-clamp-2 text-xs text-slate-700">{enquiry.message || enquiry.enquiry_type}</p>
@@ -620,7 +621,7 @@ const Enquiries = ({ isPopup = false, onClose, initialProduct = null, isPublicEn
           <p className="flex items-center gap-2"><Phone size={14} className="text-slate-400" />{selected.phone}</p>
           <p className="flex items-center gap-2"><Mail size={14} className="text-slate-400" />{selected.email || "No email"}</p>
           <p className="flex items-center gap-2"><Package size={14} className="text-slate-400" />{selected.product_name || selected.product_category || selected.enquiry_type}</p>
-          {selected.purity && <p className="flex items-center gap-2"><CircleDollarSign size={14} className="text-slate-400" />{selected.metal_type} · {purityLabelForEnquiry(selected)}{selected.daily_rate != null ? ` · ₹${Number(selected.daily_rate).toLocaleString("en-IN")} / ${selected.rate_unit || "gram"}` : ""}</p>}
+          {selected.purity && <p className="flex items-center gap-2"><CircleDollarSign size={14} className="text-slate-400" />{selected.metal_type} · {purityLabelForEnquiry(selected)}{selected.daily_rate != null ? ` · ${formatCurrency(selected.daily_rate)} / ${selected.rate_unit || "gram"}` : ""}</p>}
           {selected.rate_date && <p className="flex items-center gap-2"><CalendarDays size={14} className="text-slate-400" />Rate date: {formatRateDate(selected.rate_date)}</p>}
           <p className="flex items-center gap-2"><CalendarDays size={14} className="text-slate-400" />{dateTime(selected.created_at)}</p>
           <p className="flex items-center gap-2"><UserRound size={14} className="text-slate-400" />Created by: {selected.created_by_name || (selected.source === "Website" ? "Website" : "—")}</p>

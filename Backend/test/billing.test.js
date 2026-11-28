@@ -200,8 +200,20 @@ test('preserves tack-order GST and discount totals when converting to a bill', (
   assert.equal(result.error, undefined);
   assert.equal(result.billing.gst_amount, 5.06);
   assert.equal(result.billing.discount_amount, 20.24);
-  assert.equal(result.billing.total_amount, 237.82);
-  assert.equal(Math.round((result.billing.total_amount - 37.82) * 100) / 100, 200);
+  assert.equal(result.billing.total_amount, 238);
+  assert.equal(Math.round((result.billing.total_amount - 37.82) * 100) / 100, 200.18);
+});
+
+test('rounds the final bill total half up to whole rupees', () => {
+  const belowHalf = normalizeBilling(billingInput({
+    products: [{ product_name: 'Gold chain', category: 'Chain', purity: '22K', price: 10.49 }]
+  }));
+  const atHalf = normalizeBilling(billingInput({
+    products: [{ product_name: 'Gold chain', category: 'Chain', purity: '22K', price: 10.5 }]
+  }));
+
+  assert.equal(belowHalf.billing.total_amount, 10);
+  assert.equal(atHalf.billing.total_amount, 11);
 });
 
 test('rejects invalid billing quantities', () => {
@@ -530,6 +542,136 @@ test('records a transferred tack-order advance with the bill and fund ledger ato
   assert.equal(fundInsert.values[4], '25.00');
   const statusUpdate = executions.find(({ query }) => query.includes('UPDATE tack_orders'));
   assert.deepEqual(statusUpdate.values, ['Partial', '75.00', 'Completed', 42, 'shop-user-1']);
+});
+
+test('records cash collected during bill creation as an initial payment and fund credit', async () => {
+  const originalExecute = pool.execute;
+  const originalGetConnection = pool.getConnection;
+  const executions = [];
+  let committed = false;
+  const connection = {
+    beginTransaction: async () => {},
+    commit: async () => { committed = true; },
+    rollback: async () => {},
+    release: () => {},
+    execute: async (query, values) => {
+      executions.push({ query, values });
+      if (query.includes('SELECT user_id FROM users')) return [[{ user_id: 'shop-user-1' }], []];
+      if (query.includes('AS balance')) return [[{ balance: 500 }], []];
+      if (query.includes('INSERT INTO billings')) return [{ insertId: 90 }, []];
+      return [{ insertId: 1 }, []];
+    }
+  };
+  pool.getConnection = async () => connection;
+  pool.execute = async () => [[{ id: 90, paid_amount: 30, balance_due: 70 }], []];
+  try {
+    const bill = await createBilling({
+      invoice_no: 'BILL-TEST-CASH',
+      customers: [{ name: 'A Customer' }],
+      products: [],
+      exchanges: [],
+      payment_type: 'FULL_PAYMENT',
+      sub_total: 100,
+      discount_amount: 0,
+      gst_amount: 0,
+      total_amount: 100
+    }, 'shop-user-1', null, {
+      amount: 30,
+      payment_method: 'Cash',
+      payment_date: '2026-01-01 12:00:00',
+      reference_number: 'BILL-TEST-CASH',
+      idempotency_key: 'billing-cash-collection:test',
+      created_by: 7,
+      created_by_user_id: 'shop-user-1',
+      admin_name: 'Shop Admin'
+    });
+    assert.deepEqual(bill, { id: 90, paid_amount: 30, balance_due: 70 });
+  } finally {
+    pool.execute = originalExecute;
+    pool.getConnection = originalGetConnection;
+  }
+
+  assert.equal(committed, true);
+  const billInsert = executions.find(({ query }) => query.includes('INSERT INTO billings'));
+  assert.deepEqual(billInsert.values.slice(12, 14), ['30.00', '70.00']);
+  const paymentInsert = executions.find(({ query }) => query.includes('INSERT INTO billing_payments'));
+  assert.equal(paymentInsert.values[1], '30.00');
+  assert.equal(paymentInsert.values[2], 'Cash');
+  const fundInsert = executions.find(({ query }) => query.includes('INSERT INTO funds'));
+  assert.equal(fundInsert.values[2], 'CREDIT');
+  assert.equal(fundInsert.values[4], '30.00');
+  assert.equal(fundInsert.values[5], 'Cash');
+});
+
+test('records tack-order advance and billing-time collection as separate payments', async () => {
+  const originalExecute = pool.execute;
+  const originalGetConnection = pool.getConnection;
+  const executions = [];
+  const connection = {
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => {},
+    release: () => {},
+    execute: async (query, values) => {
+      executions.push({ query, values });
+      if (query.includes('SELECT id, order_status FROM tack_orders')) return [[{ id: 42, order_status: 'Ready' }], []];
+      if (query.includes('SELECT user_id FROM users')) return [[{ user_id: 'shop-user-1' }], []];
+      if (query.includes('AS balance')) return [[{ balance: 500 }], []];
+      if (query.includes('INSERT INTO billings')) return [{ insertId: 91 }, []];
+      return [{ insertId: 1 }, []];
+    }
+  };
+  pool.getConnection = async () => connection;
+  pool.execute = async () => [[{ id: 91, paid_amount: 35, balance_due: 65 }], []];
+  try {
+    const bill = await createBilling({
+      invoice_no: 'BILL-TEST-TACK-CASH',
+      customers: [{ name: 'A Customer' }],
+      products: [],
+      exchanges: [],
+      payment_type: 'FULL_PAYMENT',
+      sub_total: 100,
+      discount_amount: 0,
+      gst_amount: 0,
+      total_amount: 100,
+      source_tack_order_id: 42
+    }, 'shop-user-1', {
+      amount: 25,
+      payment_method: 'Other',
+      payment_date: '2026-01-01 12:00:00',
+      reference_number: 'TACK-TEST',
+      idempotency_key: 'tack-order-advance:shop-user-1:42',
+      created_by: 7,
+      created_by_user_id: 'shop-user-1',
+      admin_name: 'Shop Admin'
+    }, {
+      amount: 10,
+      payment_method: 'Cash',
+      payment_date: '2026-01-01 12:01:00',
+      reference_number: 'BILL-TEST-TACK-CASH',
+      idempotency_key: 'billing-cash-collection:tack-test',
+      created_by: 7,
+      created_by_user_id: 'shop-user-1',
+      admin_name: 'Shop Admin'
+    });
+    assert.deepEqual(bill, { id: 91, paid_amount: 35, balance_due: 65 });
+  } finally {
+    pool.execute = originalExecute;
+    pool.getConnection = originalGetConnection;
+  }
+
+  const billInsert = executions.find(({ query }) => query.includes('INSERT INTO billings'));
+  assert.deepEqual(billInsert.values.slice(12, 14), ['35.00', '65.00']);
+  const paymentInserts = executions.filter(({ query }) => query.includes('INSERT INTO billing_payments'));
+  assert.deepEqual(paymentInserts.map(({ values }) => [values[1], values[2]]), [
+    ['25.00', 'Other'],
+    ['10.00', 'Cash']
+  ]);
+  const fundInserts = executions.filter(({ query }) => query.includes('INSERT INTO funds'));
+  assert.deepEqual(fundInserts.map(({ values }) => [values[2], values[4]]), [
+    ['CREDIT', '25.00'],
+    ['CREDIT', '10.00']
+  ]);
 });
 
 test('reuses a matching fund credit when retrying tack-order bill conversion', async () => {

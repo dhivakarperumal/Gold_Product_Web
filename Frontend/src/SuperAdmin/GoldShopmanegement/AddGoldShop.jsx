@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, CreditCard, Eye, EyeOff, FileText, LoaderCircle, MapPin, Store, UploadCloud, UserRound, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import api from "../../api";
+import { formatCurrency } from "../../utils/currency";
 
 const today = () => {
   const date = new Date();
@@ -717,7 +718,7 @@ export default function AddGoldShop({
                 <div className="grid gap-3 text-sm sm:grid-cols-2">
                   <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Plan</p><p className="mt-1 font-semibold text-stone-800">{shopDetails?.plan_name || "No plan"}</p></div>
                   <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Duration</p><p className="mt-1 font-semibold capitalize text-stone-800">{shopDetails?.duration?.replace("_", " ") || "—"}</p></div>
-                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Amount</p><p className="mt-1 font-semibold text-stone-800">{shopDetails?.subscription_amount == null ? "—" : `₹${Number(shopDetails.subscription_amount).toLocaleString("en-IN")}`}</p></div>
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Amount</p><p className="mt-1 font-semibold text-stone-800">{formatCurrency(shopDetails?.subscription_amount)}</p></div>
                   <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Payment status</p><p className="mt-1 font-semibold capitalize text-stone-800">{shopDetails?.payment_status || "—"}</p></div>
                   <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Start date</p><p className="mt-1 font-semibold text-stone-800">{formatStoredDate(shopDetails?.start_date)}</p></div>
                   <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Expiry date</p><p className="mt-1 font-semibold text-stone-800">{formatStoredDate(shopDetails?.end_date)}</p></div>
@@ -746,7 +747,7 @@ export default function AddGoldShop({
                           <option value="yearly">Yearly</option>
                         </CustomSelect>
                       </label>
-                      <div className={`rounded-xl p-3 ${registrationMode ? "bg-emerald-50" : "bg-amber-50"}`}><p className={labelClass}>Subscription price</p><p className={`mt-1 text-xl font-bold ${registrationMode ? "text-emerald-900" : "text-amber-900"}`}>{Number.isFinite(price) ? `₹${price.toLocaleString("en-IN")}` : "Not configured"}</p></div>
+                      <div className={`rounded-xl p-3 ${registrationMode ? "bg-emerald-50" : "bg-amber-50"}`}><p className={labelClass}>Subscription price</p><p className={`mt-1 text-xl font-bold ${registrationMode ? "text-emerald-900" : "text-amber-900"}`}>{Number.isFinite(price) ? formatCurrency(price) : "Not configured"}</p></div>
                       <div className="rounded-xl border border-stone-200 bg-stone-50 p-3"><p className={labelClass}>Estimated end date</p><p className="mt-1 text-sm font-semibold text-stone-800">{endDate ? formatDate(endDate) : "Select a valid start date"}</p></div>
                       <label className={labelClass}>
                         Start date<span className="ml-1 text-rose-600">*</span>

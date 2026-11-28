@@ -5,7 +5,7 @@ import { FiBox, FiCalendar, FiCheckCircle, FiClock, FiEye, FiFileText, FiGrid, F
 import { FaRupeeSign } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import api from "../../api";
-import { formatCurrency } from "../../utils/currency";
+import { formatCompactCurrency, formatCurrency } from "../../utils/currency";
 import DateRangeFilter from "../Components/DateRangeFilter";
 import { resolveDatePreset } from "../Components/dateRange";
 
@@ -187,7 +187,8 @@ export default function AllTackOrders() {
     },
     {
       label: "Outstanding balance",
-      value: loading ? "—" : formatCurrency(outstandingBalance),
+      value: loading ? "—" : formatCompactCurrency(outstandingBalance),
+      title: loading ? "—" : formatCurrency(outstandingBalance),
       detail: "Across all tack orders",
       icon: <FaRupeeSign aria-hidden="true" />,
       iconStyle: "bg-rose-600 text-white shadow-lg shadow-rose-900/15",
@@ -219,7 +220,7 @@ export default function AllTackOrders() {
             <article key={card.label} className={`flex min-h-[148px] items-center justify-between gap-4 rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.accentStyle}`}>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">{card.label}</p>
-                <p className="mt-2 truncate text-3xl font-black leading-none text-slate-950" title={String(card.value)}>{card.value}</p>
+                <p className="mt-2 truncate text-3xl font-black leading-none text-slate-950" title={card.title || String(card.value)}>{card.value}</p>
                 <p className={`mt-4 flex min-w-0 items-center gap-2 text-xs font-bold ${card.detailStyle}`}>
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
                   <span className="truncate">{card.detail}</span>

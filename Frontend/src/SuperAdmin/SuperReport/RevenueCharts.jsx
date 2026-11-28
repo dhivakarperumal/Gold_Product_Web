@@ -175,7 +175,7 @@ export default function RevenueCharts({
               if (label.includes("(%)") || label.includes("Growth")) {
                 return `${label}: ${val}%`;
               }
-              return `${label}: ₹${Number(val).toLocaleString("en-IN")}`;
+              return `${label}: ${formatCurrency(val)}`;
             }
           }
         }
@@ -193,7 +193,7 @@ export default function RevenueCharts({
           ticks: {
             font: { size: 11 },
             color: "#64748B",
-            callback: (val) => (val >= 1000 ? `₹${(val / 1000).toFixed(0)}k` : `₹${val}`)
+            callback: (val) => (val >= 1000 ? `₹${(val / 1000).toFixed(0)}k` : formatCurrency(val))
           }
         },
         ...(isGrowth && {
@@ -263,7 +263,7 @@ export default function RevenueCharts({
         callbacks: {
           label: (context) => {
             const val = context.raw || 0;
-            return ` ₹${Number(val).toLocaleString("en-IN")}`;
+            return ` ${formatCurrency(val)}`;
           }
         }
       }

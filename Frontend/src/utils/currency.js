@@ -25,9 +25,15 @@ function numericValue(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+export function roundCurrencyAmount(value) {
+  const number = numericValue(value);
+  if (number == null) return null;
+  return Math.sign(number) * Math.floor(Math.abs(number) + 0.5);
+}
+
 export function formatCurrency(value) {
   const number = numericValue(value);
-  return number == null ? "—" : inrCurrencyFormatter.format(number);
+  return number == null ? "—" : inrCurrencyFormatter.format(roundCurrencyAmount(number));
 }
 
 export function formatCompactCurrency(value) {
@@ -37,5 +43,5 @@ export function formatCompactCurrency(value) {
 
 export function formatAmount(value) {
   const number = numericValue(value);
-  return number == null ? "—" : inrAmountFormatter.format(number);
+  return number == null ? "—" : inrAmountFormatter.format(roundCurrencyAmount(number));
 }

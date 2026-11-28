@@ -25,6 +25,7 @@ import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
 import AddGoldShop from "./AddGoldShop";
+import { formatCurrency } from "../../utils/currency";
 
 const PAGE_SIZE = 10;
 
@@ -69,8 +70,7 @@ const accountPlanTypeLabel = (shop) => shop.account_plan_type === "expired"
   ? "Trial expired"
   : shop.account_plan_type || "—";
 
-const formatAmount = (value) =>
-  Number.isFinite(Number(value)) ? `₹${Number(value).toLocaleString("en-IN")}` : "—";
+const formatAmount = formatCurrency;
 
 const paymentMethodValue = (value) => {
   const method = String(value || "").trim().toLowerCase();

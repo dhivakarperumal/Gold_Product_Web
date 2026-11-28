@@ -35,7 +35,7 @@ import {
 import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
 import api from "../api";
-import { formatCompactCurrency } from "../utils/currency";
+import { formatCompactCurrency, formatCurrency } from "../utils/currency";
 
 ChartJS.register(
   ArcElement,
@@ -49,11 +49,6 @@ ChartJS.register(
   Tooltip
 );
 
-const CURRENCY_FORMAT = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0
-});
 const NUMBER_FORMAT = new Intl.NumberFormat("en-IN");
 const COMPACT_NUMBER_FORMAT = new Intl.NumberFormat("en-US", {
   notation: "compact",
@@ -63,7 +58,6 @@ const COMPACT_NUMBER_FORMAT = new Intl.NumberFormat("en-US", {
 });
 const EMPTY_RECENT_SHOPS = [];
 
-const formatCurrency = (amount) => CURRENCY_FORMAT.format(Number(amount) || 0);
 const formatCount = (count) => NUMBER_FORMAT.format(Number(count) || 0);
 const formatCompactCount = (count) => COMPACT_NUMBER_FORMAT.format(Number(count) || 0);
 
